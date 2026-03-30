@@ -45,7 +45,7 @@ print(head(is_missing, n = 20))
 # Count missing values per column
 missing_counts <- colSums(is.na(lb))
 print(missing_counts)
-# USUBJID    LBDTC    LBTEST     LBSTRESN     LBUNIT  LBNRLO  LBNRHI
+# USUBJID    LBDTC    LBTEST     LBSTRESN     LBSTRESU  LBNRLO  LBNRHI
 #        0        0        0      145        0        0        0
 
 # Percentage missing
@@ -416,7 +416,7 @@ cat("\n=== Demographics ===\n")
 print(subject_dm %>% select(USUBJID, AGE, SEX, ARM))
 
 cat("\n=== Glucose values over time ===\n")
-print(subject_glucose %>% select(LBDTC, LBSTRESN, LBUNIT))
+print(subject_glucose %>% select(LBDTC, LBSTRESN, LBSTRESU))
 
 cat("\n=== Adverse events ===\n")
 print(subject_ae %>% select(AESTDTC, AETERM, AESEV))
@@ -458,7 +458,7 @@ lb_with_flags <- lb %>%
 # Export flagged records for manual review
 outliers_for_review <- lb_with_flags %>%
   filter(OUTLIER_STAT == "Y" | OUTLIER_CLIN == "Y") %>%
-  select(USUBJID, LBTEST, LBDTC, LBSTRESN, LBUNIT, OUTLIER_STAT, OUTLIER_CLIN)
+  select(USUBJID, LBTEST, LBDTC, LBSTRESN, LBSTRESU, OUTLIER_STAT, OUTLIER_CLIN)
 
 # Write to file for clinical team to review
 write_csv(outliers_for_review, "outliers_for_review.csv")
@@ -603,7 +603,7 @@ data("dm")
 
 # Step 1: Start with long-format SDTM LB
 analysis_lb <- lb %>%
-  select(USUBJID, LBDTC, VISIT, LBTEST, LBSTRESN, LBUNIT) %>%
+  select(USUBJID, LBDTC, VISIT, LBTEST, LBSTRESN, LBSTRESU) %>%
 
   # Step 2: Create baseline flag (first visit with non-missing value)
   group_by(USUBJID, LBTEST) %>%

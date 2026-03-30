@@ -103,11 +103,11 @@ SDTM uses a systematic naming structure:
 - **--VISITNUM**: Visit sequence (0 = baseline, 1 = week 2, etc.)
 
 **Example**: In the VS domain for systolic blood pressure:
-- **VSSTDTC** = "2024-03-15T09:30:00" (time of measurement)
-- **VSTEST** = "Systolic Blood Pressure"
-- **VSTESTCD** = "SYSBP"
-- **VSSTRESN** = "148"
-- **VSUNIT** = "mmHg"
+- **VSDTC** = "2024-03-15T09:30:00" (date/time of measurement — ISO 8601)
+- **VSTEST** = "Systolic Blood Pressure" (full test name)
+- **VSTESTCD** = "SYSBP" (short code)
+- **VSSTRESN** = 148 (standardised numeric result)
+- **VSSTRESU** = "mmHg" (standardised unit)
 
 This structure ensures any analyst can understand the data without additional documentation.
 
@@ -330,23 +330,23 @@ head(adsl[, c("USUBJID", "AGE", "TRT01A", "BASE_SBP")], 5)
 
 ```{r}
 # Step 3: Build ADLB from VS domain (using vital signs as example labs)
+# Correct SDTM VS columns: VSSTRESU (units), VSDTC (date), VSSTRESN (numeric result)
 adlb <- vs %>%
-  select(STUDYID, USUBJID, VSTESTCD, VSTEST, VSSTRESN, VSUNIT,
-         VISITNUM, VISIT, VSSTDTC) %>%
+  select(STUDYID, USUBJID, VSTESTCD, VSTEST, VSSTRESN, VSSTRESU,
+         VISITNUM, VISIT, VSDTC) %>%
   rename(PARAMCD = VSTESTCD,
-         PARAM = VSTEST,
-         AVAL = VSSTRESN,
-         UNIT = VSUNIT) %>%
+         PARAM   = VSTEST,
+         AVAL    = VSSTRESN,
+         UNIT    = VSSTRESU) %>%
   mutate(
-    # Parse dates
-    VSDTC = as.Date(VSSTDTC),
-    AVAL = as.numeric(AVAL),
+    # Parse date from ISO 8601 character
+    VISITDT = as.Date(VSDTC),
+    AVAL    = as.numeric(AVAL),
 
     # Add analysis flags
     ABLFL = ifelse(VISITNUM == 0, "Y", "N"),  # Baseline flag
-    DTYPE = NA_character_  # Not a calculated variable (raw SDTM)
-  ) %>%
-  select(-VSSTDTC)
+    DTYPE = NA_character_                       # Not a calculated variable (raw SDTM)
+  )
 
 # Merge with baseline values
 adlb <- adlb %>%
@@ -572,15 +572,16 @@ adsl_complete <- dm %>%
 adlb_complete <- vs %>%
   # Filter to key parameters
   filter(VSTESTCD %in% c("SYSBP", "DIABP", "HR")) %>%
-  select(STUDYID, USUBJID, VSTESTCD, VSTEST, VSSTRESN, VSUNIT,
-         VISITNUM, VISIT, VSSTDTC) %>%
+  # SDTM VS: VSSTRESU = standardised unit; VSDTC = date of measurement
+  select(STUDYID, USUBJID, VSTESTCD, VSTEST, VSSTRESN, VSSTRESU,
+         VISITNUM, VISIT, VSDTC) %>%
   rename(PARAMCD = VSTESTCD,
-         PARAM = VSTEST,
-         AVAL = VSSTRESN) %>%
+         PARAM   = VSTEST,
+         AVAL    = VSSTRESN) %>%
   mutate(
-    AVAL = as.numeric(AVAL),
-    VISITDT = as.Date(VSSTDTC),
-    ABLFL = ifelse(VISITNUM == 0, "Y", "N")
+    AVAL    = as.numeric(AVAL),
+    VISITDT = as.Date(VSDTC),
+    ABLFL   = ifelse(VISITNUM == 0, "Y", "N")
   ) %>%
   # Add baseline values
   left_join(

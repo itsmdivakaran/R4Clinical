@@ -135,7 +135,7 @@ LBDTC:   Lab test date
 LBTEST:  Lab test name (e.g., "Hemoglobin")
 LBCAT:   Lab category (e.g., "Hematology")
 LBSTRESN: Lab value (numeric, standardized result)
-LBUNIT:  Lab unit (e.g., "g/dL")
+LBSTRESU: Lab unit, standardised (e.g., "g/dL")
 LBNRLO:  Lower reference range
 LBNRHI:  Upper reference range
 ```
