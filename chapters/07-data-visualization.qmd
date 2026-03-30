@@ -1,0 +1,870 @@
+---
+title: "Chapter 7: Data Visualization in Clinical Research"
+subtitle: "From Grammar of Graphics to Publication-Quality Figures"
+author: "Mahesh Divakaran, Jayadevan Sreedharan, Gunjan Singh"
+---
+
+# Chapter 7: Data Visualization in Clinical Research
+
+## Learning Objectives
+
+By the end of this chapter, you will:
+- Understand the grammar of graphics and how ggplot2 implements it
+- Master core geoms for clinical data (bar, boxplot, line, point, density)
+- Create specialized clinical plots (forest plots, waterfall plots, spaghetti plots)
+- Design Kaplan-Meier curves and adverse event visualizations
+- Apply publication-quality themes and color palettes
+- Save figures in formats required by regulatory submissions (PDF, PNG, vector)
+- Build reproducible, publication-ready visualizations
+
+## 7.1 The Grammar of Graphics
+
+### Why We Visualize
+
+A picture is worth a thousand numbers. In clinical trials, data visualization:
+- **Communicates results** to regulators, clinicians, and patients
+- **Detects patterns** that tables miss
+- **Identifies outliers** and data quality issues
+- **Tells a story** about treatment efficacy and safety
+
+The challenge: How do we make plots that are both **beautiful** and **informative**?
+
+### The Grammar of Graphics Framework
+
+**ggplot2**, created by Hadley Wickham, implements a grammar of graphics where every plot is built from layers:
+
+$$\text{Plot} = \text{Data} + \text{Aesthetics} + \text{Geoms} + \text{Facets} + \text{Themes}$$
+
+**Components:**
+
+1. **Data**: The dataframe containing variables
+2. **Aesthetics (aes)**: Mapping variables to visual properties (x, y, color, size, fill)
+3. **Geoms**: Geometric objects representing data (points, lines, bars, boxplots)
+4. **Facets**: Small multiples, split by grouping variables
+5. **Themes**: Overall visual styling (fonts, colors, background)
+
+### Simple Example: Building Layer by Layer
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(pharmaversesdtm)
+
+# Load data
+data(vs)
+data(dm)
+
+# Prepare data: baseline vitals by treatment arm
+baseline_vitals <- vs %>%
+  filter(VISITNUM == 0, VSTESTCD == "SYSBP") %>%
+  select(USUBJID, VSSTRESN) %>%
+  mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  rename(SBP = VSSTRESN, Treatment = ARM)
+
+# Layer 1: Initialize plot with data and aesthetics
+p <- ggplot(baseline_vitals, aes(x = Treatment, y = SBP))
+
+# Layer 2: Add points (geom_point)
+p <- p + geom_point(alpha = 0.5)
+
+# Layer 3: Add boxplot
+p <- p + geom_boxplot(fill = NA, color = "blue", size = 1)
+
+# Layer 4: Add mean point in red
+p <- p + stat_summary(fun = mean, geom = "point", color = "red", size = 4)
+
+# Layer 5: Customize labels and theme
+p <- p +
+  labs(
+    title = "Baseline Systolic Blood Pressure by Treatment Arm",
+    x = "Treatment Arm",
+    y = "Systolic BP (mmHg)"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 14, face = "bold"))
+
+print(p)
+```
+
+---
+
+## 7.2 Core Geoms for Clinical Data
+
+### Geom 1: geom_point - Scatter Plot
+
+Shows individual observations, useful for exploring relationships.
+
+```{r}
+# Scatter: Baseline vs. Week 4 systolic BP
+baseline <- vs %>%
+  filter(VISITNUM == 0, VSTESTCD == "SYSBP") %>%
+  select(USUBJID, VSSTRESN) %>%
+  rename(SBP_Baseline = VSSTRESN)
+
+week4 <- vs %>%
+  filter(VISITNUM == 1, VSTESTCD == "SYSBP") %>%
+  select(USUBJID, VSSTRESN) %>%
+  rename(SBP_Week4 = VSSTRESN)
+
+response_data <- baseline %>%
+  left_join(week4, by = "USUBJID") %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  mutate(
+    SBP_Baseline = as.numeric(SBP_Baseline),
+    SBP_Week4 = as.numeric(SBP_Week4),
+    Change = SBP_Week4 - SBP_Baseline
+  ) %>%
+  filter(!is.na(SBP_Baseline) & !is.na(SBP_Week4))
+
+ggplot(response_data, aes(x = SBP_Baseline, y = SBP_Week4, color = ARM)) +
+  geom_point(size = 3, alpha = 0.6) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "gray") +
+  labs(
+    title = "Baseline vs. Week 4 Systolic BP",
+    x = "Baseline SBP (mmHg)",
+    y = "Week 4 SBP (mmHg)",
+    color = "Treatment Arm"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+**Interpretation**: Points above the diagonal line indicate BP increase; below = decrease.
+
+### Geom 2: geom_line - Longitudinal Trends
+
+Shows change over time, essential for tracking treatment response.
+
+```{r}
+# Prepare longitudinal data
+longit_data <- vs %>%
+  filter(VSTESTCD == "SYSBP") %>%
+  select(USUBJID, VISITNUM, VSSTRESN) %>%
+  mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  filter(!is.na(VSSTRESN)) %>%
+  rename(Visit = VISITNUM, SBP = VSSTRESN, Treatment = ARM)
+
+# Mean line plot
+mean_trend <- longit_data %>%
+  group_by(Visit, Treatment) %>%
+  summarise(Mean_SBP = mean(SBP, na.rm = TRUE), .groups = 'drop')
+
+ggplot(longit_data, aes(x = Visit, y = SBP, group = USUBJID, color = Treatment)) +
+  # Individual spaghetti lines (faint)
+  geom_line(alpha = 0.2, color = "gray") +
+  geom_point(alpha = 0.2, size = 1) +
+  # Mean trend (bold)
+  geom_line(data = mean_trend, aes(y = Mean_SBP, group = Treatment),
+            color = "black", size = 1.2, linetype = "solid") +
+  geom_point(data = mean_trend, aes(y = Mean_SBP), color = "black", size = 3) +
+  facet_wrap(~ Treatment) +
+  labs(
+    title = "Systolic BP Over Time: Spaghetti Plot with Mean Trend",
+    x = "Visit Number",
+    y = "Systolic BP (mmHg)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+**Interpretation**: This "spaghetti plot" shows individual trajectories (gray) and mean response (black). Helps identify early responders vs. non-responders.
+
+### Geom 3: geom_bar - Categorical Comparisons
+
+Compares counts or proportions across groups.
+
+```{r}
+# Load adverse events
+data(ae)
+
+# Adverse event frequency by arm
+ae_freq <- ae %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  group_by(ARM, AETERM) %>%
+  summarise(Count = n(), .groups = 'drop') %>%
+  # Top 8 AEs overall
+  arrange(desc(Count)) %>%
+  head(8)
+
+ggplot(ae_freq, aes(x = reorder(AETERM, -Count), y = Count, fill = ARM)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_flip() +
+  labs(
+    title = "Most Common Adverse Events by Treatment Arm",
+    x = "Adverse Event",
+    y = "Count",
+    fill = "Treatment"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### Geom 4: geom_boxplot - Distribution Comparison
+
+Shows median, quartiles, and outliers.
+
+```{r}
+# Boxplot: Baseline vitals by treatment
+baseline_vitals_summary <- vs %>%
+  filter(VISITNUM == 0, VSTESTCD %in% c("SYSBP", "DIABP", "HR")) %>%
+  select(USUBJID, VSTESTCD, VSSTRESN) %>%
+  mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  rename(Test = VSTESTCD, Value = VSSTRESN, Treatment = ARM)
+
+ggplot(baseline_vitals_summary, aes(x = Treatment, y = Value, fill = Treatment)) +
+  geom_boxplot(alpha = 0.7) +
+  geom_point(position = position_jitter(width = 0.1), alpha = 0.3, size = 1) +
+  facet_wrap(~ Test, scales = "free_y") +
+  labs(
+    title = "Baseline Vital Signs by Treatment Arm",
+    y = "Value",
+    fill = "Treatment"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+### Geom 5: geom_histogram & geom_density - Distributions
+
+Visualizes frequency distributions, key for assessing normality.
+
+```{r}
+# Distribution of baseline BP
+sbp_dist <- vs %>%
+  filter(VISITNUM == 0, VSTESTCD == "SYSBP") %>%
+  select(VSSTRESN) %>%
+  mutate(VSSTRESN = as.numeric(VSSTRESN))
+
+# Histogram with density overlay
+ggplot(sbp_dist, aes(x = VSSTRESN)) +
+  geom_histogram(aes(y = ..density..), bins = 20, fill = "skyblue", color = "black") +
+  geom_density(color = "red", linewidth = 1) +
+  stat_function(
+    fun = dnorm,
+    args = list(mean = mean(sbp_dist$VSSTRESN, na.rm = TRUE),
+                sd = sd(sbp_dist$VSSTRESN, na.rm = TRUE)),
+    color = "green", linewidth = 1, linetype = "dashed"
+  ) +
+  labs(
+    title = "Distribution of Baseline Systolic BP",
+    subtitle = "Red = observed density, Green = normal distribution",
+    x = "SBP (mmHg)",
+    y = "Density"
+  ) +
+  theme_minimal()
+```
+
+---
+
+## 7.3 Specialized Clinical Plots
+
+### Forest Plot: Hazard Ratios and Odds Ratios
+
+Forest plots display effect sizes with confidence intervals, common in regulatory submissions.
+
+```{r}
+# Simulated subgroup analysis: HR for BP reduction by patient subgroup
+subgroup_effects <- tibble::tribble(
+  ~Subgroup, ~Comparison, ~HR, ~Lower_CI, ~Upper_CI, ~P_Value,
+  "Overall", "Treatment vs. Control", 0.72, 0.58, 0.89, 0.002,
+  "Age <65", "Treatment vs. Control", 0.68, 0.50, 0.93, 0.015,
+  "Age >=65", "Treatment vs. Control", 0.76, 0.55, 1.05, 0.102,
+  "Female", "Treatment vs. Control", 0.70, 0.50, 0.98, 0.037,
+  "Male", "Treatment vs. Control", 0.74, 0.55, 1.00, 0.049
+)
+
+ggplot(subgroup_effects, aes(y = reorder(Subgroup, HR), x = HR)) +
+  # Confidence interval as horizontal error bar
+  geom_errorbarh(aes(xmin = Lower_CI, xmax = Upper_CI), height = 0.2, size = 1) +
+  # Point estimate
+  geom_point(size = 4, color = "darkblue") +
+  # Vertical line at HR = 1 (no effect)
+  geom_vline(xintercept = 1, linetype = "dashed", color = "red", size = 1) +
+  # Scale x-axis on log scale
+  scale_x_log10() +
+  labs(
+    title = "Forest Plot: Hazard Ratios for BP Response",
+    subtitle = "Points and bars show HR and 95% CI",
+    x = "Hazard Ratio (log scale)",
+    y = "Subgroup"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.text.y = element_text(size = 11)
+  )
+```
+
+**Interpretation**: HR < 1 = treatment reduces outcome; CI not crossing 1.0 = significant at p < 0.05.
+
+### Waterfall Plot: Individual Response in Oncology
+
+Shows each patient's response, useful in oncology (tumor size change) and hypertension trials (BP response).
+
+```{r}
+# Simulated: Individual BP response (Week 4 - Baseline)
+set.seed(42)
+n_patients <- 30
+patient_response <- tibble(
+  Patient_ID = 1:n_patients,
+  Response = sort(rnorm(n_patients, mean = -15, sd = 10)),  # Sorted for waterfall
+  Responder = Response < -10,  # Responders have >10 mmHg drop
+  Treatment = rep(c("Drug A", "Drug B", "Drug C"), each = 10)
+)
+
+ggplot(patient_response, aes(x = reorder(Patient_ID, Response), y = Response, fill = Responder)) +
+  geom_bar(stat = "identity") +
+  geom_hline(yintercept = 0, linetype = "solid", color = "black", size = 1) +
+  geom_hline(yintercept = -10, linetype = "dashed", color = "red", size = 0.8) +
+  facet_wrap(~ Treatment) +
+  scale_fill_manual(
+    values = c("TRUE" = "darkgreen", "FALSE" = "lightcoral"),
+    labels = c("TRUE" = "Responder (>10 mmHg drop)", "FALSE" = "Non-Responder")
+  ) +
+  labs(
+    title = "Waterfall Plot: Individual BP Response by Treatment",
+    x = "Patient (sorted by response)",
+    y = "Change from Baseline (mmHg)",
+    fill = "Status"
+  ) +
+  coord_flip() +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 8),
+    legend.position = "bottom"
+  )
+```
+
+**Interpretation**: Bars below zero = BP reduction (desired). Dashed line at -10 shows response threshold.
+
+### Adverse Event Butterfly Plot
+
+Displays adverse events by system organ class, comparing treatment arms.
+
+```{r}
+# Adverse event counts by SOC and arm
+ae_summary <- ae %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  group_by(AESOC, ARM) %>%
+  summarise(AE_Count = n(), .groups = 'drop') %>%
+  pivot_wider(
+    names_from = ARM,
+    values_from = AE_Count,
+    values_fill = 0
+  ) %>%
+  # Calculate "balance" for plotting
+  mutate(
+    Arm1 = -.data[[names(.)[2]]],  # Negative for left side
+    Arm2 = .data[[names(.)[3]]]    # Positive for right side
+  ) %>%
+  select(AESOC, Arm1, Arm2) %>%
+  rename(Drug_A = Arm1, Drug_B = Arm2) %>%
+  arrange(desc(abs(Drug_A)))
+
+# Prepare for ggplot (long format)
+ae_butterfly <- ae_summary %>%
+  pivot_longer(
+    cols = c(Drug_A, Drug_B),
+    names_to = "Treatment",
+    values_to = "Count"
+  ) %>%
+  mutate(
+    AESOC = factor(AESOC, levels = ae_summary$AESOC),
+    Count_display = abs(Count)
+  )
+
+ggplot(ae_butterfly, aes(x = AESOC, y = Count_display, fill = Treatment)) +
+  geom_bar(stat = "identity", position = "identity", alpha = 0.7) +
+  # Flip so Drug_A (negative) plots left, Drug_B (positive) plots right
+  geom_bar(
+    data = filter(ae_butterfly, Treatment == "Drug_A"),
+    aes(y = -Count_display),
+    stat = "identity", fill = "steelblue", alpha = 0.7
+  ) +
+  geom_bar(
+    data = filter(ae_butterfly, Treatment == "Drug_B"),
+    aes(y = Count_display),
+    stat = "identity", fill = "coral", alpha = 0.7
+  ) +
+  geom_hline(yintercept = 0, color = "black", size = 1) +
+  coord_flip() +
+  labs(
+    title = "Adverse Events Butterfly Plot: Drug A vs. Drug B",
+    x = "System Organ Class",
+    y = "Number of Adverse Events"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+### Kaplan-Meier Curve: Time-to-Event Analysis
+
+Shows probability of event-free survival over time (detailed in Chapter 12; shown here for preview).
+
+```{r}
+# Preview: Simulated time-to-event data
+library(survival)
+
+# Simulate survival data
+set.seed(123)
+n <- 200
+time_to_event <- data.frame(
+  PatientID = 1:n,
+  Time = rexp(n, rate = 0.05),
+  Event = rbinom(n, 1, 0.6),
+  Treatment = rep(c("Treatment", "Control"), each = n/2)
+)
+
+# Fit Kaplan-Meier curve
+km_fit <- survfit(Surv(Time, Event) ~ Treatment, data = time_to_event)
+
+# Plot using base R (ggsurvfit requires full survival workflow)
+plot(km_fit,
+     main = "Kaplan-Meier Curve: Time-to-Event",
+     xlab = "Time (days)",
+     ylab = "Probability of Event-Free Survival",
+     col = c("blue", "red"),
+     lwd = 2)
+legend("topright",
+       c("Treatment", "Control"),
+       col = c("blue", "red"),
+       lwd = 2)
+```
+
+---
+
+## 7.4 Themes and Styling
+
+### Publication-Quality Themes
+
+```{r}
+# Create a base plot
+p_base <- ggplot(baseline_vitals, aes(x = Treatment, y = SBP, fill = Treatment)) +
+  geom_boxplot(alpha = 0.7) +
+  labs(
+    title = "Baseline Systolic Blood Pressure",
+    y = "SBP (mmHg)"
+  )
+
+# Apply different themes
+print(p_base + theme_minimal())
+print(p_base + theme_classic())
+print(p_base + theme_bw())
+```
+
+### Custom Theme for Clinical Submissions
+
+```{r}
+# Create a custom theme suitable for FDA submissions
+theme_clinical <- function() {
+  theme_bw() +
+  theme(
+    # Title and labels
+    plot.title = element_text(
+      size = 14, face = "bold", hjust = 0, margin = margin(b = 10)
+    ),
+    plot.subtitle = element_text(
+      size = 11, hjust = 0, margin = margin(b = 10), color = "gray40"
+    ),
+    axis.title = element_text(size = 11, face = "bold"),
+    axis.text = element_text(size = 10),
+
+    # Legend
+    legend.position = "bottom",
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 10),
+
+    # Grid
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "gray90", size = 0.3),
+
+    # Facets
+    strip.text = element_text(size = 10, face = "bold"),
+    strip.background = element_rect(fill = "gray95", color = NA)
+  )
+}
+
+# Apply custom theme
+ggplot(baseline_vitals_summary, aes(x = Treatment, y = Value, fill = Treatment)) +
+  geom_boxplot(alpha = 0.7) +
+  facet_wrap(~ Test, scales = "free_y") +
+  labs(
+    title = "Baseline Vital Signs by Treatment Arm",
+    subtitle = "Individual data points overlaid",
+    y = "Value",
+    fill = "Treatment Arm"
+  ) +
+  geom_point(position = position_jitter(width = 0.1), alpha = 0.4, size = 1) +
+  theme_clinical()
+```
+
+### Clinical Color Palettes
+
+```{r}
+# Define clinical-appropriate color palette
+clinical_colors <- list(
+  "three_arm" = c("#0173B2", "#DE8F05", "#CC78BC"),  # Blue, Orange, Purple
+  "binary" = c("#56B4E9", "#E69F00"),  # Light blue, Orange
+  "safety" = c("#009E73", "#F0E442", "#CC79A7")  # Green, Yellow, Pink
+)
+
+# Apply to plot
+ggplot(baseline_vitals, aes(x = Treatment, y = SBP, fill = Treatment)) +
+  geom_boxplot(alpha = 0.8) +
+  scale_fill_manual(values = clinical_colors$three_arm) +
+  labs(
+    title = "Baseline SBP by Treatment",
+    y = "SBP (mmHg)",
+    x = ""
+  ) +
+  theme_clinical() +
+  theme(legend.position = "none")
+```
+
+---
+
+## 7.5 Saving Publication-Quality Figures
+
+### Using ggsave()
+
+```{r}
+# Create a comprehensive figure
+fig_sbp <- ggplot(baseline_vitals, aes(x = Treatment, y = SBP, fill = Treatment)) +
+  geom_boxplot(alpha = 0.8) +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.4, size = 2) +
+  scale_fill_manual(values = clinical_colors$three_arm) +
+  labs(
+    title = "Baseline Systolic Blood Pressure by Treatment Arm",
+    y = "Systolic Blood Pressure (mmHg)",
+    x = "Treatment Arm"
+  ) +
+  theme_clinical()
+
+# Save as PDF (vector, scalable)
+ggsave(
+  filename = "figure_sbp_baseline.pdf",
+  plot = fig_sbp,
+  width = 7,
+  height = 5,
+  units = "in",
+  dpi = 300,
+  device = "pdf"
+)
+
+# Save as PNG (raster, high resolution)
+ggsave(
+  filename = "figure_sbp_baseline.png",
+  plot = fig_sbp,
+  width = 7,
+  height = 5,
+  units = "in",
+  dpi = 300,
+  device = "png"
+)
+
+cat("Figures saved:\n")
+cat("- figure_sbp_baseline.pdf (vector format)\n")
+cat("- figure_sbp_baseline.png (raster, 300 DPI)\n")
+```
+
+### Settings for Regulatory Submissions
+
+```{r}
+# FDA/EMA submission requirements:
+# - Minimum 300 DPI for raster images
+# - Vector formats (PDF, EPS) preferred
+# - Figure size: typically 6-7 inches wide, 4-5 inches tall
+# - Readable font sizes: ≥10 pt
+
+# Best practice: Save as PDF for submission
+ggsave_clinical <- function(plot, filename, width = 7, height = 5) {
+  # Save PDF (vector)
+  ggsave(
+    filename = filename,
+    plot = plot,
+    width = width,
+    height = height,
+    units = "in",
+    dpi = 300,
+    device = "pdf"
+  )
+  # Also save PNG for presentations
+  ggsave(
+    filename = sub("\\.pdf$", ".png", filename),
+    plot = plot,
+    width = width,
+    height = height,
+    units = "in",
+    dpi = 300,
+    device = "png"
+  )
+}
+
+# Usage:
+# ggsave_clinical(fig_sbp, "figure_sbp_baseline.pdf")
+```
+
+---
+
+## 7.6 Complete Visualization Workflow
+
+Here's a comprehensive example integrating all concepts:
+
+```{r}
+# ============================================
+# COMPLETE VISUALIZATION WORKFLOW
+# Hypertension Trial - Publication Figures
+# ============================================
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(pharmaversesdtm)
+
+# Load data
+data(dm); data(vs); data(ae); data(lb)
+
+# ========== FIGURE 1: Baseline Demographics ==========
+
+baseline_char <- dm %>%
+  select(USUBJID, ARM, AGE, SEX) %>%
+  mutate(
+    Age_Group = case_when(
+      AGE < 40 ~ "<40",
+      AGE >= 40 & AGE < 65 ~ "40-64",
+      AGE >= 65 ~ ">=65"
+    )
+  )
+
+fig1_demographics <- ggplot(baseline_char, aes(x = Age_Group, fill = ARM)) +
+  geom_bar(position = "dodge", alpha = 0.8) +
+  scale_fill_manual(values = clinical_colors$three_arm) +
+  labs(
+    title = "Figure 1: Baseline Demographics by Age Group",
+    x = "Age Group (years)",
+    y = "Number of Subjects",
+    fill = "Treatment Arm"
+  ) +
+  theme_clinical()
+
+print(fig1_demographics)
+
+# ========== FIGURE 2: Baseline Vital Signs ==========
+
+baseline_vitals_complete <- vs %>%
+  filter(VISITNUM == 0, VSTESTCD %in% c("SYSBP", "DIABP", "HR")) %>%
+  select(USUBJID, VSTESTCD, VSSTRESN) %>%
+  mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  rename(
+    Test = VSTESTCD,
+    Value = VSSTRESN,
+    Treatment = ARM
+  ) %>%
+  mutate(
+    Test = factor(Test,
+                  levels = c("SYSBP", "DIABP", "HR"),
+                  labels = c("Systolic BP (mmHg)",
+                            "Diastolic BP (mmHg)",
+                            "Heart Rate (bpm)"))
+  )
+
+fig2_vitals <- ggplot(baseline_vitals_complete, aes(x = Treatment, y = Value, fill = Treatment)) +
+  geom_boxplot(alpha = 0.7, width = 0.6) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.3, size = 1.5) +
+  facet_wrap(~ Test, scales = "free_y", nrow = 1) +
+  scale_fill_manual(values = clinical_colors$three_arm) +
+  labs(
+    title = "Figure 2: Baseline Vital Signs by Treatment Arm",
+    y = "Value",
+    x = "Treatment Arm"
+  ) +
+  theme_clinical() +
+  theme(legend.position = "none")
+
+print(fig2_vitals)
+
+# ========== FIGURE 3: Longitudinal BP Trend (Spaghetti) ==========
+
+longit_sbp <- vs %>%
+  filter(VSTESTCD == "SYSBP", !is.na(VSSTRESN)) %>%
+  select(USUBJID, VISITNUM, VSSTRESN) %>%
+  mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  rename(Visit = VISITNUM, SBP = VSSTRESN, Treatment = ARM)
+
+mean_sbp <- longit_sbp %>%
+  group_by(Visit, Treatment) %>%
+  summarise(Mean_SBP = mean(SBP, na.rm = TRUE), .groups = 'drop')
+
+fig3_trend <- ggplot(longit_sbp, aes(x = Visit, y = SBP, group = USUBJID, color = Treatment)) +
+  geom_line(alpha = 0.15, color = "gray50") +
+  geom_point(alpha = 0.1, size = 0.5) +
+  geom_line(data = mean_sbp, aes(y = Mean_SBP, group = Treatment, linetype = "Mean"),
+            color = "black", size = 1) +
+  geom_point(data = mean_sbp, aes(y = Mean_SBP), color = "black", size = 3) +
+  facet_wrap(~ Treatment) +
+  scale_linetype_manual(values = "solid") +
+  labs(
+    title = "Figure 3: Systolic BP Over Time (Spaghetti Plot)",
+    x = "Visit Number",
+    y = "Systolic BP (mmHg)",
+    linetype = ""
+  ) +
+  theme_clinical() +
+  theme(legend.position = "bottom")
+
+print(fig3_trend)
+
+# ========== FIGURE 4: Adverse Events ==========
+
+ae_top <- ae %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  group_by(ARM, AETERM) %>%
+  summarise(Count = n(), .groups = 'drop') %>%
+  arrange(desc(Count)) %>%
+  head(10)
+
+fig4_ae <- ggplot(ae_top, aes(x = reorder(AETERM, -Count), y = Count, fill = ARM)) +
+  geom_bar(stat = "identity", position = "dodge", alpha = 0.8) +
+  scale_fill_manual(values = clinical_colors$three_arm) +
+  coord_flip() +
+  labs(
+    title = "Figure 4: Most Common Adverse Events by Treatment",
+    x = "Adverse Event",
+    y = "Count",
+    fill = "Treatment Arm"
+  ) +
+  theme_clinical()
+
+print(fig4_ae)
+
+# ========== SAVE ALL FIGURES ==========
+
+# ggsave_clinical(fig1_demographics, "fig1_demographics.pdf", width = 6, height = 4)
+# ggsave_clinical(fig2_vitals, "fig2_vitals.pdf", width = 10, height = 4)
+# ggsave_clinical(fig3_trend, "fig3_trend.pdf", width = 8, height = 5)
+# ggsave_clinical(fig4_ae, "fig4_ae.pdf", width = 7, height = 5)
+
+cat("\n=== Visualization workflow complete ===\n")
+cat("All figures ready for regulatory submission\n")
+```
+
+---
+
+## 7.7 Best Practices for Clinical Visualization
+
+### Do's
+
+- **Use clear, descriptive titles**: Include figure number and outcome
+- **Label axes with units**: "Systolic BP (mmHg)", not just "SBP"
+- **Include n or sample size**: Especially for plots with facets
+- **Use color thoughtfully**: Accessible to color-blind readers
+- **Provide legends**: Don't make readers guess what colors mean
+- **Save in vector format**: PDF preferred for submissions
+
+### Don'ts
+
+- **Don't use 3D plots**: Hard to interpret, no information gain
+- **Don't use dual axes**: Confusing and often misleading
+- **Don't exceed 3-4 colors**: Too many colors = hard to distinguish
+- **Don't forget grid lines**: Helps readers estimate values
+- **Don't use decorative elements**: Junk that doesn't convey data
+
+---
+
+## Summary: Visualization as Communication
+
+Great clinical visualizations:
+1. **Tell a story**: Communicate the main finding clearly
+2. **Use appropriate geoms**: Match the data type to the geometric object
+3. **Follow publication standards**: FDA/EMA-ready formatting
+4. **Are reproducible**: R code documents exactly how the figure was made
+5. **Are beautiful**: Professional appearance builds credibility
+
+In the next chapters, we'll apply these visualization skills to specific analyses (survival analysis, regression, meta-analysis).
+
+---
+
+## Exercises
+
+### Beginner Exercises
+
+**7.1 Scatter Plot with Treatment Colors**
+
+Using pharmaversesdtm::vs data:
+1. Create scatter plot of baseline vs. Week 4 SBP
+2. Color points by treatment arm (use clinical_colors$three_arm)
+3. Add diagonal reference line (y = x)
+4. Label axes with units
+5. Add a title
+
+Expected: A clear scatter plot showing treatment comparisons.
+
+**7.2 Distribution Comparison**
+
+Using pharmaversesdtm::vs:
+1. Create histograms of baseline SBP by treatment arm (using facet_wrap)
+2. Overlay density curves
+3. Apply theme_clinical()
+4. Save as PDF
+
+Expected: Three side-by-side histograms showing distribution differences.
+
+**7.3 Boxplot with Summary Statistics**
+
+Using pharmaversesdtm::dm and pharmaversesdtm::vs:
+1. Merge baseline SBP with demographics
+2. Create boxplot of SBP by treatment arm
+3. Overlay individual points with jitter
+4. Add mean point in red
+5. Apply custom colors
+
+Expected: Publication-quality boxplot suitable for a submission.
+
+---
+
+### Advanced Exercises
+
+**7.4 Spaghetti Plot with Mean Trend**
+
+Using pharmaversesdtm::vs:
+1. Filter to VSTESTCD == "SYSBP" for all visits
+2. Plot individual subject trajectories (faint gray lines)
+3. Overlay mean trend line (bold black) for each treatment arm
+4. Use facet_wrap by treatment
+5. Apply theme_clinical()
+6. Interpret: Which treatment arm shows best BP control?
+
+Expected: Spaghetti plot showing individual and mean responses.
+
+**7.5 Adverse Event Analysis Dashboard**
+
+Create a 2x2 panel figure:
+- **Panel A** (top-left): Bar chart of top 5 AEs by treatment arm
+- **Panel B** (top-right): Butterfly plot of AEs by system organ class
+- **Panel C** (bottom-left): Proportion of subjects with any AE by arm
+- **Panel D** (bottom-right): Boxplot of AE severity by arm
+
+Combine using `patchwork` package:
+```{r}
+library(patchwork)
+(fig_A + fig_B) / (fig_C + fig_D) +
+  plot_annotation(title = "Adverse Event Summary")
+```
+
+Expected: Comprehensive safety dashboard ready for submission.
+
+---
+
+## Key Takeaways
+
+- **ggplot2 grammar**: Data + Aesthetics + Geoms + Facets + Themes
+- **Clinical geoms**: boxplot, point, line, bar, density, histogram
+- **Specialized plots**: Forest, waterfall, spaghetti, butterfly, K-M curves
+- **Publication quality**: Vector format (PDF), ≥300 DPI, readable fonts
+- **Custom themes**: Develop consistent clinical branding across figures
+- **Reproducibility**: Always save R code alongside saved figures

@@ -1,0 +1,166 @@
+project:
+  type: book
+  output-dir: _book
+
+book:
+  title: "R for Clinical Data Analysis: From Fundamentals to Advanced Biostatistics"
+  subtitle: "A Practical Guide for Clinical Researchers, Biostatisticians, and Statistical Programmers"
+  author:
+    - name: Mahesh Divakaran
+      affiliations:
+        - name: Amity University, Lucknow Campus
+          department: Department of Statistics & Data Science
+          city: Lucknow
+          state: Uttar Pradesh
+          country: India
+    - name: Jayadevan Sreedharan
+      affiliations:
+        - name: Gulf Medical University
+          city: Ajman
+          country: UAE
+    - name: Gunjan Singh
+      affiliations:
+        - name: Amity University, Lucknow Campus
+          department: Department of Statistics & Data Science
+          city: Lucknow
+          state: Uttar Pradesh
+          country: India
+  date: "2026"
+  date-format: "YYYY"
+  cover-image: cover.png
+  favicon: cover.png
+  site-url: https://r4clinical.github.io
+  repo-url: https://github.com/r4clinical/book
+  repo-actions: [edit, issue]
+  sharing: [twitter, linkedin]
+  downloads: [pdf, epub]
+  search: true
+  page-footer:
+    left: |
+      *R for Clinical Data Analysis* by Divakaran, Sreedharan & Singh
+    right: |
+      Built with [Quarto](https://quarto.org/).
+  navbar:
+    pinned: true
+  chapters:
+    - index.qmd
+    - part: "Part I: Foundations of R Programming"
+      chapters:
+        - chapters/01-intro-clinical-r.qmd
+        - chapters/02-r-basics.qmd
+        - chapters/03-data-import-export.qmd
+        - chapters/04-data-cleaning.qmd
+    - part: "Part II: Clinical Data Standards and Structures"
+      chapters:
+        - chapters/05-cdisc-standards.qmd
+        - chapters/06-eda.qmd
+        - chapters/07-data-visualization.qmd
+    - part: "Part III: Core Biostatistics in Clinical Trials"
+      chapters:
+        - chapters/08-descriptive-stats.qmd
+        - chapters/09-hypothesis-testing.qmd
+        - chapters/10-anova-ancova.qmd
+        - chapters/11-regression-models.qmd
+    - part: "Part IV: Advanced Clinical Analysis"
+      chapters:
+        - chapters/12-survival-analysis.qmd
+        - chapters/13-longitudinal-data.qmd
+        - chapters/14-missing-data.qmd
+        - chapters/15-safety-analysis.qmd
+    - part: "Part V: Specialized Clinical Methods"
+      chapters:
+        - chapters/16-bioequivalence.qmd
+        - chapters/17-non-inferiority.qmd
+        - chapters/18-bayesian-methods.qmd
+        - chapters/19-rwe.qmd
+    - part: "Part VI: Reporting and Regulatory Outputs"
+      chapters:
+        - chapters/20-tlfs.qmd
+        - chapters/21-reproducible-reporting.qmd
+        - chapters/22-validation-qc.qmd
+    - part: "Part VII: Case Studies"
+      chapters:
+        - chapters/23-case-study-ete.qmd
+        - chapters/24-oncology-case-study.qmd
+        - chapters/25-infectious-disease.qmd
+    - part: "Appendices"
+      chapters:
+        - appendices/appendix-a.qmd
+        - appendices/appendix-b.qmd
+        - appendices/appendix-c.qmd
+        - appendices/appendix-d.qmd
+    - references.qmd
+
+bibliography: references.bib
+
+format:
+  html:
+    theme:
+      light: [cosmo, custom.scss]
+      dark:  [darkly, custom.scss]
+    code-fold: false
+    code-tools: true
+    code-copy: true
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    fig-cap-location: bottom
+    tbl-cap-location: top
+    crossref:
+      fig-title: "Figure"
+      tbl-title: "Table"
+    link-external-icon: true
+    link-external-newwindow: true
+    callout-appearance: simple
+  pdf:
+    documentclass: scrreprt
+    classoption: [oneside]
+    papersize: letter
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    colorlinks: true
+    linkcolor: "2C6E9E"
+    urlcolor:  "2C6E9E"
+    citecolor: "2C6E9E"
+    geometry:
+      - top=30mm
+      - left=25mm
+      - right=25mm
+      - bottom=30mm
+    include-in-header:
+      text: |
+        \usepackage{amsmath}
+        \usepackage{amssymb}
+        \usepackage{booktabs}
+        \usepackage{longtable}
+        \usepackage{array}
+        \usepackage{multirow}
+        \usepackage{float}
+        \floatplacement{table}{H}
+        \usepackage{fancyhdr}
+        \pagestyle{fancy}
+        \fancyhead[L]{\leftmark}
+        \fancyhead[R]{\thepage}
+  epub:
+    cover-image: cover.png
+    toc: true
+    number-sections: true
+
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: false
+  freeze: auto
+
+knitr:
+  opts_chunk:
+    comment: "#>"
+    fig.align: "center"
+    fig.width: 7
+    fig.height: 5
+    out.width: "90%"
+
+editor: source

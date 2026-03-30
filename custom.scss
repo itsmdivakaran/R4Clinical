@@ -1,0 +1,391 @@
+/*-- scss:defaults --*/
+
+// Clinical Book Color Palette
+$primary:        #2C6E9E;  // Clinical blue
+$secondary:      #5C9E6E;  // Muted green
+$success:        #4CAF7D;
+$info:           #5B9BD5;
+$warning:        #E8A838;
+$danger:         #C0392B;
+$light:          #F8F9FA;
+$dark:           #2C3E50;
+
+// Typography
+$font-family-sans-serif: "Source Sans Pro", "Helvetica Neue", Arial, sans-serif;
+$font-family-monospace:  "Source Code Pro", "Fira Code", "Consolas", monospace;
+$font-size-base:         1rem;
+$line-height-base:       1.6;
+$headings-font-weight:   600;
+
+// Code block styling
+$code-bg:               #F5F7FA;
+$code-color:            #2C3E50;
+$pre-bg:                #F5F7FA;
+$pre-color:             #2C3E50;
+
+// Callout note colors
+$callout-color-note:    $primary;
+$callout-color-tip:     $secondary;
+$callout-color-warning: $warning;
+$callout-color-important: $danger;
+
+/*-- scss:rules --*/
+
+// ===================================================
+// BODY & LAYOUT
+// ===================================================
+
+body {
+  font-family: $font-family-sans-serif;
+  font-size: $font-size-base;
+  line-height: $line-height-base;
+  color: #2C3E50;
+}
+
+// Main content max width
+#quarto-content {
+  max-width: 960px;
+}
+
+// ===================================================
+// HEADINGS
+// ===================================================
+
+h1, h2, h3, h4 {
+  font-family: $font-family-sans-serif;
+  font-weight: $headings-font-weight;
+  color: $dark;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+h1 {
+  font-size: 2rem;
+  border-bottom: 3px solid $primary;
+  padding-bottom: 0.3em;
+  color: $primary;
+}
+
+h2 {
+  font-size: 1.5rem;
+  border-bottom: 1.5px solid #DEE2E6;
+  padding-bottom: 0.2em;
+}
+
+h3 {
+  font-size: 1.2rem;
+  color: darken($primary, 10%);
+}
+
+// Chapter number styling
+.quarto-section-identifier {
+  color: $primary;
+  font-weight: 400;
+}
+
+// ===================================================
+// CODE BLOCKS
+// ===================================================
+
+pre.sourceCode {
+  background-color: #F5F7FA;
+  border-left: 4px solid $primary;
+  border-radius: 4px;
+  padding: 1em;
+  font-size: 0.88rem;
+  font-family: $font-family-monospace;
+  line-height: 1.5;
+  overflow-x: auto;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+code {
+  font-family: $font-family-monospace;
+  font-size: 0.875em;
+  color: #C0392B;
+  background-color: #FDF2F2;
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+}
+
+pre code {
+  color: $pre-color;
+  background-color: transparent;
+  padding: 0;
+}
+
+// R output styling
+.cell-output pre {
+  background-color: #FFFDE7;
+  border-left: 4px solid $warning;
+  border-radius: 4px;
+  padding: 0.75em 1em;
+  font-size: 0.85rem;
+  color: #4A4A4A;
+}
+
+// Code copy button
+.code-copy-button {
+  opacity: 0.5;
+  &:hover { opacity: 1; }
+}
+
+// ===================================================
+// CALLOUT BLOCKS
+// ===================================================
+
+.callout {
+  border-radius: 6px;
+  margin: 1.5em 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+}
+
+.callout-note {
+  border-left: 5px solid $primary;
+  background-color: lighten($primary, 50%);
+  .callout-title { color: $primary; font-weight: 600; }
+}
+
+.callout-tip {
+  border-left: 5px solid $secondary;
+  background-color: lighten($secondary, 48%);
+  .callout-title { color: darken($secondary, 15%); font-weight: 600; }
+}
+
+.callout-warning {
+  border-left: 5px solid $warning;
+  background-color: lighten($warning, 40%);
+  .callout-title { color: darken($warning, 15%); font-weight: 600; }
+}
+
+.callout-important {
+  border-left: 5px solid $danger;
+  background-color: lighten($danger, 44%);
+  .callout-title { color: $danger; font-weight: 600; }
+}
+
+// ===================================================
+// TABLES
+// ===================================================
+
+table {
+  width: 100%;
+  margin: 1.5em 0;
+  border-collapse: collapse;
+  font-size: 0.93rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+thead {
+  background-color: $primary;
+  color: white;
+
+  th {
+    padding: 0.6em 0.9em;
+    text-align: left;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    border: none;
+  }
+}
+
+tbody {
+  tr {
+    border-bottom: 1px solid #E9ECEF;
+
+    &:nth-child(even) { background-color: #F8F9FA; }
+    &:hover { background-color: lighten($primary, 52%); }
+  }
+
+  td {
+    padding: 0.5em 0.9em;
+    vertical-align: middle;
+    border: none;
+  }
+}
+
+// ===================================================
+// FIGURES & PLOTS
+// ===================================================
+
+.quarto-float {
+  margin: 1.5em auto;
+  text-align: center;
+}
+
+.quarto-float-caption {
+  font-size: 0.88rem;
+  color: #6C757D;
+  font-style: italic;
+  margin-top: 0.4em;
+  text-align: center;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+// ===================================================
+// SIDEBAR & NAVIGATION
+// ===================================================
+
+// TOC sidebar
+.sidebar-navigation {
+  .chapter-number {
+    color: $primary;
+    font-weight: 600;
+  }
+
+  a {
+    color: $dark;
+    &:hover { color: $primary; }
+    &.active { color: $primary; font-weight: 600; }
+  }
+}
+
+// ===================================================
+// PART HEADERS
+// ===================================================
+
+.quarto-part-title {
+  font-size: 1.6rem;
+  color: $primary;
+  font-weight: 700;
+  padding: 0.8em 0;
+  border-bottom: 3px solid $primary;
+  margin-bottom: 1.2em;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+// ===================================================
+// EXERCISES BOX
+// ===================================================
+
+.exercises-box {
+  background-color: #EBF5FB;
+  border: 1px solid $info;
+  border-left: 5px solid $info;
+  border-radius: 6px;
+  padding: 1.2em 1.5em;
+  margin: 1.5em 0;
+}
+
+.exercises-box h4 {
+  color: $info;
+  font-size: 1rem;
+  margin-top: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+// ===================================================
+// BOOK COVER / TITLE PAGE
+// ===================================================
+
+#title-block-header {
+  text-align: center;
+  padding: 2em 1em;
+  background: linear-gradient(135deg, $primary 0%, darken($primary, 20%) 100%);
+  color: white;
+  border-radius: 8px;
+  margin-bottom: 2em;
+
+  .title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: white;
+    border-bottom: none;
+  }
+
+  .subtitle {
+    font-size: 1.1rem;
+    color: rgba(255,255,255,0.85);
+    margin-top: 0.5em;
+  }
+
+  .author {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.9);
+    margin-top: 1em;
+  }
+}
+
+// ===================================================
+// EQUATIONS
+// ===================================================
+
+.math.display {
+  margin: 1.2em auto;
+  overflow-x: auto;
+  padding: 0.3em 0;
+}
+
+// ===================================================
+// LINKS
+// ===================================================
+
+a {
+  color: $primary;
+  text-decoration: none;
+
+  &:hover {
+    color: darken($primary, 15%);
+    text-decoration: underline;
+  }
+}
+
+// ===================================================
+// PRINT / PDF OVERRIDES
+// ===================================================
+
+@media print {
+  pre.sourceCode {
+    border: 1px solid #CCC;
+    page-break-inside: avoid;
+  }
+
+  .callout {
+    border: 1px solid #CCC;
+    page-break-inside: avoid;
+  }
+
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+}
+
+// ===================================================
+// DARK MODE OVERRIDES
+// ===================================================
+
+.quarto-dark {
+  pre.sourceCode {
+    background-color: #1E2A38;
+    border-left-color: lighten($primary, 20%);
+    color: #D4E6F1;
+  }
+
+  code {
+    background-color: #2C3E50;
+    color: #F1948A;
+  }
+
+  .cell-output pre {
+    background-color: #2C2A1E;
+    border-left-color: $warning;
+    color: #F0E68C;
+  }
+
+  table thead {
+    background-color: darken($primary, 10%);
+  }
+
+  tbody tr:nth-child(even) {
+    background-color: #2C3E50;
+  }
+}

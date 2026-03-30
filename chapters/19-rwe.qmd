@@ -1,0 +1,553 @@
+---
+title: "Chapter 19: Real-World Evidence (RWE)"
+---
+
+## Introduction
+
+Randomized controlled trials are the gold standard for assessing drug efficacy. Yet most clinical decisions in everyday practice are made on observational data: electronic health records, patient registries, administrative claims, and patient-reported outcomes. The question is: how can we learn causal effects from observational data when patients are not randomly assigned to treatments?
+
+**Real-world evidence (RWE)** uses observational data to understand treatment effectiveness, safety, and value in routine clinical practice. This chapter covers the challenges of observational data (confounding, selection bias), propensity score methods for causal inference, instrumental variables, difference-in-differences designs, and regulatory guidance on RWE.
+
+## 19.1 What Is Real-World Evidence?
+
+### Sources of RWE
+
+**Electronic Health Records (EHR):** Detailed clinical data including diagnoses, lab values, medications, and outcomes. Covers entire patient journeys but may have missing data and measurement error.
+
+**Administrative/Claims Data:** Insurance claims, hospital discharge records. Large sample sizes but limited clinical detail.
+
+**Patient Registries:** Disease-specific (cancer registry, diabetes registry) or procedure-specific (stent registry). Rich clinical detail but potential selection bias.
+
+**Patient-Reported Outcomes (PRO):** Symptoms, quality of life, adherence. Direct patient voice but subject to recall bias.
+
+**Wearables and Digital Health:** Continuous monitoring of activity, heart rate, sleep. Novel but may have missing data.
+
+### RWE vs. RCT: Trade-Offs
+
+| Aspect | RCT | RWE |
+|--------|-----|-----|
+| **Eligibility** | Strict inclusion/exclusion criteria | Reflects real population (heterogeneous) |
+| **Treatment Assignment** | Random (balanced covariates) | Based on physician/patient choice (confounded) |
+| **Measurement** | Standardized, frequent | Clinical routine, variable |
+| **Sample Size** | Often limited (1,000–5,000) | Often large (10,000–1,000,000+) |
+| **Follow-up** | Structured, high adherence | Variable, reflects real-world | |
+| **Cost** | High | Often lower (secondary data) |
+| **Generalizability** | Limited (selected population) | Higher (typical patients) |
+| **Causal Inference** | Strong (randomization) | Weak (must adjust for confounding) |
+
+## 19.2 The Causal Framework: Confounding and the Counterfactual
+
+### Confounding
+
+A variable $C$ is a **confounder** if it:
+1. Affects the treatment assignment (patients with condition X are more likely to receive drug A)
+2. Affects the outcome independent of treatment
+3. Is not in the causal path between treatment and outcome
+
+Example: In observational data on cholesterol medications, age is a confounder. Older patients are more likely to be prescribed statins AND have higher risk of heart disease. If we ignore age, we may incorrectly attribute the heart disease risk to statins.
+
+### The Counterfactual Framework
+
+**Causal effect** is defined as the difference between two **counterfactual** outcomes:
+
+$$\text{Causal Effect for person } i = Y_i(1) - Y_i(0)$$
+
+where:
+- $Y_i(1)$ = outcome if person $i$ receives treatment
+- $Y_i(0)$ = outcome if person $i$ receives control
+
+The **fundamental problem of causal inference** is that we never observe both $Y_i(1)$ and $Y_i(0)$ for the same person; we observe only one.
+
+### Treatment Effect Parameters
+
+- **Average Treatment Effect (ATE):** $E[Y(1) - Y(0)]$ (effect in entire population)
+- **Average Treatment Effect on the Treated (ATT):** $E[Y(1) - Y(0) | T=1]$ (effect in treated patients)
+- **Conditional Average Treatment Effect (CATE):** $E[Y(1) - Y(0) | X]$ (effect heterogeneous by covariates $X$)
+
+## 19.3 Propensity Score Methods
+
+### The Propensity Score
+
+The **propensity score** is the probability of receiving treatment given observed covariates:
+
+$$e(X) = P(T = 1 | X) = \text{logit}^{-1}(\beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p)$$
+
+where $T \in \{0, 1\}$ is the treatment indicator and $X$ are observed covariates.
+
+Fit using logistic regression.
+
+### Key Assumption: Strong Ignorability (Unconfoundedness)
+
+Propensity score methods assume:
+$$Y(0), Y(1) \perp T | X$$
+
+That is, conditional on observed covariates $X$, treatment is as-if random. This assumes **no unmeasured confounding**—a strong assumption that cannot be tested from data alone.
+
+### Propensity Score Matching
+
+**Goal:** Create matched samples where treated and control groups have similar covariate distributions.
+
+**Procedure:**
+1. Fit logistic regression to estimate propensity scores for all subjects
+2. For each treated subject, find control subjects with similar propensity score (within a **caliper**, e.g., ±0.1)
+3. Match 1:1 (one control per treated) or 1:k
+4. Analyze the matched sample, comparing outcomes between groups
+
+### Inverse Probability of Treatment Weighting (IPTW)
+
+Instead of matching, **weight** each observation:
+
+$$w_i = \frac{T_i}{e(X_i)} + \frac{1 - T_i}{1 - e(X_i)}$$
+
+- Treated subjects with low propensity score (unlikely to be treated) get high weight
+- Control subjects with high propensity score (likely to be treated) get high weight
+- This creates a **pseudo-population** where treatment is independent of covariates
+
+Fit a weighted regression (e.g., logistic regression with IPTW weights) to estimate treatment effect.
+
+### Overlap (Positivity) Condition
+
+For both matching and IPTW to work, we need overlap: $0 < e(X) < 1$ for all subjects. If some treated subjects have $e(X) \approx 1$ (certain to be treated) or control subjects have $e(X) \approx 0$, there is no comparable population, and causal inference is infeasible.
+
+### Assessing Balance
+
+After matching or IPTW, check that treated and control groups have similar covariate distributions using **Standardized Mean Difference (SMD)**:
+
+$$\text{SMD} = \frac{|\bar{X}_{\text{treated}} - \bar{X}_{\text{control}}|}{\sqrt{(s_{\text{treated}}^2 + s_{\text{control}}^2) / 2}}$$
+
+- SMD < 0.10 indicates good balance
+- SMD > 0.20 indicates imbalance
+
+A **Love plot** visualizes SMD for all covariates before and after matching/weighting.
+
+## 19.4 Alternative Designs: Instrumental Variables and Difference-in-Differences
+
+### Instrumental Variables (Brief Overview)
+
+An **instrument** $Z$ is a variable that:
+- Affects treatment assignment ($Z \to T$)
+- Affects outcome only through treatment ($Z \to Y$ only via $T$)
+- Is independent of unmeasured confounders
+
+Example: Physician preference for a drug (due to, say, different training) as an instrument for patient treatment.
+
+Instrumental variable estimation (2-stage least squares) can estimate treatment effect even with unmeasured confounding, under strong assumptions.
+
+### Difference-in-Differences (Brief Overview)
+
+When you have data from two time periods and two groups (one receiving treatment, one not), **difference-in-differences** compares:
+
+$$\text{Effect} = (Y_{\text{treated, after}} - Y_{\text{treated, before}}) - (Y_{\text{control, after}} - Y_{\text{control, before}})$$
+
+This removes time-constant confounding. Useful for policy evaluations.
+
+## 19.5 FDA Guidance on Real-World Evidence
+
+The FDA's **Real-World Evidence Program** (updated 2022) provides a framework for using RWE to:
+- Support approval of new indications
+- Address post-market safety questions
+- Inform labeling changes
+
+Key FDA recommendations:
+1. **Study Design:** Prospectively designed observational studies are preferred; retrospective analysis of EHR is lower quality
+2. **Data Quality:** Document data sources, validation, and completeness
+3. **Confounding:** Use propensity score or other adjustment methods
+4. **Transparency:** Pre-specify analysis plan (registered in clinical trial database if possible)
+5. **Reproducibility:** Share code and datasets when feasible
+6. **Comparison to RCT:** When possible, validate RWE findings against RCT results
+
+## 19.6 Practical Analysis in R
+
+### Example: Propensity Score Matching for Heart Failure Treatment
+
+We simulate observational data: heart failure patients treated with ACE inhibitor (treatment=1) or beta-blocker (treatment=0), measured by 1-year mortality.
+
+```{r}
+library(tidyverse)
+library(MatchIt)  # for propensity score matching
+library(cobalt)   # for balance assessment and Love plots
+
+set.seed(42)
+
+# Simulate heart failure cohort
+n <- 500
+
+# Confounders (unmeasured by RCT but observed in RWE)
+age <- rnorm(n, mean = 65, sd = 12)
+ejection_fraction <- rnorm(n, mean = 35, sd = 15)  # % LV ejection fraction
+nyha_class <- sample(1:4, n, replace = TRUE, prob = c(0.3, 0.35, 0.25, 0.1))
+
+# Propensity for ACE inhibitor (older, lower EF, higher NYHA get ACE inhibitor more)
+ps_linear <- -3 + 0.05 * age - 0.08 * ejection_fraction + 0.3 * nyha_class
+ps <- plogis(ps_linear)  # inverse logit
+
+treatment <- rbinom(n, size = 1, prob = ps)
+
+# Outcome: 1-year mortality
+# Confounding: age and lower EF increase mortality
+# Treatment effect: ACE inhibitor has protective effect
+mortality_prob <- plogis(-4 + 0.05 * age - 0.02 * ejection_fraction - 0.8 * treatment)
+mortality <- rbinom(n, size = 1, prob = mortality_prob)
+
+# Create dataset
+rwe_data <- data.frame(
+  subject_id = 1:n,
+  age = age,
+  ejection_fraction = ejection_fraction,
+  nyha_class = nyha_class,
+  treatment = treatment,
+  mortality = mortality
+)
+
+head(rwe_data)
+summary(rwe_data)
+```
+
+### Naive Analysis (Ignoring Confounding)
+
+```{r}
+# Unadjusted logistic regression
+naive_model <- glm(mortality ~ treatment, family = binomial, data = rwe_data)
+
+cat("=== NAIVE ANALYSIS (Unadjusted) ===\n")
+print(summary(naive_model))
+
+# Extract odds ratio
+naive_or <- exp(coef(naive_model)["treatment"])
+cat("\nNaive Odds Ratio (treatment effect):", round(naive_or, 3), "\n")
+cat("PROBLEM: This ignores confounding by age, EF, NYHA class\n")
+```
+
+### Estimating Propensity Scores
+
+```{r}
+# Fit logistic regression to estimate propensity score
+ps_model <- glm(treatment ~ age + ejection_fraction + nyha_class,
+                family = binomial, data = rwe_data)
+
+# Add propensity scores to dataset
+rwe_data$propensity_score <- fitted(ps_model)
+
+cat("Propensity Score Model Summary:\n")
+print(summary(ps_model))
+
+cat("\nPropensity Score Summary Statistics:\n")
+print(summary(rwe_data$propensity_score))
+
+# Check overlap (positivity)
+cat("\nPropensity Score Distribution:\n")
+cat("  Treated (treatment=1):\n")
+print(summary(rwe_data$propensity_score[rwe_data$treatment == 1]))
+cat("  Control (treatment=0):\n")
+print(summary(rwe_data$propensity_score[rwe_data$treatment == 0]))
+
+# Visualize overlap
+ggplot(rwe_data, aes(x = propensity_score, fill = factor(treatment))) +
+  geom_histogram(bins = 30, alpha = 0.6, position = "identity") +
+  scale_fill_manual(values = c("0" = "blue", "1" = "red"),
+                    labels = c("0" = "Control", "1" = "ACE Inhibitor")) +
+  labs(title = "Propensity Score Distribution by Treatment Group",
+       subtitle = "Good overlap indicates feasible causal inference",
+       x = "Propensity Score", y = "Count",
+       fill = "Treatment") +
+  theme_minimal()
+```
+
+### Method 1: Propensity Score Matching
+
+```{r}
+# Perform 1:1 nearest-neighbor matching with caliper
+match_obj <- matchit(
+  treatment ~ age + ejection_fraction + nyha_class,
+  data = rwe_data,
+  method = "nearest",  # nearest-neighbor matching
+  distance = "logit",  # use logistic PS
+  caliper = 0.1,      # caliper = 0.1 SD of PS
+  replace = FALSE      # no replacement
+)
+
+# Get matched dataset
+matched_data <- get_matches(match_obj)
+
+cat("=== PROPENSITY SCORE MATCHING ===\n")
+cat("Original sample size:", nrow(rwe_data), "\n")
+cat("Matched sample size:", nrow(matched_data), "\n")
+cat("Number of matched pairs:", nrow(matched_data) / 2, "\n\n")
+
+# Check matching quality
+print(match_obj)
+```
+
+### Assessing Balance with Love Plot
+
+```{r}
+# Compute standardized mean differences before and after matching
+balance_summary <- bal.tab(match_obj, stats = "m", threshold = 0.1)
+print(balance_summary)
+
+# Love plot: visualize balance
+love.plot(
+  bal.tab(match_obj, stats = "m"),
+  threshold = 0.1,
+  title = "Covariate Balance: Before and After Propensity Score Matching",
+  sample.names = c("Unmatched", "Matched")
+)
+```
+
+### Analyzing Matched Data
+
+```{r}
+# Logistic regression on matched sample
+# Use design weights to account for matching probabilities
+matched_model <- glm(
+  mortality ~ treatment + age + ejection_fraction + nyha_class,
+  family = binomial,
+  data = matched_data,
+  weights = weights  # use MatchIt's weights
+)
+
+cat("=== ANALYSIS OF MATCHED DATA ===\n")
+print(summary(matched_model))
+
+# Extract adjusted odds ratio
+matched_or <- exp(coef(matched_model)["treatment"])
+cat("\nMatched Odds Ratio (treatment effect):", round(matched_or, 3), "\n")
+cat("Interpretation: After matching on propensity score, ACE inhibitor reduces\n")
+cat("the odds of 1-year mortality by", round((1 - matched_or) * 100, 1), "%\n")
+```
+
+### Method 2: Inverse Probability of Treatment Weighting (IPTW)
+
+```{r}
+# Compute IPTW weights
+rwe_data <- rwe_data %>%
+  mutate(
+    iptw_weight = ifelse(
+      treatment == 1,
+      1 / propensity_score,                # weight for treated
+      1 / (1 - propensity_score)           # weight for control
+    )
+  )
+
+# Check weight distribution
+cat("=== IPTW WEIGHTS ===\n")
+cat("Mean weight:", round(mean(rwe_data$iptw_weight), 3), "\n")
+cat("SD weight:", round(sd(rwe_data$iptw_weight), 3), "\n")
+cat("Range:", range(rwe_data$iptw_weight), "\n\n")
+
+# Fit weighted logistic regression
+iptw_model <- glm(
+  mortality ~ treatment,
+  family = binomial,
+  data = rwe_data,
+  weights = iptw_weight
+)
+
+cat("IPTW Model Summary:\n")
+print(summary(iptw_model))
+
+iptw_or <- exp(coef(iptw_model)["treatment"])
+cat("\nIPTW Odds Ratio:", round(iptw_or, 3), "\n")
+```
+
+### Checking Balance After IPTW
+
+```{r}
+# Compute weighted means and SDs for balance assessment
+balance_iptw <- rwe_data %>%
+  pivot_longer(
+    cols = c(age, ejection_fraction, nyha_class),
+    names_to = "variable",
+    values_to = "value"
+  ) %>%
+  group_by(variable, treatment) %>%
+  summarise(
+    weighted_mean = weighted.mean(value, w = iptw_weight),
+    weighted_sd = sqrt(Hmisc::wtd.var(value, weights = iptw_weight)),
+    .groups = "drop"
+  ) %>%
+  pivot_wider(
+    names_from = treatment,
+    values_from = c(weighted_mean, weighted_sd)
+  ) %>%
+  mutate(
+    smd = (weighted_mean_1 - weighted_mean_0) /
+          sqrt((weighted_sd_0^2 + weighted_sd_1^2) / 2)
+  )
+
+print(balance_iptw)
+
+# Visualize balance: SMD plot
+smd_plot_df <- rwe_data %>%
+  pivot_longer(cols = c(age, ejection_fraction, nyha_class),
+               names_to = "variable", values_to = "value") %>%
+  group_by(variable, treatment) %>%
+  summarise(
+    mean = mean(value),
+    sd = sd(value),
+    .groups = "drop"
+  ) %>%
+  pivot_wider(names_from = treatment, values_from = c(mean, sd)) %>%
+  mutate(
+    smd_before = (mean_1 - mean_0) / sqrt((sd_0^2 + sd_1^2) / 2),
+    smd_after = balance_iptw$smd[match(variable, balance_iptw$variable)]
+  )
+
+ggplot(smd_plot_df, aes(x = variable)) +
+  geom_point(aes(y = smd_before), size = 3, color = "red", alpha = 0.7) +
+  geom_point(aes(y = smd_after), size = 3, color = "green", alpha = 0.7) +
+  geom_hline(yintercept = 0.1, linetype = "dashed", color = "gray") +
+  geom_hline(yintercept = -0.1, linetype = "dashed", color = "gray") +
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  annotate("rect", xmin = 0, xmax = 4, ymin = -0.1, ymax = 0.1,
+           alpha = 0.1, fill = "green") +
+  annotate("text", x = 0.5, y = 0.15, label = "Balanced", size = 3.5, color = "green") +
+  labs(title = "Covariate Balance: Before vs After IPTW",
+       x = "Covariate", y = "Standardized Mean Difference",
+       color = "Method") +
+  ylim(-0.8, 0.8) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 13))
+```
+
+### Comparing Results
+
+```{r}
+# Summary table of all three methods
+results_comparison <- data.frame(
+  Method = c("Naive (Unadjusted)", "Propensity Score Matching", "IPTW"),
+  OR = c(round(naive_or, 3), round(matched_or, 3), round(iptw_or, 3)),
+  Interpretation = c(
+    "BIASED (ignores confounding)",
+    "Adjusted for confounders via matching",
+    "Adjusted for confounders via weighting"
+  )
+)
+
+print(results_comparison)
+
+# Visualize
+results_viz <- data.frame(
+  Method = c("Naive", "Matching", "IPTW"),
+  OR = c(naive_or, matched_or, iptw_or),
+  CI_lower = c(0.5, 0.3, 0.35),  # approximate
+  CI_upper = c(0.8, 0.5, 0.55)
+)
+
+ggplot(results_viz, aes(x = Method, y = OR)) +
+  geom_point(size = 4, color = "steelblue") +
+  geom_errorbar(aes(ymin = CI_lower, ymax = CI_upper), width = 0.2, size = 1) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray", size = 1) +
+  annotate("text", x = 0.5, y = 1.05, label = "No effect", size = 3.5, color = "gray") +
+  labs(title = "Treatment Effect Estimates: Three Methods",
+       subtitle = "Odds Ratio for 1-Year Mortality (ACE Inhibitor vs. Control)",
+       x = "Estimation Method", y = "Odds Ratio") +
+  ylim(0.2, 1.1) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 13))
+```
+
+## 19.7 Validating RWE Against RCT
+
+When both RWE and RCT data are available, compare results to assess RWE validity:
+
+```{r}
+# Simulate an RCT result for the same treatment
+# (Assuming RCT provides less biased but narrower applicability)
+
+rct_or <- 0.45  # true effect (less biased than observational)
+rct_ci_lower <- 0.35
+rct_ci_upper <- 0.58
+
+# Compare RWE estimates to RCT benchmark
+comparison_df <- data.frame(
+  Study = c("RCT (gold standard)", "RWE - Matching", "RWE - IPTW"),
+  OR = c(rct_or, matched_or, iptw_or),
+  CI_lower = c(rct_ci_lower, 0.30, 0.32),
+  CI_upper = c(rct_ci_upper, 0.52, 0.58),
+  Type = c("RCT", "RWE", "RWE")
+)
+
+ggplot(comparison_df, aes(x = Study, y = OR, color = Type)) +
+  geom_point(size = 4) +
+  geom_errorbar(aes(ymin = CI_lower, ymax = CI_upper), width = 0.2, size = 1) +
+  geom_hline(yintercept = rct_or, linetype = "dashed", color = "red", alpha = 0.5) +
+  scale_color_manual(values = c("RCT" = "darkred", "RWE" = "steelblue")) +
+  labs(title = "RWE Validation: Comparing Observational vs. RCT Results",
+       x = "Data Source and Method", y = "Odds Ratio",
+       caption = "Good RWE validity: estimates cluster near RCT result") +
+  ylim(0.2, 0.7) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 13),
+        legend.position = "topright")
+```
+
+## 19.8 Sensitivity Analysis for Unmeasured Confounding
+
+Propensity score methods assume all confounders are measured. But unmeasured confounding could bias results. Conduct sensitivity analysis:
+
+```{r}
+# Simple sensitivity analysis: how strong would an unmeasured confounder need to be
+# to flip our conclusion?
+
+# Observed treatment effect: OR ≈ 0.45 (protective)
+# For the effect to be null (OR = 1.0), an unmeasured confounder would need to:
+# - be moderately associated with treatment assignment
+# - be moderately associated with outcome
+
+# Compute "E-value" (sensitivity parameter)
+# E-value = OR + sqrt(OR * (OR - 1))
+# Interpretation: unmeasured confounder would need this strength of association
+
+observed_or <- iptw_or
+e_value <- observed_or + sqrt(observed_or * (observed_or - 1))
+
+cat("=== SENSITIVITY ANALYSIS: Unmeasured Confounding ===\n\n")
+cat("Observed Effect (IPTW):", round(observed_or, 3), "\n")
+cat("E-value:", round(e_value, 3), "\n\n")
+cat("Interpretation:\n")
+cat("To explain away the observed protective effect of the treatment,\n")
+cat("an unmeasured confounder would need to have:\n")
+cat("- At least", round(e_value, 2), "x association with treatment assignment, AND\n")
+cat("- At least", round(e_value, 2), "x association with mortality\n")
+cat("(Or some combination, e.g., 2.0x and 1.5x, whose product is e-value)\n\n")
+
+# Check clinical plausibility
+if (e_value > 3.0) {
+  cat("REASSURING: An unmeasured confounder would need implausibly strong associations\n")
+  cat("to explain away the treatment effect.\n")
+} else if (e_value > 1.5) {
+  cat("MODERATE: An unmeasured confounder with moderate-to-strong associations\n")
+  cat("could plausibly explain the treatment effect.\n")
+} else {
+  cat("CONCERNING: A weak unmeasured confounder could explain the treatment effect.\n")
+}
+```
+
+## 19.9 Exercises
+
+### Beginner Exercises
+
+**Exercise 19.1:** Using the `rwe_data` dataset, fit an unweighted logistic regression adjusting for age, ejection_fraction, and nyha_class (do NOT use propensity scores). Compare the treatment effect to the IPTW estimate. Are they similar? Why or why not?
+
+**Exercise 19.2:** What are the key assumptions required for propensity score matching to provide an unbiased causal effect estimate? List each assumption and discuss whether you believe each is plausible in the heart failure example.
+
+**Exercise 19.3:** Inspect the propensity score distribution in `rwe_data` for treated vs. control subjects. Are there regions of low overlap? What would this imply for matching or IPTW?
+
+### Advanced Exercises
+
+**Exercise 19.4:** Conduct a **double-robust** estimation by combining propensity score weighting with outcome regression:
+- Fit a weighted logistic regression (using IPTW weights) that includes main effects of treatment and all covariates
+- Compare to the IPTW and matching results
+- Why might double-robust estimation be preferable?
+
+(Hint: Double-robust methods are consistent if either the propensity score model OR the outcome model is correctly specified.)
+
+**Exercise 19.5:** Design an observational study to estimate the causal effect of statin use on LDL cholesterol reduction using an electronic health record. Specify:
+- Your source population and inclusion/exclusion criteria
+- Key confounders you would measure
+- Which propensity score method (matching, IPTW, or other) you would use and why
+- How you would assess balance and covariate adjustment
+- Sensitivity analyses for unmeasured confounding
+- How you would validate your findings (e.g., against trial data or subgroup analyses)
+

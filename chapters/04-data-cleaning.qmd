@@ -1,0 +1,1221 @@
+---
+title: "Chapter 4: Data Cleaning and Transformation in Clinical Research"
+---
+
+# Data Cleaning and Transformation in Clinical Research
+
+## 4.1 The Reality of Clinical Data Quality
+
+"Garbage in, garbage out" is nowhere more true than in clinical research. Raw clinical data from electronic health records, clinical trial databases, and lab systems is messy. It contains:
+
+- **Missing values**: Incomplete lab results, unreported adverse events, patients lost to follow-up
+- **Outliers and implausible values**: A glucose of 1,500 mg/dL (certainly an error); a weight of 5 kg (impossible for an adult)
+- **Inconsistencies**: Multiple names for the same adverse event ("Headache", "Headaches", "HEAD PAIN")
+- **Format inconsistencies**: Dates as "3/15/2024", "03-15-2024", and "2024-03-15" in the same column
+- **Duplicates**: Same lab result recorded twice, multiple records for the same patient visit
+- **Reference range issues**: Lab units that changed mid-study, different reference ranges for different labs
+
+In clinical research, data quality is not just an analytical concern—it's a regulatory requirement. The FDA expects data to be "clean" before statistical analysis. Your role is to identify problems and either correct them (if the error is obvious) or flag them for the clinical team to resolve.
+
+::: {.callout-important}
+**Data Quality is a Team Sport**: You (as the analyst) are responsible for identifying and documenting data quality issues. The clinical team, data manager, and medical monitor are responsible for investigating root causes and deciding on corrections. Never silently fix data without documenting the change.
+:::
+
+## 4.2 Missing Data: Assessment and Handling
+
+Missing data is ubiquitous in clinical research. Understanding and handling it correctly is critical.
+
+### Identifying Missing Values
+
+```{r}
+#| label: missing-data-identification
+#| eval: false
+
+library(tidyverse)
+library(pharmaversesdtm)
+
+# Load laboratory data
+data("lb")
+
+# Check for missing values using is.na()
+is_missing <- is.na(lb$LBSTRESN)
+print(head(is_missing, n = 20))
+# [1] FALSE FALSE FALSE FALSE FALSE TRUE FALSE ...
+
+# Count missing values per column
+missing_counts <- colSums(is.na(lb))
+print(missing_counts)
+# USUBJID    LBDTC    LBTEST     LBSTRESN     LBUNIT  LBNRLO  LBNRHI
+#        0        0        0      145        0        0        0
+
+# Percentage missing
+pct_missing <- 100 * colMeans(is.na(lb))
+print(pct_missing)
+# LBSTRESN: 5.2%
+
+# Clinical interpretation: 145 missing lab values out of 2,803 total records
+# This is approximately 5% missing—significant enough to investigate
+
+# Identify subjects with any missing lab values
+subjects_with_missing <- lb %>%
+  filter(is.na(LBSTRESN)) %>%
+  distinct(USUBJID) %>%
+  pull(USUBJID)
+
+cat("Subjects with missing LBSTRESN:", length(subjects_with_missing), "\n")
+cat("Examples:", paste(head(subjects_with_missing, 5), collapse = ", "), "\n")
+
+# Examine the pattern of missing data
+missing_pattern <- lb %>%
+  group_by(LBTEST) %>%
+  summarise(
+    n_tests = n(),
+    n_missing = sum(is.na(LBSTRESN)),
+    pct_missing = 100 * mean(is.na(LBSTRESN))
+  ) %>%
+  arrange(desc(pct_missing))
+
+print(missing_pattern)
+# LBTEST                   n_tests n_missing pct_missing
+# Hemoglobin                   250         15         6.0
+# White Blood Cells            250         12         4.8
+# Glucose                      250          8         3.2
+```
+
+### Missing Data Mechanism
+
+Understanding *why* data is missing matters statistically:
+
+**MCAR (Missing Completely At Random)**: Missing values are unrelated to the data itself. Example: A technician accidentally didn't record one lab value. Missingness is random.
+
+**MAR (Missing At Random)**: Missingness depends on other observed variables but not on the missing value itself. Example: Labs weren't done in subjects who discontinued early, but we know when they discontinued (observed).
+
+**MNAR (Missing Not At Random)**: Missingness depends on the missing value itself. Example: Subjects with very high glucose may be less likely to have follow-up labs recorded (sicker patients). The missingness itself is informative.
+
+```{r}
+#| label: mnar-example
+#| eval: false
+
+library(tidyverse)
+library(pharmaversesdtm)
+
+data("lb")
+data("dm")
+
+# Merge to check if missingness correlates with treatment or other factors
+lb_complete <- lb %>%
+  left_join(dm %>% select(USUBJID, ARM, DTHFL), by = "USUBJID")
+
+# Examine missingness by treatment (suggests MAR or MNAR)
+missing_by_treatment <- lb_complete %>%
+  filter(LBTEST == "Glucose") %>%
+  group_by(ARM) %>%
+  summarise(
+    n_records = n(),
+    n_missing = sum(is.na(LBSTRESN)),
+    pct_missing = 100 * mean(is.na(LBSTRESN))
+  )
+
+print(missing_by_treatment)
+# If Active treatment has more missing values, this suggests the mechanism
+# might be MNAR (sicker subjects in Active group dropping out)
+
+# Examine missingness by discontinuation status
+missing_by_status <- lb_complete %>%
+  filter(LBTEST == "Glucose") %>%
+  group_by(DTHFL) %>%
+  summarise(
+    n_records = n(),
+    n_missing = sum(is.na(LBSTRESN)),
+    pct_missing = 100 * mean(is.na(LBSTRESN))
+  )
+
+print(missing_by_status)
+# High missingness in discontinued subjects suggests MAR
+# (missingness explained by discontinuation status, which is observed)
+```
+
+### Handling Missing Data
+
+#### Complete Case Analysis (Listwise Deletion)
+
+Remove any observation with ANY missing value. Simple but loses information.
+
+```{r}
+#| label: complete-case-analysis
+#| eval: false
+
+library(tidyverse)
+library(pharmaversesdtm)
+
+data("lb")
+data("dm")
+
+# Merge data
+analysis_data <- lb %>%
+  left_join(dm %>% select(USUBJID, AGE, ARM), by = "USUBJID")
+
+# Complete case analysis
+n_before <- nrow(analysis_data)
+analysis_complete <- analysis_data %>% na.omit()
+n_after <- nrow(analysis_complete)
+
+cat("Records before:", n_before, "\n")
+cat("Records after:", n_after, "\n")
+cat("Records removed:", n_before - n_after, "\n")
+
+# Check if removed subjects differed (suggests bias)
+removed_subjects <- setdiff(
+  unique(analysis_data$USUBJID),
+  unique(analysis_complete$USUBJID)
+)
+
+cat("Subjects with any missing data:", length(removed_subjects), "\n")
+```
+
+#### Pairwise Deletion
+
+Use all available data for each analysis. Default for many statistical functions (e.g., cor() with `use = "complete.obs"`).
+
+```{r}
+#| label: pairwise-deletion
+#| eval: false
+
+# Pairwise deletion for correlation
+lab_values <- data.frame(
+  hemoglobin = c(13.5, 12.8, NA, 14.2, 13.1),
+  glucose = c(95, NA, 102, 85, 98)
+)
+
+# Pairwise deletion (default: use = "everything")
+corr <- cor(lab_values, use = "complete.obs")
+print(corr)
+
+# Different from complete case (which would exclude row 2 and row 3)
+complete_corr <- cor(lab_values %>% na.omit())
+print(complete_corr)
+```
+
+#### Mean/Median Imputation
+
+Replace missing values with the mean or median of non-missing values. Simple but reduces variance.
+
+```{r}
+#| label: mean-imputation
+#| eval: false
+
+library(tidyverse)
+library(pharmaversesdtm)
+
+data("lb")
+
+# Example: Impute missing glucose values with the mean
+lb_imputed <- lb %>%
+  mutate(
+    LBVAL_imputed = if_else(
+      is.na(LBSTRESN) & LBTEST == "Glucose",
+      mean(LBSTRESN[LBTEST == "Glucose"], na.rm = TRUE),
+      LBSTRESN
+    )
+  )
+
+# Show the imputed values
+lb_imputed %>%
+  filter(is.na(LBSTRESN)) %>%
+  select(USUBJID, LBTEST, LBSTRESN, LBVAL_imputed) %>%
+  head(10)
+
+# Better: Stratify by group (impute within treatment groups)
+lb_imputed <- lb %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  group_by(LBTEST, ARM) %>%
+  mutate(
+    LBVAL_imputed = if_else(
+      is.na(LBSTRESN),
+      mean(LBSTRESN, na.rm = TRUE),
+      LBSTRESN
+    )
+  ) %>%
+  ungroup()
+```
+
+::: {.callout-warning}
+**Imputation Concerns**: Imputing missing values reduces variance, biases standard errors, and can introduce bias if missingness is MNAR. In clinical trials, imputation methods must be pre-specified in the Statistical Analysis Plan. Simple mean imputation is rarely appropriate; consider multiple imputation ({mice} package) for more sophisticated approaches.
+:::
+
+#### Last Observation Carried Forward (LOCF)
+
+For longitudinal data, use the last non-missing value as a proxy for later visits. Used in clinical trials but increasingly scrutinized.
+
+```{r}
+#| label: locf
+#| eval: false
+
+library(tidyverse)
+
+# Example: Lab values across visits
+lab_visits <- tibble(
+  USUBJID = c("001-101", "001-101", "001-101", "001-101",
+              "001-102", "001-102", "001-102", "001-102"),
+  VISIT = c("Baseline", "Week 4", "Week 8", "Week 12",
+            "Baseline", "Week 4", "Week 8", "Week 12"),
+  HGB = c(13.5, 13.2, 12.9, NA,
+          14.0, NA, NA, NA)
+)
+
+# LOCF implementation
+lab_visits_locf <- lab_visits %>%
+  group_by(USUBJID) %>%
+  mutate(
+    HGB_locf = if_else(
+      is.na(HGB),
+      lag(HGB, n = 1, order_by = VISIT),
+      HGB
+    )
+  ) %>%
+  fill(HGB_locf, .direction = "down") %>%
+  ungroup()
+
+print(lab_visits_locf)
+#    USUBJID     VISIT  HGB HGB_locf
+#    001-101 Baseline 13.5     13.5
+#    001-101    Week 4 13.2     13.2
+#    001-101    Week 8 12.9     12.9
+#    001-101   Week 12   NA     12.9  <-- LOCF applied
+#    001-102 Baseline 14.0     14.0
+#    001-102    Week 4   NA     14.0  <-- LOCF applied
+```
+
+#### Multiple Imputation
+
+Create multiple "plausible" completed datasets, analyze each separately, and pool results. More sophisticated and accounts for uncertainty in imputation.
+
+```{r}
+#| label: multiple-imputation
+#| eval: false
+
+library(mice)
+library(tidyverse)
+
+# Create a dataset with missing values
+incomplete_data <- data.frame(
+  USUBJID = paste0("001-", 101:110),
+  AGE = c(62, 45, NA, 56, 31, 54, 46, 34, 29, 35),
+  WEIGHT_KG = c(70, 85, 92, NA, 60, 75, 68, NA, 77, 82),
+  GLUCOSE = c(95, 102, 110, 88, NA, 98, 105, 92, 87, 100)
+)
+
+# Multiple imputation by chained equations
+imputed_data <- mice(incomplete_data, m = 5, method = "pmm", seed = 123)
+
+# Extract completed datasets
+completed_datasets <- complete(imputed_data, action = "all")
+
+# Analyze each completed dataset
+results <- lapply(completed_datasets, function(data) {
+  lm(GLUCOSE ~ AGE + WEIGHT_KG, data = data)
+})
+
+# Summary (simplified; use pool() for proper pooling)
+sapply(results, function(model) coef(model)["AGE"])
+```
+
+## 4.3 Outliers and Implausible Values
+
+### Identifying Outliers
+
+```{r}
+#| label: outlier-identification
+#| eval: false
+
+library(tidyverse)
+library(pharmaversesdtm)
+
+data("lb")
+
+# Filter to a single lab test for clarity
+glucose_data <- lb %>%
+  filter(LBTEST == "Glucose")
+
+# Statistical methods for outlier detection
+
+# Method 1: Z-score (values > 3 SD are extreme)
+glucose_outliers_zscore <- glucose_data %>%
+  mutate(
+    z_score = scale(LBSTRESN)[, 1],
+    is_outlier = abs(z_score) > 3
+  ) %>%
+  filter(is_outlier)
+
+print(glucose_outliers_zscore)
+
+# Method 2: Interquartile range (IQR) rule
+Q1 <- quantile(glucose_data$LBSTRESN, 0.25, na.rm = TRUE)
+Q3 <- quantile(glucose_data$LBSTRESN, 0.75, na.rm = TRUE)
+IQR <- Q3 - Q1
+
+glucose_outliers_iqr <- glucose_data %>%
+  filter(LBSTRESN < Q1 - 1.5 * IQR | LBSTRESN > Q3 + 1.5 * IQR)
+
+cat("Outliers by IQR rule:", nrow(glucose_outliers_iqr), "\n")
+print(glucose_outliers_iqr)
+
+# Method 3: Clinical plausibility
+# Reference ranges for glucose: 70-100 mg/dL (fasting), <140 mg/dL (non-fasting)
+glucose_implausible <- glucose_data %>%
+  filter(LBSTRESN < 40 | LBSTRESN > 500)  # Values outside any realistic range
+
+cat("Clinically implausible values:", nrow(glucose_implausible), "\n")
+print(glucose_implausible)
+
+# Method 4: Box plot visualization
+ggplot(glucose_data, aes(x = factor(1), y = LBSTRESN)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.2, alpha = 0.3) +
+  labs(title = "Glucose Distribution",
+       y = "Glucose (mg/dL)",
+       x = "") +
+  theme_minimal()
+```
+
+### Handling Outliers
+
+#### Investigate First
+
+Always investigate outliers before removing them—they might be real.
+
+```{r}
+#| label: investigate-outliers
+#| eval: false
+
+library(tidyverse)
+library(pharmaversesdtm)
+
+data("lb")
+data("dm")
+data("ae")
+
+# Find an outlier
+glucose_extreme <- lb %>%
+  filter(LBTEST == "Glucose") %>%
+  slice_max(LBSTRESN, n = 1)
+
+subject_with_outlier <- glucose_extreme$USUBJID[1]
+cat("Subject with extreme glucose:", subject_with_outlier, "\n")
+
+# Investigate this subject
+subject_dm <- dm %>% filter(USUBJID == subject_with_outlier)
+subject_glucose <- lb %>%
+  filter(USUBJID == subject_with_outlier, LBTEST == "Glucose") %>%
+  arrange(LBDTC)
+subject_ae <- ae %>%
+  filter(USUBJID == subject_with_outlier) %>%
+  arrange(AESTDTC)
+
+cat("\n=== Demographics ===\n")
+print(subject_dm %>% select(USUBJID, AGE, SEX, ARM))
+
+cat("\n=== Glucose values over time ===\n")
+print(subject_glucose %>% select(LBDTC, LBSTRESN, LBUNIT))
+
+cat("\n=== Adverse events ===\n")
+print(subject_ae %>% select(AESTDTC, AETERM, AESEV))
+
+# Interpretation: Is this outlier due to:
+# - Uncontrolled diabetes? (High glucose might be expected)
+# - Data entry error? (600 mg/dL is medically possible but extreme)
+# - Measurement device malfunction?
+# - The subject had an adverse event related to glucose control?
+```
+
+#### Document and Flag (Don't Silently Remove)
+
+```{r}
+#| label: document-outliers
+#| eval: false
+
+library(tidyverse)
+library(pharmaversesdtm)
+
+data("lb")
+
+# Create a flag for outliers, DON'T remove them
+lb_with_flags <- lb %>%
+  group_by(LBTEST) %>%
+  mutate(
+    # Statistical outlier flag (Z-score > 3)
+    OUTLIER_STAT = ifelse(abs(scale(LBSTRESN)[, 1]) > 3, "Y", "N"),
+
+    # Clinical outlier flag (outside expected range)
+    OUTLIER_CLIN = case_when(
+      LBTEST == "Glucose" & (LBSTRESN < 40 | LBSTRESN > 500) ~ "Y",
+      LBTEST == "Hemoglobin" & (LBSTRESN < 5 | LBSTRESN > 20) ~ "Y",
+      TRUE ~ "N"
+    )
+  ) %>%
+  ungroup()
+
+# Export flagged records for manual review
+outliers_for_review <- lb_with_flags %>%
+  filter(OUTLIER_STAT == "Y" | OUTLIER_CLIN == "Y") %>%
+  select(USUBJID, LBTEST, LBDTC, LBSTRESN, LBUNIT, OUTLIER_STAT, OUTLIER_CLIN)
+
+# Write to file for clinical team to review
+write_csv(outliers_for_review, "outliers_for_review.csv")
+
+cat("Found", nrow(outliers_for_review), "potential outliers flagged for review.\n")
+```
+
+## 4.4 Data Reshaping: Long to Wide and Back
+
+Clinical data often needs to be reshaped. Lab data comes "long" (one row per test per visit) but analysis often needs it "wide" (one row per subject per visit).
+
+### Understanding Long vs. Wide Format
+
+**Long format** (also called "tidy" data):
+```
+USUBJID  VISIT  LBTEST       LBSTRESN
+001-101  Week 0 Hemoglobin    13.5
+001-101  Week 0 Glucose        95
+001-101  Week 4 Hemoglobin    13.2
+001-101  Week 4 Glucose        98
+```
+
+**Wide format**:
+```
+USUBJID  VISIT  Hemoglobin  Glucose
+001-101  Week 0       13.5       95
+001-101  Week 4       13.2       98
+```
+
+### Reshaping with tidyr: pivot_longer()
+
+Converting from wide to long:
+
+```{r}
+#| label: pivot-longer
+#| eval: false
+
+library(tidyverse)
+
+# Wide format data (baseline lab values)
+baseline_labs_wide <- tibble(
+  USUBJID = c("001-101", "001-102", "001-103"),
+  AGE = c(62, 45, 55),
+  HEMOGLOBIN = c(13.5, 12.8, 14.2),
+  GLUCOSE = c(95, 102, 110),
+  WBC = c(7.2, 6.1, 7.5)
+)
+
+print(baseline_labs_wide)
+
+# Convert to long format
+baseline_labs_long <- baseline_labs_wide %>%
+  pivot_longer(
+    cols = c(HEMOGLOBIN, GLUCOSE, WBC),
+    names_to = "LBTEST",
+    values_to = "LBSTRESN"
+  )
+
+print(baseline_labs_long)
+# # A tibble: 9 × 4
+#   USUBJID   AGE LBTEST     LBSTRESN
+#   <chr>   <dbl> <chr>      <dbl>
+# 1 001-101    62 HEMOGLOBIN  13.5
+# 2 001-101    62 GLUCOSE     95
+# 3 001-101    62 WBC          7.2
+# ...
+
+# More complex: Multiple columns that should NOT be pivoted
+baseline_labs_with_units <- tibble(
+  USUBJID = c("001-101", "001-102"),
+  HGB_VALUE = c(13.5, 12.8),
+  HGB_UNIT = c("g/dL", "g/dL"),
+  GLU_VALUE = c(95, 102),
+  GLU_UNIT = c("mg/dL", "mg/dL")
+)
+
+# Pivot while keeping units
+baseline_labs_long2 <- baseline_labs_with_units %>%
+  pivot_longer(
+    cols = -c(USUBJID, ends_with("_UNIT")),
+    names_to = "LBTEST",
+    names_pattern = "(.+)_VALUE",
+    values_to = "LBSTRESN"
+  ) %>%
+  rename_with(~str_replace(., "_UNIT", ""), ends_with("_UNIT"))
+
+print(baseline_labs_long2)
+```
+
+### Reshaping with tidyr: pivot_wider()
+
+Converting from long to wide:
+
+```{r}
+#| label: pivot-wider
+#| eval: false
+
+library(tidyverse)
+library(pharmaversesdtm)
+
+data("lb")
+
+# Filter to a few subjects for clarity
+lb_subset <- lb %>%
+  filter(USUBJID %in% c("01-701", "01-702", "01-703"),
+         LBTEST %in% c("Glucose", "Hemoglobin", "White Blood Cells")) %>%
+  select(USUBJID, LBDTC, VISIT, LBTEST, LBSTRESN) %>%
+  distinct()
+
+print(lb_subset)
+
+# Convert to wide format
+lb_wide <- lb_subset %>%
+  pivot_wider(
+    id_cols = c(USUBJID, LBDTC, VISIT),
+    names_from = LBTEST,
+    values_from = LBSTRESN
+  )
+
+print(lb_wide)
+# # A tibble: 3 × 6
+#   USUBJID LBDTC      VISIT    Glucose Hemoglobin `White Blood Cells`
+#   <chr>   <date>     <chr>      <dbl>       <dbl>              <dbl>
+# 1 01-701  2014-09-18 VISIT 1       95        13.5                7.2
+# 2 01-702  2014-09-18 VISIT 1       88        12.8                6.1
+# 3 01-703  2014-09-18 VISIT 1      102        14.2                7.5
+```
+
+### Clinical Application: Creating Analysis-Ready Lab Data
+
+```{r}
+#| label: reshape-for-analysis
+#| eval: false
+
+library(tidyverse)
+library(pharmaversesdtm)
+
+data("lb")
+data("dm")
+
+# Goal: Create an analysis dataset with baseline and change from baseline
+
+# Step 1: Start with long-format SDTM LB
+analysis_lb <- lb %>%
+  select(USUBJID, LBDTC, VISIT, LBTEST, LBSTRESN, LBUNIT) %>%
+
+  # Step 2: Create baseline flag (first visit with non-missing value)
+  group_by(USUBJID, LBTEST) %>%
+  arrange(LBDTC) %>%
+  mutate(
+    LBBLFL = if_else(row_number() == 1 & !is.na(LBSTRESN), "Y", "N"),
+    BASELINE_VAL = if_else(LBBLFL == "Y", LBSTRESN, NA_real_)
+  ) %>%
+  fill(BASELINE_VAL, .direction = "down") %>%
+  ungroup() %>%
+
+  # Step 3: Calculate change from baseline
+  mutate(
+    CHG = if_else(!is.na(BASELINE_VAL) & !is.na(LBSTRESN),
+                  LBSTRESN - BASELINE_VAL,
+                  NA_real_)
+  ) %>%
+
+  # Step 4: Convert to wide format (one row per subject per visit per LBTEST group)
+  select(-LBBLFL) %>%
+  pivot_wider(
+    id_cols = c(USUBJID, LBDTC, VISIT),
+    names_from = LBTEST,
+    values_from = c(LBSTRESN, BASELINE_VAL, CHG),
+    names_sep = "_"
+  ) %>%
+
+  # Step 5: Join with treatment information
+  left_join(
+    dm %>% select(USUBJID, ARM, AGE, SEX),
+    by = "USUBJID"
+  ) %>%
+
+  # Step 6: Order columns logically
+  select(USUBJID, ARM, AGE, SEX, LBDTC, VISIT, everything())
+
+print(head(analysis_lb, n = 5))
+
+# This creates one row per subject per visit with all labs wide
+# and baseline/change calculated for each test
+```
+
+## 4.5 Data Filtering and Subsetting
+
+### Using dplyr::filter()
+
+```{r}
+#| label: filtering-basics
+#| eval: false
+
+library(tidyverse)
+library(pharmaversesdtm)
+
+data("ae")
+data("dm")
+
+# Single condition
+mild_ae <- ae %>%
+  filter(AESEV == "MILD")
+
+# Multiple conditions (AND)
+mild_related_ae <- ae %>%
+  filter(AESEV == "MILD",
+         AEREL %in% c("PROBABLE", "DEFINITE"))
+
+# OR condition
+serious_ae <- ae %>%
+  filter(AESEV == "SEVERE" | AESEV == "LIFE THREATENING")
+
+# NOT condition
+not_mild <- ae %>%
+  filter(!AESEV == "MILD")  # or filter(AESEV != "MILD")
+
+# Complex logic: Subjects on active treatment with severe adverse events
+ae_analysis <- ae %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  filter(
+    ARM == "Xanomeline High Dose",
+    AESEV == "SEVERE",
+    !is.na(AESTDTC)  # Has a valid onset date
+  )
+
+cat("Subjects on active treatment with severe AE:", n_distinct(ae_analysis$USUBJID), "\n")
+```
+
+### Useful filtering patterns
+
+```{r}
+#| label: filtering-patterns
+#| eval: false
+
+library(tidyverse)
+library(pharmaversesdtm)
+
+data("lb")
+data("dm")
+
+# Pattern 1: Specific subjects of interest
+subjects_of_interest <- c("01-701", "01-702", "01-703")
+lb_subset <- lb %>%
+  filter(USUBJID %in% subjects_of_interest)
+
+# Pattern 2: Exclude specific values
+lb_clean <- lb %>%
+  filter(!is.na(LBSTRESN),       # Remove missing values
+         LBSTRESN > 0)            # Remove invalid values (negative counts, etc.)
+
+# Pattern 3: Filter by date range
+lb_analysis <- lb %>%
+  filter(LBDTC >= "2014-01-01" & LBDTC <= "2014-12-31")
+
+# Pattern 4: Subjects who completed trial
+dm_completers <- dm %>%
+  filter(DTHFL != "Y")
+
+# Pattern 5: Specific visit only (baseline)
+baseline_labs <- lb %>%
+  filter(VISIT == "BASELINE")
+
+# Pattern 6: Combination: Specific lab test, baseline, non-missing
+baseline_glucose <- lb %>%
+  filter(LBTEST == "Glucose",
+         VISIT == "BASELINE",
+         !is.na(LBSTRESN))
+```
+
+## 4.6 Variable Transformation and Derivation
+
+### Creating New Variables
+
+```{r}
+#| label: creating-variables
+#| eval: false
+
+library(tidyverse)
+library(lubridate)
+library(pharmaversesdtm)
+
+data("dm")
+data("lb")
+
+# Example 1: Calculate age in years
+dm_with_age <- dm %>%
+  mutate(
+    AGE_YEARS = as.numeric(difftime(Sys.Date(), BRTHDTC, units = "days")) / 365.25
+  )
+
+# Example 2: Age group classification
+dm_with_age_group <- dm %>%
+  mutate(
+    AGE_GROUP = case_when(
+      AGE < 40 ~ "18-39",
+      AGE < 65 ~ "40-64",
+      AGE >= 65 ~ "65+",
+      TRUE ~ "Unknown"
+    )
+  )
+
+# Example 3: BMI classification (if weight/height available)
+analysis_data <- dm %>%
+  mutate(
+    BMI = 70 / (1.75^2),  # Placeholder calculation
+    BMI_CAT = case_when(
+      BMI < 18.5 ~ "Underweight",
+      BMI < 25 ~ "Normal",
+      BMI < 30 ~ "Overweight",
+      BMI >= 30 ~ "Obese",
+      TRUE ~ "Unknown"
+    )
+  )
+
+# Example 4: Risk flag (multiple conditions)
+ae_analysis <- ae %>%
+  group_by(USUBJID) %>%
+  mutate(
+    N_SEVERE_AE = sum(AESEV == "SEVERE", na.rm = TRUE),
+    HAS_SERIOUS_AE = N_SEVERE_AE > 0,
+    HAS_RELATED_AE = any(AEREL %in% c("PROBABLE", "DEFINITE"))
+  ) %>%
+  ungroup()
+```
+
+### Handling Dates
+
+```{r}
+#| label: date-handling
+#| eval: false
+
+library(tidyverse)
+library(lubridate)
+library(pharmaversesdtm)
+
+data("dm")
+data("ae")
+
+# Parse date columns (if read as character)
+dm_clean <- dm %>%
+  mutate(
+    RFSTDTC = ymd(RFSTDTC),
+    RFENDTC = ymd(RFENDTC),
+    BRTHDTC = ymd(BRTHDTC)
+  )
+
+# Calculate duration between dates
+ae_with_duration <- ae %>%
+  mutate(
+    AESTDTC = ymd(AESTDTC),
+    AEENDTC = ymd(AEENDTC),
+    AE_DURATION_DAYS = as.numeric(difftime(AEENDTC, AESTDTC, units = "days"))
+  ) %>%
+  filter(!is.na(AE_DURATION_DAYS), AE_DURATION_DAYS > 0)
+
+# Extract date components
+time_analysis <- dm %>%
+  mutate(
+    RFSTDTC = ymd(RFSTDTC),
+    ENROLL_MONTH = month(RFSTDTC),
+    ENROLL_QUARTER = quarter(RFSTDTC)
+  ) %>%
+  group_by(ENROLL_QUARTER) %>%
+  summarise(N_SUBJECTS = n_distinct(USUBJID)) %>%
+  ungroup()
+
+print(time_analysis)
+```
+
+## 4.7 Combining Datasets: Joins
+
+### Understanding Join Types
+
+```{r}
+#| label: join-types
+#| eval: false
+
+library(tidyverse)
+
+# Sample data for illustration
+subjects_dm <- tibble(
+  USUBJID = c("001-101", "001-102", "001-103"),
+  AGE = c(62, 45, 55),
+  SEX = c("F", "M", "F")
+)
+
+subjects_ae <- tibble(
+  USUBJID = c("001-101", "001-102", "001-104"),
+  AE_COUNT = c(2, 1, 3)
+)
+
+# LEFT JOIN: Keep all rows from left (dm), add matching data from right (ae)
+# Result: 3 rows (001-101, 001-102, 001-103)
+# 001-104 (only in ae) is excluded
+left_result <- left_join(subjects_dm, subjects_ae, by = "USUBJID")
+print(left_result)
+#    USUBJID AGE SEX AE_COUNT
+#  1 001-101  62   F        2
+#  2 001-102  45   M        1
+#  3 001-103  55   F       NA
+
+# RIGHT JOIN: Keep all rows from right (ae), add matching data from left (dm)
+# Result: 3 rows (001-101, 001-102, 001-104)
+right_result <- right_join(subjects_dm, subjects_ae, by = "USUBJID")
+print(right_result)
+#    USUBJID AGE SEX AE_COUNT
+#  1 001-101  62   F        2
+#  2 001-102  45   M        1
+#  3 001-104  NA  NA        3
+
+# INNER JOIN: Keep only rows that match in both datasets
+# Result: 2 rows (001-101, 001-102)
+inner_result <- inner_join(subjects_dm, subjects_ae, by = "USUBJID")
+print(inner_result)
+#    USUBJID AGE SEX AE_COUNT
+#  1 001-101  62   F        2
+#  2 001-102  45   M        1
+
+# FULL JOIN: Keep all rows from both datasets
+# Result: 4 rows (all subjects)
+full_result <- full_join(subjects_dm, subjects_ae, by = "USUBJID")
+print(full_result)
+#    USUBJID AGE SEX AE_COUNT
+#  1 001-101  62   F        2
+#  2 001-102  45   M        1
+#  3 001-103  55   F       NA
+#  4 001-104  NA  NA        3
+```
+
+::: {.callout-important}
+**Left Join is Standard in Clinical Analysis**: When building analysis datasets, almost always use LEFT JOIN to keep all subjects from the main dataset (usually demographics) and add information from other domains. This preserves your denominator and ensures you don't accidentally exclude subjects.
+:::
+
+### Practical Joining Workflow
+
+```{r}
+#| label: joining-workflow
+#| eval: false
+
+library(tidyverse)
+library(pharmaversesdtm)
+
+data("dm")
+data("ae")
+data("lb")
+
+# Build an integrated dataset for analysis
+
+# Start with all subjects (demographics)
+analysis_data <- dm %>%
+  select(USUBJID, AGE, SEX, ARM)
+
+# Add adverse event information
+ae_summary <- ae %>%
+  group_by(USUBJID) %>%
+  summarise(
+    N_AE = n(),
+    N_SEVERE_AE = sum(AESEV == "SEVERE", na.rm = TRUE),
+    N_RELATED_AE = sum(AEREL %in% c("PROBABLE", "DEFINITE"), na.rm = TRUE),
+    .groups = "drop"
+  )
+
+analysis_data <- analysis_data %>%
+  left_join(ae_summary, by = "USUBJID")
+
+# Add baseline lab values
+baseline_labs <- lb %>%
+  filter(VISIT == "BASELINE") %>%
+  select(USUBJID, LBTEST, LBSTRESN) %>%
+  pivot_wider(
+    id_cols = USUBJID,
+    names_from = LBTEST,
+    values_from = LBSTRESN,
+    names_prefix = "BL_"
+  )
+
+analysis_data <- analysis_data %>%
+  left_join(baseline_labs, by = "USUBJID")
+
+# Verify the structure
+str(analysis_data)
+head(analysis_data)
+
+# Check for missing data
+colSums(is.na(analysis_data))
+```
+
+## 4.8 String Manipulation
+
+### Standardizing Text Variables
+
+```{r}
+#| label: string-manipulation
+#| eval: false
+
+library(tidyverse)
+library(stringr)
+library(pharmaversesdtm)
+
+data("ae")
+
+# Common problems in adverse event terms:
+# - Inconsistent capitalization: "Nausea", "nausea", "NAUSEA"
+# - Leading/trailing whitespace: " Headache "
+# - Abbreviations: "HA" for headache
+# - Slight spelling variations: "Headache" vs "Head ache"
+
+# Clean adverse event terms
+ae_clean <- ae %>%
+  mutate(
+    # Convert to uppercase (standard for regulatory submissions)
+    AETERM = str_to_upper(AETERM),
+
+    # Remove leading/trailing whitespace
+    AETERM = str_trim(AETERM),
+
+    # Remove multiple spaces
+    AETERM = str_squish(AETERM),
+
+    # Standardize common abbreviations
+    AETERM = case_when(
+      str_detect(AETERM, "^HA$") ~ "HEADACHE",
+      str_detect(AETERM, "^N&V$") ~ "NAUSEA AND VOMITING",
+      TRUE ~ AETERM
+    )
+  )
+
+# Count standardized terms
+ae_summary <- ae_clean %>%
+  group_by(AETERM) %>%
+  summarise(
+    N_EVENTS = n(),
+    N_SUBJECTS = n_distinct(USUBJID),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(N_EVENTS))
+
+print(ae_summary)
+```
+
+### Extracting Information from Text
+
+```{r}
+#| label: string-extraction
+#| eval: false
+
+library(tidyverse)
+library(stringr)
+
+# Example: Extract event grade from adverse event term
+# Some data might encode grade in the term: "Grade 3 Rash"
+
+ae_with_grade <- tibble(
+  USUBJID = c("001-101", "001-102", "001-103"),
+  AETERM = c("Grade 3 Rash", "Headache", "Grade 1 Nausea")
+) %>%
+  mutate(
+    # Extract grade if present
+    GRADE_FROM_TERM = str_extract(AETERM, "\\d+"),
+    GRADE_FROM_TERM = as.numeric(GRADE_FROM_TERM),
+
+    # Remove grade from term for standardization
+    AETERM_CLEAN = str_remove(AETERM, "^Grade \\d+ ")
+  )
+
+print(ae_with_grade)
+```
+
+## 4.9 Complete Data Cleaning Workflow
+
+Here's a complete, realistic data cleaning pipeline:
+
+```{r}
+#| label: complete-cleaning-workflow
+#| eval: false
+
+library(tidyverse)
+library(lubridate)
+library(pharmaversesdtm)
+
+# Load raw SDTM data
+data("dm")
+data("ae")
+data("lb")
+
+cat("=== DATA CLEANING WORKFLOW ===\n\n")
+
+# STEP 1: Initial assessment
+cat("STEP 1: Initial Data Assessment\n")
+cat("DM records:", nrow(dm), "| Unique subjects:", n_distinct(dm$USUBJID), "\n")
+cat("AE records:", nrow(ae), "| Subjects with AE:", n_distinct(ae$USUBJID), "\n")
+cat("LB records:", nrow(lb), "| Subjects with labs:", n_distinct(lb$USUBJID), "\n\n")
+
+# STEP 2: Check for missing data
+cat("STEP 2: Missing Data Assessment\n")
+missing_dm <- colSums(is.na(dm))
+missing_ae <- colSums(is.na(ae))
+missing_lb <- colSums(is.na(lb))
+cat("DM missing:", sum(missing_dm > 0), "columns\n")
+cat("AE missing:", sum(missing_ae > 0), "columns\n")
+cat("LB missing:", sum(missing_lb > 0), "columns\n\n")
+
+# STEP 3: Check for duplicates
+cat("STEP 3: Duplicate Check\n")
+dm_dups <- dm %>%
+  group_by(USUBJID) %>%
+  filter(n() > 1)
+cat("Duplicate subjects in DM:", n_distinct(dm_dups$USUBJID), "\n\n")
+
+# STEP 4: Clean adverse event terms
+cat("STEP 4: Standardizing AE Terms\n")
+ae_clean <- ae %>%
+  mutate(
+    AETERM = str_to_upper(str_trim(AETERM)),
+    AESEV = str_to_upper(str_trim(AESEV))
+  ) %>%
+  # Flag unusual severity values
+  mutate(
+    AESEV_VALID = AESEV %in% c("MILD", "MODERATE", "SEVERE", "LIFE THREATENING"),
+    FLAG_INVALID_SEVERITY = if_else(!AESEV_VALID, "Y", "N")
+  )
+
+cat("Invalid severity values flagged:", sum(ae_clean$FLAG_INVALID_SEVERITY == "Y"), "\n\n")
+
+# STEP 5: Lab data quality checks
+cat("STEP 5: Lab Data Quality\n")
+lb_clean <- lb %>%
+  mutate(
+    LBVAL_MISSING = is.na(LBSTRESN),
+    # Flag clinically implausible values
+    FLAG_IMPLAUSIBLE = case_when(
+      LBTEST == "Glucose" & (LBSTRESN < 30 | LBSTRESN > 500) ~ "Y",
+      LBTEST == "Hemoglobin" & (LBSTRESN < 5 | LBSTRESN > 20) ~ "Y",
+      TRUE ~ "N"
+    )
+  )
+
+cat("Lab records with implausible values:", sum(lb_clean$FLAG_IMPLAUSIBLE == "Y"), "\n\n")
+
+# STEP 6: Build analysis dataset
+cat("STEP 6: Building Analysis Dataset\n")
+
+analysis_data <- dm %>%
+  # Only include subjects with valid enrollment
+  filter(!is.na(RFSTDTC)) %>%
+  # Add AE summary
+  left_join(
+    ae_clean %>%
+      filter(FLAG_INVALID_SEVERITY == "N") %>%
+      group_by(USUBJID) %>%
+      summarise(
+        N_AE = n(),
+        N_SEVERE_AE = sum(AESEV == "SEVERE", na.rm = TRUE),
+        .groups = "drop"
+      ),
+    by = "USUBJID"
+  ) %>%
+  # Add baseline labs
+  left_join(
+    lb_clean %>%
+      filter(FLAG_IMPLAUSIBLE == "N", !LBVAL_MISSING) %>%
+      filter(VISIT == "BASELINE") %>%
+      select(USUBJID, LBTEST, LBSTRESN) %>%
+      pivot_wider(
+        id_cols = USUBJID,
+        names_from = LBTEST,
+        values_from = LBSTRESN,
+        names_prefix = "BL_"
+      ),
+    by = "USUBJID"
+  ) %>%
+  # Replace NA counts with 0 (no adverse events recorded)
+  mutate(
+    N_AE = replace_na(N_AE, 0),
+    N_SEVERE_AE = replace_na(N_SEVERE_AE, 0)
+  )
+
+# STEP 7: Final quality checks
+cat("STEP 7: Final Quality Checks\n")
+cat("Analysis dataset:", nrow(analysis_data), "subjects\n")
+cat("Complete cases (no missing):", sum(complete.cases(analysis_data)), "\n")
+cat("Records with any missing:", sum(!complete.cases(analysis_data)), "\n\n")
+
+# STEP 8: Export flagged records for review
+flags_for_review <- ae_clean %>%
+  filter(FLAG_INVALID_SEVERITY == "Y") %>%
+  select(USUBJID, AETERM, AESEV, FLAG_INVALID_SEVERITY)
+
+if (nrow(flags_for_review) > 0) {
+  write_csv(flags_for_review, "ae_flags_for_review.csv")
+  cat("Flagged records exported to ae_flags_for_review.csv\n")
+}
+
+implausible_labs <- lb_clean %>%
+  filter(FLAG_IMPLAUSIBLE == "Y") %>%
+  select(USUBJID, LBTEST, LBSTRESN, FLAG_IMPLAUSIBLE)
+
+if (nrow(implausible_labs) > 0) {
+  write_csv(implausible_labs, "lb_implausible_for_review.csv")
+  cat("Implausible lab values exported to lb_implausible_for_review.csv\n")
+}
+
+cat("\nCLEANING COMPLETE\n")
+```
+
+---
+
+## Exercises
+
+### Beginner Exercises
+
+**Exercise 4.1: Missing Data Assessment**
+
+Load the laboratory domain from pharmaversesdtm. For the "Glucose" test:
+a) Count the total number of missing values
+b) Calculate the percentage of missing data
+c) Identify which subjects have missing glucose values
+d) Determine if missingness differs by treatment group
+
+**Exercise 4.2: Outlier Detection**
+
+Using the glucose lab values:
+a) Calculate the mean and standard deviation
+b) Identify values more than 3 standard deviations from the mean
+c) Identify values outside the clinical range (40–500 mg/dL)
+d) Create a flag variable indicating which values are outliers
+
+**Exercise 4.3: Data Reshaping**
+
+Create a wide-format dataset with:
+a) One row per subject
+b) Columns for baseline hemoglobin, glucose, and WBC
+c) Include treatment group and age
+d) Compare the number of rows/columns with the original long-format data
+
+### Advanced Exercises
+
+**Exercise 4.4: Complete Data Cleaning Workflow**
+
+Using pharmaversesdtm domains (dm, ae, lb):
+a) Identify and document all data quality issues in the adverse events domain
+b) Standardize adverse event terms (uppercase, remove extra spaces)
+c) Identify subjects with missing key variables
+d) Create a cleaned analysis dataset combining demographics, AE counts, and baseline labs
+e) Export flagged issues to a CSV file for review
+
+**Exercise 4.5: Multi-Domain Integration and Analysis-Ready Dataset Creation**
+
+Build a complete analysis-ready dataset that:
+a) Starts with all enrolled subjects (dm domain)
+b) Adds baseline and Week 4 lab values (lb domain) in wide format
+c) Calculates change from baseline for each lab
+d) Includes adverse event counts by treatment group
+e) Flags subjects with missing key analysis variables
+f) Produces a summary table: mean baseline values by treatment group
+g) Exports to both CSV and Excel formats
+
+---

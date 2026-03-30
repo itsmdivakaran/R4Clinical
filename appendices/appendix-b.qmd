@@ -1,0 +1,583 @@
+---
+title: "Appendix B: Essential R Packages for Clinical Data Analysis"
+---
+
+# Appendix B: Essential R Packages for Clinical Data Analysis
+
+## Introduction: The Pharmaverse Ecosystem
+
+The **pharmaverse** is a curated collection of R packages designed specifically for pharmaceutical research and clinical data analysis. It represents the gold standard for regulatory-compliant statistical computing, with packages built and maintained by FDA-engaged statisticians and industry leaders.
+
+Key principles of the pharmaverse:
+- **CDISC-compliant**: Supports SDTM, ADaM, and CDASH standards
+- **Regulatory-ready**: Used in FDA submissions since 2021
+- **Open-source**: Community-driven development
+- **Interoperable**: Packages work seamlessly together
+- **Well-documented**: Extensive vignettes and examples
+
+**Official resources:**
+- Website: https://pharmaverse.org
+- GitHub: https://github.com/pharmaverse
+- Community: Slack, issues, discussions
+
+---
+
+## Pharmaverse Core Packages
+
+These packages form the foundation for clinical data standardization and transformation.
+
+| Package | Latest Version | Purpose | Key Functions | When to Use |
+|---------|-----------------|---------|----------------|-------------|
+| **admiral** | 1.1+ | CDISC ADaM dataset derivations | `derive_vars_*()`, `derive_params_*()`, `create_*()` | Building ADaM-compliant analysis datasets from SDTM |
+| **admiraldev** | 0.1+ | Extensions for special therapeutic areas (e.g., oncology, cardiovascular) | Oncology-specific: `derive_param_*()` for response, time-to-event | Specialized therapeutic domains beyond base admiral |
+| **pharmaversesdtm** | 0.3+ | SDTM dataset building blocks and templates | SDTM domain structures, conformance checks | Creating SDTM datasets from raw data |
+| **pharmaverseadam** | 0.2+ | ADaM template datasets | Example ADaM structures (ADSL, ADAE, ADCM) | Reference implementations and unit testing |
+| **xportr** | 0.3+ | Create XPT (transport) files for FDA submissions | `xportr_write()`, `xportr_type()`, `xportr_label()` | Exporting SDTM/ADaM to regulatory XPT format |
+| **metacore** | 0.2+ | Metadata handling for CDISC specifications | `spec_to_list()`, `var_spec_to_list()`, `build_spec()` | Automating metadata-driven dataset creation |
+| **metatools** | 0.2+ | Helper functions for metacore-based workflows | `split_sas_files()`, `build_from_dict()` | Extracting specs from Define-XML and other metadata formats |
+| **sdtm.oak** | 0.1+ | Automating SDTM derivations | `oak_derive_var_*()`, `oak_auto_assign()` | Reducing manual SDTM programming |
+
+**Installation:**
+```r
+# Install pharmaverse packages (individual)
+install.packages("admiral")
+install.packages("xportr")
+
+# Or install from GitHub for development versions
+remotes::install_github("pharmaverse/admiral")
+remotes::install_github("pharmaverse/pharmaversesdtm")
+```
+
+---
+
+## Tidyverse Core Packages
+
+The tidyverse provides a unified grammar of data manipulation and visualization.
+
+| Package | Latest Version | Purpose | Key Functions | When to Use |
+|---------|-----------------|---------|----------------|-------------|
+| **dplyr** | 1.1+ | Data frame manipulation and transformation | `filter()`, `select()`, `mutate()`, `summarise()`, `group_by()`, `join_*()` | Daily data wrangling; SELECT, WHERE, GROUP BY equivalent |
+| **tidyr** | 1.3+ | Data reshaping and cleaning | `pivot_longer()`, `pivot_wider()`, `separate()`, `unite()`, `fill()` | Converting between wide and long formats; handling nested data |
+| **ggplot2** | 3.5+ | Grammar of graphics visualization | `ggplot()`, `geom_*()`, `stat_*()`, `theme_*()` | Creating publication-quality plots |
+| **stringr** | 1.5+ | String manipulation | `str_detect()`, `str_extract()`, `str_replace()`, `str_sub()` | Parsing variable names, creating labels, pattern matching |
+| **lubridate** | 1.9+ | Date/time manipulation | `mdy()`, `dmy()`, `ymd()`, `%m+%`, `difftime()` | Date calculations, handling intervals |
+| **purrr** | 1.0+ | Functional programming tools | `map()`, `map_df()`, `walk()`, `modify()` | Iterating over lists without explicit loops |
+| **readr** | 2.1+ | Fast file reading | `read_csv()`, `read_tsv()`, `read_delim()`, `write_csv()` | Importing CSV/TSV files; faster than base R |
+| **forcats** | 1.0+ | Factor manipulation | `fct_reorder()`, `fct_recode()`, `fct_collapse()`, `fct_inorder()` | Managing categorical variables; controlling factor levels |
+| **tibble** | 3.2+ | Modern data frames | `tibble()`, `as_tibble()`, `enframe()`, `deframe()` | Working with tibbles (stricter data frames) |
+
+**Installation:**
+```r
+# Install all tidyverse packages at once
+install.packages("tidyverse")
+
+# Or install individually
+install.packages(c("dplyr", "tidyr", "ggplot2", "stringr"))
+```
+
+**Quick example:**
+```r
+library(tidyverse)
+
+trial_data %>%
+  filter(arm %in% c("Drug_A", "Placebo")) %>%
+  select(subjid, arm, age, sbp, dbp) %>%
+  group_by(arm) %>%
+  summarise(
+    n = n(),
+    mean_sbp = mean(sbp, na.rm = TRUE),
+    sd_sbp = sd(sbp, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+---
+
+## Data Import Packages
+
+Specialized packages for reading common clinical data formats.
+
+| Package | Latest Version | Purpose | Key Functions | When to Use |
+|---------|-----------------|---------|----------------|-------------|
+| **haven** | 2.5+ | Import SAS, SPSS, Stata files | `read_sas()`, `read_spss()`, `read_stata()`, `write_sas()`, `read_xpt()`, `write_xpt()` | Reading legacy SAS datasets; XPT files for regulatory submissions |
+| **readxl** | 1.4+ | Read Excel files (.xls, .xlsx) | `read_excel()`, `excel_sheets()` | Importing clinical trial data from Excel without opening manually |
+| **openxlsx** | 4.2+ | Read/write Excel with styling | `read.xlsx()`, `write.xlsx()`, `addWorksheet()` | Creating formatted Excel reports |
+| **data.table** | 1.14+ | High-performance data manipulation | `fread()`, `fwrite()`, `setkey()`, `:=` | Processing very large datasets (millions of rows) |
+| **vroom** | 1.6+ | Fast rectangular data reading | `vroom()`, `vroom_write()` | Reading large CSV/TSV files faster than readr |
+
+**Usage examples:**
+```r
+library(haven)
+
+# Read SAS dataset
+trial_dm <- read_sas("trial_dm.sas7bdat")
+
+# Read XPT (regulatory format)
+sdtm_ae <- read_xpt("ae.xpt")
+
+# Write XPT for FDA submission
+write_xpt(adae_dataset, "adae.xpt", version = 5)
+
+# Read Excel
+library(readxl)
+demo_data <- read_excel("trial_demographics.xlsx", sheet = "Sheet1")
+```
+
+---
+
+## Survival Analysis Packages
+
+Specialized packages for time-to-event analyses.
+
+| Package | Latest Version | Purpose | Key Functions | When to Use |
+|---------|-----------------|---------|----------------|-------------|
+| **survival** | 3.5+ | Core survival analysis | `Surv()`, `survfit()`, `coxph()`, `survreg()` | Kaplan-Meier curves, Cox regression, parametric survival models |
+| **survminer** | 0.4+ | Survival visualization | `ggsurvplot()`, `arrange_ggsurvplots()`, `ggcoxdiagnostics()` | Publication-ready KM plots with at-risk tables |
+| **ggsurvfit** | 0.2+ | Modern survival ggplot2 integration | `ggsurvfit()`, `ggcuminc()` | Modern grammar-of-graphics syntax for survival plots |
+| **cmprsk** | 2.2+ | Competing risks analysis | `cuminc()`, `crr()` | Modeling competing risk outcomes (e.g., death vs. cure in cancer) |
+| **flexsurv** | 2.1+ | Flexible parametric survival models | `flexsurvreg()`, `flexsurvcov()` | Advanced parametric modeling with flexible hazard shapes |
+
+**Example: Cox regression and KM plot:**
+```r
+library(survival)
+library(ggsurvfit)
+
+# Create survival object
+lung_data <- lung %>%
+  mutate(time_years = time / 365.25)
+
+# Fit Cox model
+cox_model <- coxph(Surv(time_years, status) ~ age + sex + wt.loss,
+                    data = lung_data)
+summary(cox_model)
+
+# KM curve by sex
+library(ggsurvfit)
+survfit(Surv(time_years, status) ~ sex, data = lung_data) %>%
+  ggsurvfit() +
+  labs(title = "Overall Survival by Sex",
+       x = "Time (years)",
+       y = "Overall Survival Probability")
+```
+
+---
+
+## Mixed Models and Longitudinal Analysis
+
+Packages for handling repeated measures and hierarchical structures.
+
+| Package | Latest Version | Purpose | Key Functions | When to Use |
+|---------|-----------------|---------|----------------|-------------|
+| **lme4** | 1.1+ | Linear and generalized linear mixed-effects models | `lmer()`, `glmer()`, `ranef()`, `fixef()` | Random intercepts/slopes, clustered data |
+| **nlme** | 3.1+ | Nonlinear mixed-effects models | `lme()`, `nlme()`, `gls()` | Alternative to lme4; better for complex correlation structures |
+| **mmrm** | 0.3+ | Mixed model for repeated measures (FDA-recommended) | `mmrm()`, `estimate_contrast()`, `emmeans()` | MMRM analysis for pre-specified primary analysis in trials |
+| **emmeans** | 1.8+ | Estimated marginal means (least-squares means) | `emmeans()`, `contrast()`, `emtrends()` | Post-hoc comparisons; interaction interpretation |
+| **multcomp** | 1.4+ | Multiple comparison procedures | `glht()`, `cld()`, `confint()` | Adjusted p-values for multiple contrasts |
+
+**MMRM example (recommended for clinical trials):**
+```r
+library(mmrm)
+
+# Fit MMRM: primary analysis for longitudinal efficacy
+mmrm_fit <- mmrm(
+  formula = FEV1 ~ AVISIT * ARMCD + ar1(AVISIT | USUBJID),
+  data = fev1_data,
+  reml = TRUE
+)
+
+# Extract estimates
+summary(mmrm_fit)
+
+# Contrasts at endpoint (Visit 12)
+library(emmeans)
+emmeans(mmrm_fit, ~ ARMCD | AVISIT) %>%
+  contrast(method = "trt.vs.ctrlk")
+```
+
+---
+
+## Missing Data Handling
+
+Packages for imputation and missing data analysis.
+
+| Package | Latest Version | Purpose | Key Functions | When to Use |
+|---------|-----------------|---------|----------------|-------------|
+| **mice** | 3.16+ | Multivariate imputation by chained equations (MICE) | `mice()`, `pool()`, `with()`, `complete()` | Multiple imputation for missing data; post-analysis pooling |
+| **naniar** | 1.0+ | Exploring and visualizing missing data | `miss_var_summary()`, `gg_miss_var()`, `vis_miss()` | Understanding missing data patterns before imputation |
+| **VIM** | 6.2+ | Visualization and imputation | `aggr()`, `marginplot()`, `kNN()`, `hotdeck()` | K-nearest neighbor imputation; missing data exploration |
+| **Amelia** | 1.8+ | Multiple imputation through EM algorithm | `amelia()`, `mi.meld()` | Time-series cross-section data; alternative to MICE |
+| **tidyHE** | 0.3+ | Missing data in health economics | Pattern-specific imputation | Cost and QoL missing data in economic evaluations |
+
+**Multiple imputation workflow:**
+```r
+library(mice)
+
+# Create 5 imputed datasets using MICE
+imputed <- mice(clinical_data, m = 5, method = "pmm", seed = 123)
+
+# Fit model to each imputed dataset
+fit <- with(imputed, lm(outcome ~ treatment + age + sex))
+
+# Pool estimates using Rubin's rules
+pooled <- pool(fit)
+summary(pooled)
+
+# Get imputed datasets for manual analysis
+complete_data <- complete(imputed, action = "long")
+```
+
+---
+
+## Clinical Tables and Reporting
+
+Packages for creating publication-ready statistical tables.
+
+| Package | Latest Version | Purpose | Key Functions | When to Use |
+|---------|-----------------|---------|----------------|-------------|
+| **gtsummary** | 1.7+ | Publication-ready summary tables | `tbl_summary()`, `tbl_regression()`, `tbl_cross()`, `tbl_merge()` | Baseline tables, demographics, regression results |
+| **gt** | 0.10+ | Grammar of tables (framework for table creation) | `gt()`, `tab_header()`, `fmt_number()`, `opt_stylize()` | Complete table control; publishing-quality output |
+| **flextable** | 0.9+ | Flexible tables for Word/PowerPoint/HTML | `flextable()`, `save_as_rtf()`, `save_as_docx()` | Exporting tables to Word/PDF; RTF for regulatory submissions |
+| **rtables** | 0.6+ | Regulatory-compliant tables for clinical reports | `basic_table()`, `analyze()`, `split_rows_by()` | CDISC-aligned clinical trial tables; regulatory listings |
+| **tfrmt** | 0.1+ | Table formatting language | `tfrmt()`, `print_mock_gt()` | Complex multi-level tables; data-driven formatting |
+| **tern** | 0.8+ | Therapy evaluation and research tables | `analyze_vars()`, `coxph_models()`, `kaplan_meier()` | Pharmaverse-integrated tables for efficacy/safety |
+
+**Example: Baseline characteristics table:**
+```r
+library(gtsummary)
+
+baseline_tbl <- trial_data %>%
+  select(arm, age, sex, stage, marker) %>%
+  tbl_summary(
+    by = arm,
+    type = list(age ~ "continuous", marker ~ "continuous"),
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd})",
+      all_categorical() ~ "{n} ({p}%)"
+    ),
+    label = list(age = "Age (years)", marker = "Biomarker Level")
+  ) %>%
+  add_overall() %>%
+  add_p(test = everything() ~ "t.test") %>%
+  add_q() %>%
+  modify_spanning_header(everything() ~ "**Treatment Arm**")
+
+# Export to Word
+gtsave(baseline_tbl, "baseline_table.docx")
+
+# Or use flextable for more control
+library(flextable)
+ft <- as_flextable(baseline_tbl)
+save_as_rtf(ft, path = "baseline_table.rtf")
+```
+
+---
+
+## Bayesian Analysis Packages
+
+Packages for Bayesian statistical inference.
+
+| Package | Latest Version | Purpose | Key Functions | When to Use |
+|---------|-----------------|---------|----------------|-------------|
+| **rstanarm** | 2.32+ | Applied regression modeling with Bayesian methods | `stan_glm()`, `stan_lmer()`, `stan_coxph()` | Quick Bayesian inference; pre-compiled models |
+| **brms** | 2.21+ | Bayesian regression models using Stan | `brm()`, `hypothesis()`, `conditional_effects()` | Flexible custom Bayesian models; full control over priors |
+| **bayesplot** | 1.11+ | Posterior predictive checks and diagnostics | `pp_check()`, `mcmc_trace()`, `mcmc_areas()` | Evaluating MCMC convergence and model adequacy |
+| **BayesFactor** | 0.9+ | Bayes factors for hypothesis testing | `ttestBF()`, `lmBF()`, `anovaBF()` | Bayesian alternatives to frequentist hypothesis tests |
+
+**Example: Bayesian logistic regression:**
+```r
+library(rstanarm)
+
+# Bayesian logistic regression with default priors
+bayes_fit <- stan_glm(
+  response ~ age + sex + treatment,
+  family = binomial(link = "logit"),
+  data = trial_data,
+  cores = 4,
+  seed = 123
+)
+
+# Posterior summary
+summary(bayes_fit)
+
+# Posterior predictive check
+library(bayesplot)
+pp_check(bayes_fit)
+
+# Hypothesis: treatment effect > 0
+hypothesis(bayes_fit, "treatmentDrug_A > 0")
+```
+
+---
+
+## Reproducible Research and Documentation
+
+Packages for creating dynamic documents and reports.
+
+| Package | Latest Version | Purpose | Key Functions | When to Use |
+|---------|-----------------|---------|----------------|-------------|
+| **quarto** | 1.5+ | Scientific and technical document authoring | `quarto::render()`, `quarto::preview()` | Creating professional reports, presentations, and books |
+| **rmarkdown** | 2.27+ | Dynamic documents combining R and Markdown | `render()`, `html_document()`, `pdf_document()` | HTML, PDF, Word reports with embedded code |
+| **knitr** | 1.48+ | Code execution and document generation | `knit()`, `knit_child()`, chunk options | Processing .Rmd/.qmd files |
+| **targets** | 1.8+ | Pipeline management for reproducible analyses | `tar_target()`, `tar_make()`, `tar_read()` | Dependency tracking; avoid re-running unchanged analyses |
+| **renv** | 1.0+ | Project-level package version management | `renv::init()`, `renv::snapshot()`, `renv::restore()` | Reproducible environments; package version pinning |
+
+**Setup reproducible project with renv:**
+```r
+# Initialize renv in a project
+renv::init()
+
+# Install packages
+install.packages(c("dplyr", "ggplot2", "gtsummary"))
+
+# Snapshot current state
+renv::snapshot()
+
+# Later, restore exact versions
+renv::restore()
+```
+
+---
+
+## Validation, Quality Control, and Risk Assessment
+
+Packages for testing, validation, and regulatory risk evaluation.
+
+| Package | Latest Version | Purpose | Key Functions | When to Use |
+|---------|-----------------|---------|----------------|-------------|
+| **testthat** | 3.2+ | Unit testing framework | `test_that()`, `expect_equal()`, `expect_error()` | Testing functions for bugs; CI/CD integration |
+| **covr** | 3.6+ | Code coverage analysis | `package_coverage()`, `report()` | Measuring test completeness |
+| **diffdf** | 0.1+ | Compare two data frames | `diffdf()`, `diffdf_from_file()` | Validating data transformations; regression testing |
+| **arsenal** | 3.6+ | Compare datasets with detailed reports | `comparedf()` | Comprehensive dataset comparison reports |
+| **riskmetric** | 0.2+ | Assess R package risk | `assess()`, `pkg_risk_score()` | Evaluating packages for regulatory use |
+| **valtools** | 0.2+ | Validation of computational systems | Documentation, traceability, validation reports | Creating validation documentation per 21 CFR Part 11 |
+
+**Example: Testing a data transformation:**
+```r
+library(testthat)
+
+test_that("sbp_conversion function works correctly", {
+  result <- convert_sbp_mmhg_to_kpa(120)
+  expect_equal(result, 16.0, tolerance = 0.01)
+  expect_error(convert_sbp_mmhg_to_kpa("invalid"))
+})
+
+# Run tests
+test_file("test_functions.R")
+```
+
+---
+
+## Propensity Scores and Real-World Evidence (RWE)
+
+Packages for observational study analysis and causal inference.
+
+| Package | Latest Version | Purpose | Key Functions | When to Use |
+|---------|-----------------|---------|----------------|-------------|
+| **MatchIt** | 4.5+ | Propensity score matching | `matchit()`, `match.data()` | Balancing treatment groups in observational data |
+| **cobalt** | 4.5+ | Checking covariate balance | `bal.tab()`, `love.plot()` | Visualizing balance before/after PS matching |
+| **WeightIt** | 0.14+ | Weighting for causal inference | `weightit()` (multiple methods) | IPW, entropy balancing, CBPS |
+| **twang** | 2.6+ | Toolkit for weighting and analysis of nonequivalent groups | `ps()`, `survey::svyglm()` | GBM propensity score estimation |
+
+**Propensity score matching workflow:**
+```r
+library(MatchIt)
+library(cobalt)
+
+# Fit propensity score model and match
+m_out <- matchit(
+  treatment ~ age + sex + comorbidity,
+  data = observational_data,
+  method = "nearest",
+  distance = "glm"
+)
+
+# Extract matched data
+matched_data <- get_matches(m_out)
+
+# Check balance
+library(cobalt)
+love.plot(m_out, threshold = 0.1)
+
+# Analyze matched sample
+library(survey)
+design <- svydesign(~1, weights = ~weights, data = matched_data)
+svyglm(outcome ~ treatment, design = design)
+```
+
+---
+
+## Biostatistics and Specialized Analysis
+
+Miscellaneous packages for clinical biostatistics.
+
+| Package | Latest Version | Purpose | Key Functions | When to Use |
+|---------|-----------------|---------|----------------|-------------|
+| **PropCIs** | 0.2+ | Confidence intervals for proportions | `exactci()`, `wilsonci()`, `jeffreyci()` | Exact binomial CIs; safety/adverse event rates |
+| **exact2x2** | 1.6+ | Exact contingency table tests | `exact2x2()`, `mcnemar.exact()` | Fisher's exact test; rare event analysis |
+| **epiR** | 2.0+ | Epidemiological calculations | `epi.2by2()`, `epi.smd()` | Odds ratios, risk ratios, SMD from epidemiologic perspective |
+| **DescTools** | 0.99+ | Tools for descriptive statistics | `Desc()`, `BreslowDay()`, `BinomCI()` | Comprehensive EDA; stratified analysis |
+| **Hmisc** | 5.1+ | Harrell Miscellaneous utilities | `describe()`, `summarize()`, `binconf()` | Descriptive summaries; binomial confidence intervals |
+
+**Example: Exact binomial CI for safety event:**
+```r
+library(PropCIs)
+
+# Calculate exact CI for adverse event rate (5 events in 200 subjects)
+exactci(5, 200, conf.level = 0.95)
+
+# Result: 0.0071 to 0.0429 (0.71% to 4.29%)
+```
+
+---
+
+## Visualization and Graphics
+
+Packages for creating publication-quality figures.
+
+| Package | Latest Version | Purpose | Key Functions | When to Use |
+|---------|-----------------|---------|----------------|-------------|
+| **ggplot2** | 3.5+ | Grammar of graphics (included in tidyverse) | `ggplot()`, `geom_*()`, `facet_wrap()` | Publication plots; reproducible visualization |
+| **patchwork** | 1.2+ | Combining multiple ggplots | `plot_layout()`, `plot_annotation()`, `wrap_plots()` | Multi-panel figures |
+| **cowplot** | 1.1+ | Streamlined ggplot2 themes and plot composition | `plot_grid()`, `theme_cowplot()` | Publication-ready plot grids |
+| **ggrepel** | 0.9+ | Geom with improved label placement | `geom_text_repel()`, `geom_label_repel()` | Non-overlapping text labels |
+| **RColorBrewer** | 1.1+ | Color palettes for R graphics | `brewer.pal()`, `scale_fill_brewer()` | Colorblind-friendly palettes |
+| **scales** | 1.3+ | Scale construction and formatting | `label_percent()`, `label_scientific()`, `label_comma()` | Axis formatting; percentage scales |
+
+**Complex multi-panel figure example:**
+```r
+library(ggplot2)
+library(patchwork)
+
+p1 <- ggplot(trial_data, aes(x = age, y = sbp, color = arm)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) +
+  theme_minimal()
+
+p2 <- ggplot(trial_data, aes(x = arm, y = sbp)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.2, alpha = 0.3) +
+  theme_minimal()
+
+(p1 | p2) +
+  plot_annotation(title = "Systolic Blood Pressure by Age and Arm",
+                  tag_levels = "A")
+```
+
+---
+
+## Installation Recommendations
+
+### Install core pharmaverse packages:
+```r
+install.packages(c("admiral", "xportr", "pharmaversesdtm"))
+remotes::install_github("pharmaverse/admiraldev")
+```
+
+### Install full tidyverse ecosystem:
+```r
+install.packages("tidyverse")  # Includes dplyr, ggplot2, tidyr, readr, etc.
+```
+
+### Install clinical tables and reporting:
+```r
+install.packages(c("gtsummary", "gt", "flextable", "rtables"))
+```
+
+### Install survival analysis:
+```r
+install.packages(c("survival", "survminer", "ggsurvfit"))
+```
+
+### Install missing data and mixed models:
+```r
+install.packages(c("mice", "lme4", "mmrm", "emmeans"))
+```
+
+### Install reproducibility tools:
+```r
+install.packages(c("quarto", "rmarkdown", "renv", "targets"))
+```
+
+### Full installation for clinical work:
+```r
+# All packages commonly used in clinical trials
+pkgs <- c(
+  # Pharmaverse
+  "admiral", "xportr", "pharmaversesdtm",
+  # Tidyverse
+  "tidyverse",
+  # Data import
+  "haven", "readxl", "openxlsx",
+  # Survival
+  "survival", "survminer", "ggsurvfit",
+  # Mixed models
+  "lme4", "mmrm", "emmeans",
+  # Missing data
+  "mice", "naniar",
+  # Tables
+  "gtsummary", "gt", "flextable",
+  # Reproducibility
+  "quarto", "rmarkdown", "renv", "targets",
+  # Testing
+  "testthat", "diffdf"
+)
+
+install.packages(pkgs)
+```
+
+---
+
+## Version Management with renv
+
+For regulatory compliance and reproducibility, always use `renv` to manage package versions:
+
+```r
+# Initialize renv in your project
+renv::init()
+
+# Develop and install packages as needed
+install.packages("dplyr")
+
+# Create snapshot of current environment
+renv::snapshot()  # Creates renv.lock
+
+# Later (or by others), restore exact same versions
+renv::restore()  # Reads renv.lock
+```
+
+The `renv.lock` file should be version-controlled (Git) to ensure everyone has identical environments.
+
+---
+
+## Package Ecosystem Summary by Workflow
+
+### **Data Import & Cleaning**
+admiral, dplyr, tidyr, haven, readxl, stringr, lubridate
+
+### **Descriptive & Summary Statistics**
+dplyr, gtsummary, DescTools, Hmisc, naniar
+
+### **Hypothesis Testing**
+survival, lme4, mmrm, PropCIs, exact2x2
+
+### **Regression & Causal Inference**
+dplyr, lm/glm, MatchIt, cobalt, WeightIt
+
+### **Visualization**
+ggplot2, ggsurvfit, patchwork, cowplot, ggrepel
+
+### **Tables & Reporting**
+gtsummary, gt, flextable, rtables, rmarkdown, quarto
+
+### **Reproducibility & QC**
+renv, targets, testthat, diffdf, covr, riskmetric
+
+---
+
+## Further Learning
+
+- **Pharmaverse**: https://pharmaverse.org (tutorials, vignettes)
+- **Tidyverse**: https://www.tidyverse.org (R for Data Science book)
+- **RStudio Cheat Sheets**: https://posit.co/resources/cheatsheets/
+- **R Consortium Clinical Submissions**: https://rconsortium.org/workgroups/submissions-to-the-us-fda/
+- **FDA R Pilot Submissions**: https://www.fda.gov/regulatory-information/strategy-and-policy/use-r-function-packages

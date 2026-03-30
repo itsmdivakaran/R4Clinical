@@ -1,0 +1,575 @@
+---
+title: "Chapter 1: Introduction to R in Clinical Research"
+---
+
+# Introduction to R in Clinical Research
+
+## 1.1 Why R in Clinical Trials: The Case for Open Science
+
+Clinical research operates in one of the most highly regulated industries on Earth. Every analysis, every statistical inference, and every reported outcome must be defensible, reproducible, and transparent to regulatory agencies like the FDA. For decades, SAS has been the de facto standard in pharmaceutical research—and for good reason. SAS's dominance stemmed from its reputation, established workflows, and regulatory acceptance.
+
+However, the landscape is shifting. The FDA has explicitly endorsed open-source statistical computing in its 2023 Statistical Computing Environment guidance, which acknowledges that R and Python are viable alternatives to proprietary software for clinical data analysis and regulatory submissions. This shift opens a remarkable opportunity for clinical researchers: access to cutting-edge statistical methods, transparent algorithms, and a global community of biostatisticians—all at a fraction of the cost.
+
+### The Economic Reality
+
+A single SAS license costs approximately \$10,000–15,000 per year for an individual analyst. A large pharmaceutical company running 50+ concurrent projects might spend \$500,000 annually on SAS licenses alone. R is free. The savings are not trivial, particularly for academic medical centers, government health agencies, and clinical research organizations in resource-constrained settings.
+
+But cost is only the beginning. SAS, as a proprietary system, obscures its underlying algorithms. When a SAS PROC produces a p-value, users must trust that the calculation is correct—they cannot inspect the source code. R inverts this relationship: every statistical function is transparent and verifiable. This transparency aligns perfectly with the modern emphasis on reproducible research.
+
+### Reproducibility and Transparency
+
+::: callout-note
+**Reproducibility Crisis in Medicine**: A 2016 Nature survey found that 70% of researchers had failed to reproduce another scientist's work. In clinical research, irreproducibility can lead to abandoned drug development programs, failed regulatory submissions, and—worst of all—patients denied effective treatments.
+:::
+
+R enables true reproducibility. An analysis written in R code can be version-controlled with Git, shared openly on GitHub, and executed identically on any operating system. A colleague in Mumbai can run your entire statistical analysis, line by line, exactly as you wrote it. SAS scripts can be shared, but the proprietary compiler's internal decisions remain opaque.
+
+### The CRAN Ecosystem and Pharmaverse
+
+The Comprehensive R Archive Network (CRAN) hosts over 20,000 peer-reviewed packages, many developed by leading biostatisticians and clinicians worldwide. The **pharmaverse** project—a collective effort by major pharmaceutical companies (Roche, Eli Lilly, GSK, Janssen, Novartis, and others)—has created an integrated ecosystem of R packages specifically designed for clinical trial analysis:
+
+-   **{admiral}**: ADaM (Analysis Data Model) dataset building
+-   **{pharmaversesdtm}**: SDTM (Study Data Tabulation Model) reference datasets
+-   **{tern}**: Analysis functions for table generation
+-   **{cards}**: Card data structures for flexible output
+-   **{riskmetrics}**: Risk metric calculations
+
+These packages implement CDISC standards directly in R, allowing you to build analysis datasets that are both scientifically sound and ready for FDA submission.
+
+### FDA Acceptance and Regulatory Pathways
+
+The FDA's 2023 guidance explicitly states: "Software used for statistical computing should be able to provide a full audit trail... \[and\] the source code \[should be\] available to understand, review, and verify the appropriateness of the statistical methods."
+
+This opens the door for R-based submissions. Several recent IND and BLA submissions have included R code alongside or in place of SAS programs. The key requirements are:
+
+1.  **Reproducibility**: Code must produce identical results when executed again
+2.  **Documentation**: Statistical methods must be clearly explained
+3.  **Validation**: Where appropriate, calculations should be validated against a second tool
+4.  **Version control**: All software versions must be documented
+
+R satisfies all these criteria—and its open-source nature actually enhances validation and regulatory confidence.
+
+## 1.2 The Clinical Data Workflow in R
+
+A clinical trial generates data at multiple stages, and understanding this workflow is essential for writing effective analysis code.
+
+### From Protocol to Analysis
+
+```         
+┌─────────────────────────────────────────────────────────────┐
+│                   PROTOCOL DESIGN                           │
+│         (Primary endpoints, statistical analysis plan)        │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│              DATA COLLECTION & VALIDATION                    │
+│         (eCRFs, lab instruments, adverse event reports)      │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│          RAW DATA (raw, unclean, variable formats)           │
+│                  CDISC Standards (SDTM)                      │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│              DATA CLEANING & VALIDATION                      │
+│       (Identify outliers, missing data, inconsistencies)     │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│          ANALYSIS DATASETS (Clean, ready for analysis)       │
+│                  CDISC Standards (ADaM)                      │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│         STATISTICAL ANALYSIS (Descriptive, inferential)      │
+│              (R, SAS, Python, or other validated tools)      │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│        REPORTING (Tables, figures, listings)                 │
+│         (Integrated into Clinical Study Report)              │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│          REGULATORY SUBMISSION (IND, BLA, NDA)               │
+│         (To FDA or EMA for review and approval)              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Each stage has distinct R tools and workflows:
+
+-   **Data collection**: Electronic data capture systems generate raw data files (often CSV or XML)
+-   **SDTM domain creation**: Raw data is mapped to CDISC SDTM domains (DM for demographics, AE for adverse events, LB for laboratory, etc.)
+-   **ADaM development**: SDTM domains are combined to create analysis-ready datasets (e.g., ADSL for subject-level data, ADLB for lab analysis)
+-   **Statistical analysis**: Analysis datasets are analyzed using hypothesis tests, descriptive statistics, and graphics
+-   **Reporting**: Results are formatted into tables, listings, and figures for inclusion in the Clinical Study Report
+
+::: callout-important
+**CDISC Standards Are Not Optional**: If your trial data might be submitted to the FDA, CDISC standards are essentially mandatory. They ensure data quality, reduce errors, and facilitate regulatory review. R packages like {admiral} automate much of this work.
+:::
+
+## 1.3 Understanding CDISC Standards
+
+### SDTM: The Data Foundation
+
+The **Study Data Tabulation Model (SDTM)** is the FDA-required format for submitting raw clinical data. Think of SDTM as the "ground truth"—the faithful representation of what was observed in the trial.
+
+SDTM organizes data into domains. Each domain captures a specific type of clinical information:
+
+| Domain | Full Name | Content |
+|----|----|----|
+| DM | Demographics | Subject IDs, age, sex, ethnicity, enrollment date |
+| AE | Adverse Events | Adverse event terms, severity, causality, dates |
+| LB | Laboratory | Lab tests (hematology, chemistry, urinalysis) with values and units |
+| VS | Vital Signs | Blood pressure, heart rate, temperature, respiratory rate |
+| EX | Exposure | Drug dose, date, time, route of administration |
+| CM | Concomitant Medications | Non-trial medications taken by patients |
+| DS | Disposition | Visit status, milestone achievements |
+
+Each domain has a specific structure. For example, the LB (Laboratory) domain contains:
+
+```         
+USUBJID: Unique Subject ID
+LBDTC:   Lab test date
+LBTEST:  Lab test name (e.g., "Hemoglobin")
+LBCAT:   Lab category (e.g., "Hematology")
+LBSTRESN: Lab value (numeric, standardized result)
+LBUNIT:  Lab unit (e.g., "g/dL")
+LBNRLO:  Lower reference range
+LBNRHI:  Upper reference range
+```
+
+This standardization ensures that every lab value is recorded identically, regardless of which lab or region it came from.
+
+### ADaM: Analysis-Ready Data
+
+The **Analysis Data Model (ADaM)** takes SDTM data and transforms it into analysis-ready form. If SDTM is the "raw truth," ADaM is the "analysis truth"—data structured for statistical testing.
+
+For example, an ADaM lab dataset (ADLB) might: - Pivot lab values from long format (one row per test) to wide format (one row per subject per visit) - Calculate change from baseline for each lab parameter - Flag abnormal values using CTCAE (Common Terminology Criteria for Adverse Events) grades - Derive treatment group indicators
+
+A typical ADLB row for a single subject might look like:
+
+```         
+USUBJID   VISIT    LBTEST         BASELINE  VALUE   CHG  ABNFL
+"001-101" "Week 4" "Hemoglobin"   13.5      12.8    -0.7 "Y"
+"001-101" "Week 8" "Hemoglobin"   13.5      12.2    -1.3 "Y"
+"001-101" "Week 4" "WBC"          7.2       6.1     -1.1 "N"
+```
+
+## 1.4 Installing R and the Clinical Development Environment
+
+### R and RStudio Installation
+
+R 4.4 or later is required for this book. Older versions lack modern language features and performance improvements critical for clinical work.
+
+**For Windows:** 1. Navigate to https://cran.r-project.org/ 2. Click "Download R for Windows" 3. Click "base" 4. Download and run the installer 5. Accept all defaults
+
+**For macOS:** 1. Navigate to https://cran.r-project.org/ 2. Click "Download R for macOS" 3. Download the appropriate version (Intel or Apple Silicon) 4. Install as you would any macOS application
+
+**For Linux:** Use your distribution's package manager:
+
+``` bash
+# Ubuntu/Debian
+sudo apt-get install r-base r-base-dev
+
+# Red Hat/CentOS
+sudo yum install R R-devel
+```
+
+### RStudio Installation
+
+RStudio is the IDE (Integrated Development Environment) that makes R accessible and productive. Download from https://posit.co/download/rstudio-desktop/:
+
+1.  Download the free RStudio Desktop version
+2.  Install as you would any application
+3.  Open RStudio
+
+You should see four panes: - **Script/Editor** (top-left): Where you write R code - **Console** (bottom-left): Where R executes commands and shows output - **Environment/History** (top-right): Variables and command history - **Files/Plots/Packages/Help** (bottom-right): File browser, plots, package manager, help docs
+
+### Installing Clinical Analysis Packages
+
+The following code installs the essential packages for clinical data analysis. Run this in the R console:
+
+``` r
+# Install from CRAN (general-purpose packages)
+install.packages(c("tidyverse", "readxl", "haven", "lubridate", "stringr"))
+
+# Install from Bioconductor (optional, for genomic analysis)
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("limma")
+
+# Install pharmaverse packages
+# As of 2024, pharmaverse is not on CRAN but on GitHub
+install.packages("remotes")
+remotes::install_github("pharmaverse/pharmaversesdtm")
+remotes::install_github("pharmaverse/admiral")
+```
+
+After installation, load the packages to verify:
+
+``` r
+library(tidyverse)    # Data manipulation and visualization
+library(readxl)       # Excel file reading
+library(haven)        # SAS/SPSS file reading
+library(lubridate)    # Date/time handling
+library(stringr)      # String manipulation
+library(pharmaversesdtm)  # Clinical reference datasets
+library(admiral)      # ADaM dataset building
+```
+
+If all packages load without error, your environment is ready.
+
+## 1.5 Your First Clinical Dataset: Loading and Inspecting SDTM Data
+
+Let's load a real SDTM dataset from the pharmaversesdtm package and explore it. This dataset comes from a simulated phase III oncology trial.
+
+::: callout-tip
+**Simulated Clinical Data**: The pharmaversesdtm package contains simulated data based on realistic clinical trial structures. While the actual values are synthetic, the data organization, variable names, and domain structures are authentic and representative of real clinical trials submitted to the FDA.
+:::
+
+### Loading the Data
+
+```{r}
+#| label: load-pharmaverse-dm
+#| eval: false
+
+# Load the pharmaversesdtm package
+library(pharmaversesdtm)
+library(tidyverse)
+
+# The package includes several simulated SDTM domains
+# Load the Demographics domain (DM) which contains baseline subject information
+data("dm")
+
+# Display the first few rows
+head(dm)
+```
+
+The output shows a demographics dataset with columns like:
+
+```         
+# A tibble: 6 x 27
+  STUDYID DOMAIN USUBJID SUBJID RFSTDTC     RFENDTC     DTHDTC DTHFL BRTHDTC    AGE
+  <chr>   <chr>  <chr>   <chr>  <date>      <date>      <date> <chr> <date>   <dbl>
+1 EUSTC1  DM     01-701  701    2014-04-18  2014-10-16  NA     N     1952-01-15 62
+2 EUSTC1  DM     01-702  702    2014-04-19  2014-10-16  NA     N     1982-05-24 32
+3 EUSTC1  DM     01-703  703    2014-04-20  2014-10-16  NA     N     1975-03-09 39
+...
+```
+
+### Inspecting Structure and Dimensions
+
+Understanding your data begins with asking basic questions: *How many rows and columns? What are the data types? Are there missing values?*
+
+```{r}
+#| label: inspect-dm-structure
+#| eval: false
+
+# Get dimensions: rows (subjects) and columns (variables)
+dim(dm)
+# [1] 254  27
+
+# Alternative functions for dimensions
+nrow(dm)  # 254 subjects
+ncol(dm)  # 27 variables
+
+# Get column names
+names(dm)
+# [1] "STUDYID"   "DOMAIN"    "USUBJID"   "SUBJID"    "RFSTDTC"
+# [6] "RFENDTC"   "DTHDTC"    "DTHFL"     "BRTHDTC"   "AGE"
+# ...
+
+# Examine the structure of each column
+str(dm)
+# tibble [254 × 27] (S3: tbl_df/tbl/data.frame)
+#  $ STUDYID  : chr "EUSTC1" "EUSTC1" "EUSTC1" ...
+#  $ DOMAIN   : chr "DM" "DM" "DM" ...
+#  $ USUBJID  : chr "01-701" "01-702" "01-703" ...
+#  $ AGE      : num 62 32 39 56 31 54 46 34 ...
+#  $ SEX      : chr "F" "M" "F" ...
+#  $ RACE     : chr "WHITE" "BLACK OR AFRICAN AMERICAN" "WHITE" ...
+#  $ ETHNIC   : chr "NOT HISPANIC OR LATINO" ...
+```
+
+### Summary Statistics
+
+::: callout-tip
+**Clinical Context**: Demographic summary statistics are always the first table in a Clinical Study Report. They establish baseline comparability and ensure your analysis population matches the protocol.
+:::
+
+```{r}
+#| label: dm-summary
+#| eval: false
+
+# Generate a summary of all variables
+summary(dm)
+
+# For a more informative summary specific to demographics:
+dm %>%
+  summarise(
+    n_subjects = n(),
+    age_mean = mean(AGE, na.rm = TRUE),
+    age_sd = sd(AGE, na.rm = TRUE),
+    age_min = min(AGE, na.rm = TRUE),
+    age_max = max(AGE, na.rm = TRUE),
+    pct_female = 100 * sum(SEX == "F", na.rm = TRUE) / n(),
+    pct_male = 100 * sum(SEX == "M", na.rm = TRUE) / n()
+  )
+
+# Results:
+# n_subjects age_mean age_sd age_min age_max pct_female pct_male
+#        254     52.5   13.8      21      85       48.0     52.0
+```
+
+This tells us: - **254 subjects** enrolled in the trial - **Mean age 52.5 years** (SD 13.8), range 21–85 years - **Approximately 48% female, 52% male** —a reasonable gender balance
+
+### Checking for Missing Data
+
+Missing data is a critical consideration in clinical analyses. Missing values can bias results if not handled carefully.
+
+```{r}
+#| label: dm-missing-data
+#| eval: false
+
+# Count missing values per column
+colSums(is.na(dm))
+
+# STUDYID     DOMAIN    USUBJID     SUBJID  RFSTDTC   RFENDTC    DTHDTC
+#         0         0         0         0         0         0       250
+# DTHFL    BRTHDTC       AGE       SEX      RACE     ETHNIC
+#         0         0         0         0         0         0
+
+# Interpretation:
+# - 250 of 254 subjects did not die during the trial (DTHDTC = missing for 250)
+# - All demographic variables have complete data (DTHDTC missing is expected—not everyone dies)
+
+# Examine one specific variable more carefully
+dm %>%
+  group_by(SEX) %>%
+  summarise(
+    count = n(),
+    pct = 100 * n() / nrow(dm),
+    .groups = 'drop'
+  )
+
+# Results:
+# SEX   count   pct
+# F       122  48.0
+# M       132  52.0
+```
+
+### Using glimpse() for Quick Inspection
+
+The {dplyr} package (part of tidyverse) provides `glimpse()`, which shows data in a transposed format—perfect for quick inspection:
+
+```{r}
+#| label: dm-glimpse
+#| eval: false
+
+library(dplyr)
+
+glimpse(dm)
+
+# Output shows:
+# Rows: 254
+# Columns: 27
+# $ STUDYID   <chr> "EUSTC1", "EUSTC1", "EUSTC1", ...
+# $ DOMAIN    <chr> "DM", "DM", "DM", ...
+# $ USUBJID   <chr> "01-701", "01-702", "01-703", ...
+# $ AGE       <dbl> 62, 32, 39, 56, 31, 54, 46, 34, ...
+# $ SEX       <chr> "F", "M", "F", "F", "M", "M", ...
+```
+
+## 1.6 The Pharmaverse Ecosystem
+
+The pharmaverse is a collection of R packages maintained collaboratively by major pharmaceutical companies. It provides a comprehensive toolkit for clinical data analysis aligned with CDISC standards.
+
+### Key Packages
+
+**{pharmaversesdtm}**: Reference SDTM datasets for learning and testing. This package provides realistic simulated trial data organized in SDTM format.
+
+```{r}
+#| label: pharmaverse-datasets
+#| eval: false
+
+library(pharmaversesdtm)
+
+# Available datasets
+data(package = "pharmaversesdtm")
+
+# Load multiple SDTM domains from the same study
+data("dm")  # Demographics
+data("ae")  # Adverse events
+data("lb")  # Laboratory data
+data("ex")  # Drug exposure
+data("vs")  # Vital signs
+data("cm")  # Concomitant medications
+data("ds")  # Disposition
+```
+
+**{admiral}**: The ADaM data modeling package. Provides functions to create analysis datasets from SDTM data, following ADaM standards. While we'll use this extensively in later chapters, here's a preview:
+
+```{r}
+#| label: admiral-preview
+#| eval: false
+
+library(admiral)
+
+# The admiral package includes functions like:
+# - derive_vars_age(): Calculate age from birth date
+# - derive_vars_period_flag(): Flag subjects in analysis periods
+# - derive_var_extremes(): Find min/max values per subject
+# - compute_duration(): Calculate duration between dates
+
+# Example: derive age from birth date using admiral functions
+dm_with_age <- dm %>%
+  derive_vars_age(
+    age_var = AGE,
+    reference_date = RFSTDTC,
+    age_unit = "YEARS"
+  )
+```
+
+**{tern}**: Provides tabulation and analysis functions for creating the tables and figures typically found in clinical study reports.
+
+**{cards}**: A flexible data structure for storing and manipulating analysis results.
+
+## 1.7 Key Functions for Data Inspection
+
+Every R session begins with understanding your data. Here are the essential functions:
+
+| Function | Purpose | Example |
+|----|----|----|
+| `dim()` | Dimensions (rows, columns) | `dim(dm)` returns `[1] 254 27` |
+| `nrow()` | Number of rows | `nrow(dm)` returns `254` |
+| `ncol()` | Number of columns | `ncol(dm)` returns `27` |
+| `head()` | First 6 rows | `head(dm)` shows first 6 subjects |
+| `tail()` | Last 6 rows | `tail(dm)` shows last 6 subjects |
+| `names()` | Column names | `names(dm)` lists all variables |
+| `class()` | Data structure type | `class(dm)` returns `"tbl_df"` (tibble) |
+| `str()` | Structure (variables, types, sample values) | `str(dm)` shows full structure |
+| `glimpse()` | Transposed view of structure | `glimpse(dm)` shows columns vertically |
+| `summary()` | Descriptive statistics | `summary(dm)` shows mean, median, quartiles |
+| `is.na()` | Identify missing values | `is.na(dm$AGE)` returns TRUE/FALSE vector |
+| `colSums(is.na())` | Count missing per column | `colSums(is.na(dm))` shows NAs per variable |
+
+### Practical Inspection Workflow
+
+Here's a complete workflow for inspecting a new dataset:
+
+```{r}
+#| label: inspection-workflow
+#| eval: false
+
+# Step 1: Load and view basic structure
+library(tidyverse)
+library(pharmaversesdtm)
+
+data("dm")
+head(dm, n = 10)        # First 10 rows
+tail(dm, n = 5)         # Last 5 rows
+dim(dm)                 # Overall size
+str(dm)                 # Variable types
+
+# Step 2: Check for missing data
+missing_summary <- dm %>%
+  summarise(across(everything(),
+                   list(missing = ~sum(is.na(.)),
+                        pct_missing = ~100*mean(is.na(.)))))
+print(missing_summary)
+
+# Step 3: Understand categorical variables
+dm %>%
+  summarise(
+    n_distinct_sex = n_distinct(SEX),
+    unique_sex = paste(unique(SEX), collapse = ", "),
+    n_distinct_race = n_distinct(RACE),
+    n_distinct_ethnic = n_distinct(ETHNIC)
+  )
+
+# Step 4: Understand numeric variables
+dm %>%
+  select(where(is.numeric)) %>%
+  summary()
+```
+
+::: callout-important
+**Always Start with Inspection**: Before any analysis, spend time understanding your data. Missing values hidden in poorly-inspected datasets can invalidate entire analyses. In clinical research, data quality is not optional—it's a regulatory requirement.
+:::
+
+## 1.8 Summary and Best Practices
+
+This chapter has introduced R as a tool for clinical data analysis, established the regulatory landscape, and walked through a complete clinical data workflow from protocol to analysis. Key takeaways:
+
+1.  **R is FDA-accepted**: The FDA's 2023 guidance acknowledges R and other open-source tools as valid for clinical statistical computing and regulatory submissions.
+
+2.  **Reproducibility is paramount**: R code is transparent and verifiable, supporting modern standards for reproducible research.
+
+3.  **CDISC standards matter**: SDTM and ADaM formatting are essentially required for FDA submissions and ensure consistent data quality.
+
+4.  **The pharmaverse provides clinical solutions**: Packages like {admiral}, {tern}, and {pharmaversesdtm} implement CDISC standards directly in R.
+
+5.  **Data inspection is foundational**: Always begin with `head()`, `str()`, `summary()`, and missing data checks.
+
+6.  **Clinical context drives analysis choices**: Every statistical decision should be grounded in understanding the clinical question and the data that was collected to answer it.
+
+------------------------------------------------------------------------
+
+## Exercises
+
+### Beginner Exercises
+
+**Exercise 1.1: Exploring the Demographics Dataset**
+
+Load the `dm` dataset from {pharmaversesdtm} and answer the following:
+
+a)  How many subjects are in the trial?
+b)  What proportion of subjects are female?
+c)  What is the age range (minimum and maximum)?
+d)  Are there any missing demographic variables?
+
+**Exercise 1.2: Comparing Data with summary()**
+
+Use the `summary()` function on the `dm` dataset to answer:
+
+a)  What is the median age of subjects?
+b)  What is the third quartile (75th percentile) of age?
+c)  Which race category includes the most subjects?
+d)  How many subjects have missing race information (if any)?
+
+**Exercise 1.3: Checking Data Completeness**
+
+Write code to determine:
+
+a)  How many subjects have no missing data across ALL demographics variables?
+b)  Which variables have the most missing data?
+c)  Is mortality (`DTHFL`) complete or are there missing values?
+
+### Advanced Exercises
+
+**Exercise 1.4: Creating a Demographic Summary Table**
+
+Create a summary table with the following structure:
+
+| Statistic              | Value       |
+|------------------------|-------------|
+| N Subjects             | 254         |
+| Age (years): Mean (SD) | 52.5 (13.8) |
+| Age: Min – Max         | 21 – 85     |
+| Female, N (%)          | 122 (48.0)  |
+| Male, N (%)            | 132 (52.0)  |
+
+Use dplyr functions (`group_by()`, `summarise()`) to create this table programmatically, not manually.
+
+**Exercise 1.5: Multi-Domain Integration**
+
+Load three SDTM domains from pharmaversesdtm: `dm` (demographics), `ae` (adverse events), and `lb` (laboratory).
+
+a)  How many adverse events were recorded across all subjects?
+b)  What is the mean number of adverse events per subject?
+c)  What is the range of laboratory tests available?
+d)  How many unique lab test types are in the dataset?
+
+------------------------------------------------------------------------

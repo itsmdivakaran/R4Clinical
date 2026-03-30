@@ -1,0 +1,434 @@
+---
+title: "Chapter 12: Survival Analysis"
+---
+
+# Survival Analysis
+
+## Introduction: What is Survival Data?
+
+Survival analysis is a cornerstone of clinical research, particularly in oncology, cardiology, and infectious disease trials. Unlike traditional statistical methods that assume all observations are complete, survival analysis handles **time-to-event data** where some patients may not experience the event of interest by the end of the study period. This incomplete information is called **censoring**, and ignoring it can lead to biased estimates and incorrect conclusions.
+
+In a typical clinical trial:
+- **Event**: patient death, disease recurrence, disease progression, or any clinically relevant endpoint
+- **Time**: duration from study enrollment to event occurrence or censoring
+- **Censoring**: when we know the patient was event-free up to a certain time, but don't know their status afterwards
+
+### Why Survival Analysis Matters in Clinical Practice
+
+Consider a lung cancer trial. At the data cutoff date (e.g., 18 months post-enrollment), some patients have died (event observed) while others are still alive. We cannot simply record those alive patients as "no event" because they may die later. Instead, we **censor** them—acknowledging that their true survival time is at least as long as their follow-up time.
+
+## Types of Censoring
+
+### Right Censoring (Most Common)
+
+Patient alive/event-free up to time $t$, true event time unknown but $\geq t$.
+
+Example: A patient enrolls at Month 0, is followed for 24 months, and is still alive at data cutoff. Their true survival time is $\geq 24$ months.
+
+**Assumption**: Censoring mechanism is independent of the outcome (non-informative censoring).
+
+### Left Censoring
+
+Patient experienced the event before enrollment or observation began; we know the event happened before $t$ but not exactly when.
+
+Example: A patient reports they had a stroke sometime before the study started, but we don't know the exact date.
+
+### Interval Censoring
+
+Event occurred between two observation times.
+
+Example: A patient was disease-free at Month 6 visit but had recurrence by Month 12. True recurrence time is between 6–12 months.
+
+## Core Survival Concepts
+
+### The Survival Function
+
+The **survival function** $S(t)$ is the probability that an individual survives beyond time $t$:
+
+$$S(t) = P(T > t) = 1 - F(t)$$
+
+where $T$ is the random variable representing time-to-event and $F(t)$ is the cumulative distribution function.
+
+**Clinical interpretation**: If $S(12) = 0.75$ in a cancer trial, 75% of patients are expected to survive at least 12 months.
+
+Properties:
+- $S(0) = 1$ (everyone is alive at $t=0$)
+- $S(\infty) = 0$ (eventually all patients experience the event)
+- Monotonically decreasing
+
+### The Hazard Function
+
+The **hazard function** $h(t)$ represents the instantaneous risk of the event at time $t$, given survival up to time $t$:
+
+$$h(t) = \lim_{\Delta t \to 0} \frac{P(t \leq T < t+\Delta t \mid T \geq t)}{\Delta t}$$
+
+This is the **conditional probability** of event occurrence in the next small time interval, given the patient has survived to time $t$.
+
+**Clinical interpretation**: If $h(t)$ increases over time (increasing hazard), risk worsens as patients age. If $h(t)$ is constant (proportional hazards), risk does not depend on survival duration.
+
+The hazard and survival functions are related:
+
+$$h(t) = -\frac{d}{dt} \ln S(t)$$
+
+and
+
+$$S(t) = \exp\left(-\int_0^t h(u) \, du\right) = \exp\left(-H(t)\right)$$
+
+where $H(t) = \int_0^t h(u) \, du$ is the **cumulative hazard**.
+
+## Kaplan-Meier (KM) Estimator
+
+In most clinical trials, we don't know the true survival distribution. The **Kaplan-Meier estimator** is a non-parametric method to estimate $S(t)$ from observed data.
+
+### Formula
+
+$$\hat{S}(t) = \prod_{t_i \leq t} \left(1 - \frac{d_i}{n_i}\right)$$
+
+where:
+- $t_i$ are distinct event times
+- $d_i$ = number of events at time $t_i$
+- $n_i$ = number of patients at risk at time $t_i$ (those still enrolled and event-free before $t_i$)
+
+### Step-by-Step Calculation Example
+
+Consider 10 patients followed for 12 months:
+
+| Time | Events | At Risk | $1 - \frac{d}{n}$ | $\hat{S}(t)$ |
+|------|--------|---------|------------------|------------|
+| 0    | 0      | 10      | 1.0              | 1.00       |
+| 2    | 1      | 10      | 0.9              | 0.90       |
+| 5    | 2      | 8       | 0.75             | 0.675      |
+| 9    | 1      | 5       | 0.8              | 0.54       |
+| 12   | 0      | 3       | 1.0              | 0.54       |
+
+At $t = 5$ months: $\hat{S}(5) = 0.9 \times 0.75 = 0.675$
+
+### Reading a Kaplan-Meier Curve
+
+- **Vertical drops** indicate event occurrences
+- **Horizontal plateaus** indicate no events
+- **Confidence bands** show uncertainty around the curve
+- **Median survival**: time at which $\hat{S}(t) = 0.5$ (50% event rate)
+
+### Confidence Bands
+
+Greenwood's formula provides the variance:
+
+$$\widehat{Var}[\ln \hat{S}(t)] = \sum_{t_i \leq t} \frac{d_i}{n_i(n_i - d_i)}$$
+
+95% CI for $S(t)$ is constructed on the log scale for stability.
+
+## Log-Rank Test
+
+When comparing survival curves between two or more groups, the **log-rank test** is the standard hypothesis test.
+
+### Null Hypothesis
+
+$$H_0: S_1(t) = S_2(t) \text{ for all } t$$
+
+(Survival functions are identical between groups.)
+
+### Test Statistic
+
+The log-rank test statistic follows a chi-squared distribution:
+
+$$\chi^2 = \frac{(O_1 - E_1)^2}{E_1} + \frac{(O_2 - E_2)^2}{E_2}$$
+
+where:
+- $O_i$ = observed number of events in group $i$
+- $E_i$ = expected number of events under the null hypothesis
+- Typically reported with 1 degree of freedom for two groups
+
+**Clinical interpretation**: A $p$-value $< 0.05$ suggests a significant difference in survival between groups.
+
+### Stratification
+
+When comparing treatments while controlling for a prognostic factor (e.g., disease stage):
+
+$$\chi^2_{stratified} = \frac{(O_1 - E_1)^2}{Var(O_1)}$$
+
+summed over strata, removes confounding by the stratification variable.
+
+## Cox Proportional Hazards Model
+
+The **Cox proportional hazards (PH) model** is the most widely used semi-parametric survival model in clinical research. It models how baseline hazard changes with covariates without assuming a specific distribution.
+
+### Model Formula
+
+$$h(t \mid X) = h_0(t) \exp(\beta_1 X_1 + \beta_2 X_2 + \cdots + \beta_p X_p)$$
+
+where:
+- $h_0(t)$ is the **baseline hazard** (hazard when all covariates are zero)
+- $X_j$ are covariates
+- $\beta_j$ are log-hazard ratios
+
+### Hazard Ratio
+
+For a one-unit increase in covariate $X_j$:
+
+$$HR = e^{\beta_j}$$
+
+**Clinical interpretation**:
+- $HR = 1$: no effect (reference)
+- $HR = 0.65$: 35% **reduction** in hazard (more favorable)
+- $HR = 1.5$: 50% **increase** in hazard (less favorable)
+
+### Example Interpretation
+
+"Patients receiving treatment A had a 35% lower hazard of death compared to placebo (HR = 0.65, 95% CI: 0.48–0.88, $p = 0.004$)."
+
+### Proportional Hazards Assumption
+
+A critical assumption: the hazard ratio between groups is constant over time. If violated, the Cox model may give misleading estimates.
+
+**Testing the PH assumption**:
+
+1. **Schoenfeld Residuals Test**: Tests correlation between residuals and time.
+   - $p > 0.05$: assumption met
+   - $p < 0.05$: assumption violated
+
+2. **Log-Log Survival Plot**: Plot $\ln[-\ln S(t)]$ vs $\ln(t)$. Parallel lines indicate proportional hazards.
+
+### Stratified Cox Model
+
+If PH assumption is violated for a variable, stratify by it:
+
+$$h_i(t \mid X) = h_{0i}(t) \exp(\beta X)$$
+
+Each stratum has its own baseline hazard but shares the same regression coefficients. The variable you stratify by is removed from the model.
+
+## Clinical Example: Lung Cancer Survival
+
+In this example, we analyze the `survival::lung` dataset (North Central Cancer Treatment Group).
+
+**Study Context**: Follow 228 patients with advanced lung cancer. Primary outcome is overall survival (OS). Covariates: age, sex, Eastern Cooperative Oncology Group (ECOG) performance status.
+
+### Exploratory Analysis and KM Curves
+
+```r
+library(survival)
+library(ggsurvfit)
+library(tidyverse)
+
+# Load lung cancer data
+data(lung)
+
+# Check data structure
+head(lung)
+str(lung)
+
+# Prepare data
+lung_clean <- lung %>%
+  mutate(
+    sex = factor(sex, levels = 1:2, labels = c("Male", "Female")),
+    status = factor(status, levels = 1:2, labels = c("Censored", "Event"))
+  )
+
+# Fit Kaplan-Meier estimator (overall)
+km_overall <- survfit(Surv(time, status) ~ 1, data = lung_clean)
+summary(km_overall, times = c(30, 60, 180, 365))
+
+# Kaplan-Meier by sex
+km_sex <- survfit(Surv(time, status) ~ sex, data = lung_clean)
+summary(km_sex)
+
+# Beautiful KM plot using ggsurvfit
+km_plot <- ggsurvfit(km_sex) +
+  labs(
+    title = "Overall Survival by Sex in Advanced Lung Cancer",
+    subtitle = "Kaplan-Meier Curves (N=228)",
+    x = "Time (days)",
+    y = "Probability of Survival"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    legend.position = "inside",
+    legend.position.inside = c(0.75, 0.25)
+  )
+
+print(km_plot)
+```
+
+**Key Output**:
+- Median OS for males: ~305 days
+- Median OS for females: ~392 days
+- This suggests females have longer survival, but statistical significance must be tested.
+
+### Log-Rank Test
+
+```r
+# Log-rank test for sex
+logrank_test <- survdiff(Surv(time, status) ~ sex, data = lung_clean)
+print(logrank_test)
+
+# Extract p-value and test statistic
+logrank_p <- pchisq(logrank_test$chisq, df = 1, lower.tail = FALSE)
+cat("Log-rank test p-value:", logrank_p, "\n")
+```
+
+**Interpretation**: If $p < 0.05$, we reject the null hypothesis and conclude survival curves differ significantly between sexes.
+
+### Cox Proportional Hazards Model
+
+```r
+# Fit Cox model with age, sex, and ECOG performance status
+cox_model <- coxph(
+  Surv(time, status) ~ age + sex + ph.ecog,
+  data = lung_clean
+)
+
+# Model summary
+summary(cox_model)
+
+# Extract and display hazard ratios with CIs
+hr_table <- tibble(
+  Variable = names(cox_model$coefficients),
+  Beta = cox_model$coefficients,
+  HR = exp(cox_model$coefficients),
+  SE = sqrt(diag(vcov(cox_model))),
+) %>%
+  mutate(
+    CI_Lower = exp(Beta - 1.96 * SE),
+    CI_Upper = exp(Beta + 1.96 * SE),
+    `HR [95% CI]` = sprintf(
+      "%.2f [%.2f–%.2f]",
+      HR, CI_Lower, CI_Upper
+    ),
+    `p-value` = 1 - pchisq(
+      (Beta / SE)^2, df = 1
+    )
+  ) %>%
+  select(Variable, `HR [95% CI]`, `p-value`) %>%
+  mutate(`p-value` = sprintf("%.4f", `p-value`))
+
+print(hr_table)
+```
+
+**Expected Output Interpretation**:
+- **Age**: HR ~ 1.01 per year (each additional year increases hazard by 1%)
+- **Sex (Female vs Male)**: HR ~ 0.58 (females have ~42% lower hazard of death)
+- **ECOG**: HR ~ 1.4–1.5 per unit (worse performance status increases hazard)
+
+### Testing the Proportional Hazards Assumption
+
+```r
+# Test PH assumption using Schoenfeld residuals
+ph_test <- cox.zph(cox_model)
+print(ph_test)
+
+# Plot log-log survival curves
+plot(ph_test)
+
+# If any variable has p < 0.05, investigate further
+# Visualize by plotting cumulative hazard by group
+library(ggplot2)
+
+# Extract and plot cumulative hazard
+km_by_sex <- survfit(Surv(time, status) ~ sex, data = lung_clean)
+
+plot_data <- data.frame(
+  time = rep(km_by_sex$time, 2),
+  cumhaz = c(km_by_sex$cumhaz[1:length(km_by_sex$time[km_by_sex$strata == 2])],
+             km_by_sex$cumhaz[(length(km_by_sex$time[km_by_sex$strata == 2]) + 1):
+                              length(km_by_sex$cumhaz)]),
+  sex = c(rep("Male", length(km_by_sex$time[km_by_sex$strata == 2])),
+          rep("Female", sum(km_by_sex$strata == 2)))
+)
+
+# Create proper cumulative hazard plot using -log(S(t))
+kmfit <- survfit(Surv(time, status) ~ sex, data = lung_clean)
+surv_summary_data <- fortify(kmfit) %>%
+  mutate(
+    log_minus_log_S = log(-log(surv)),
+    log_time = log(time)
+  )
+
+ph_plot <- ggplot(surv_summary_data, aes(x = log_time, y = log_minus_log_S,
+                                         color = strata)) +
+  geom_step() +
+  labs(
+    title = "Log-Log Survival Plot to Assess Proportional Hazards",
+    x = "ln(Time)",
+    y = "ln(-ln S(t))",
+    color = "Group"
+  ) +
+  theme_minimal()
+
+print(ph_plot)
+```
+
+**Interpretation**:
+- If lines are approximately **parallel**: proportional hazards assumption is met
+- If lines **diverge**: assumption violated; consider stratification or time-varying coefficients
+
+### Stratified Cox Model (if PH assumption violated)
+
+```r
+# If ECOG violates PH assumption, stratify by it
+cox_stratified <- coxph(
+  Surv(time, status) ~ age + sex + strata(ph.ecog),
+  data = lung_clean
+)
+
+summary(cox_stratified)
+```
+
+## Key Clinical Takeaways
+
+1. **Censoring is information**: Never discard censored observations; they provide evidence the patient was event-free up to that time.
+
+2. **KM curves are descriptive**: Show survival patterns; log-rank test determines if differences are statistically significant.
+
+3. **Median survival**: Clinically meaningful; compare trial arms to assess treatment efficacy.
+
+4. **Hazard ratios**: Standard for reporting treatment effects in survival studies. Always include 95% CIs and $p$-values.
+
+5. **Check assumptions**: Proportional hazards assumption is critical; test it and adjust (stratify) if violated.
+
+6. **Context matters**: Interpret HR in relation to clinical significance, not just statistical significance.
+
+## Exercises
+
+### Beginner Exercises
+
+**Exercise 12.1**: Load the `survival::veteran` dataset (veteran's administration lung cancer study). Create a Kaplan-Meier plot comparing the two treatment arms (`trt`). Describe what you observe about the survival curves.
+
+```r
+data(veteran)
+# Your code here
+```
+
+**Exercise 12.2**: Fit a Cox proportional hazards model to the veteran data using covariates: treatment (`trt`), age, ECOG performance status, and disease duration. Report the hazard ratios with 95% CIs for treatment comparison.
+
+**Exercise 12.3**: Using the lung cancer data, test the log-rank hypothesis comparing survival between ECOG groups (0 vs 1 vs 2+). Interpret the $p$-value in clinical context.
+
+### Advanced Exercises
+
+**Exercise 12.4**: For the lung data, fit a Cox model with an **interaction term** between age and sex: `age + sex + age:sex`. Test whether the effect of age on hazard differs by sex. Create a visualization showing predicted survival curves for males and females at ages 50 and 70.
+
+```r
+cox_interact <- coxph(Surv(time, status) ~ age + sex + age:sex,
+                       data = lung_clean)
+summary(cox_interact)
+
+# Predict survival for hypothetical patients
+new_data <- expand.grid(
+  age = c(50, 70),
+  sex = c("Male", "Female")
+)
+
+surv_pred <- survfit(cox_interact, newdata = new_data)
+plot(surv_pred, col = c("blue", "red", "blue", "red"), lty = c(1, 1, 2, 2))
+```
+
+**Exercise 12.5**: Implement a **sensitivity analysis** for the cox model: create a plot showing how the treatment hazard ratio (from the veteran study) changes as you sequentially add covariates (univariate, then + age, then + age + ecog, etc.). This demonstrates confounding adjustment. Use a forest plot to display HRs and CIs across models.
+
+---
+
+## References and Further Reading
+
+- Kalbfleisch, J. D., & Prentice, R. L. (2002). *The Statistical Analysis of Failure Time Data* (2nd ed.). Wiley.
+- Harrell, F. E. (2015). *Regression Modeling Strategies* (2nd ed.). Springer.
+- Therneau, T. M., & Lumley, T. (2024). `survival`: Survival Analysis. R package version 3.5+.
+- Package documentation: `?survival::Surv`, `?survival::coxph`, `?survival::survfit`

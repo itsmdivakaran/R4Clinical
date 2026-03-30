@@ -1,0 +1,883 @@
+---
+title: "Chapter 24: Oncology Trial Case Study"
+---
+
+# Chapter 24: Oncology Trial Case Study
+
+This chapter presents a comprehensive, real-world case study of a Phase III oncology trial analyzing efficacy and safety data. We demonstrate survival analysis, response evaluation, subgroup analyses, and safety reporting using clinical datasets and rigorous biostatistical methods aligned with oncology regulatory standards.
+
+## 24.1 Background: A Phase III Oncology Trial
+
+### The ONCO-301 Trial Design
+
+Imagine we are analyzing data from **ONCO-301**, a pivotal Phase III randomised controlled trial evaluating a novel targeted therapy in metastatic colorectal cancer (mCRC). The trial compares:
+
+- **Investigational arm**: Vemotinib (a hypothetical BRAF inhibitor), 960 mg once daily
+- **Control arm**: FOLFOX (fluorouracil, leucovorin, oxaliplatin) standard chemotherapy
+
+**Trial characteristics**:
+- 500 patients, 1:1 randomisation
+- Inclusion: histologically confirmed mCRC, ECOG PS 0–1, prior treatment naïve
+- Stratification: by site and BRAF mutation status
+- Primary endpoint: **Overall Survival (OS)** — time from randomisation to death from any cause
+- Secondary endpoints: **Progression-Free Survival (PFS)**, **Objective Response Rate (ORR)**
+
+### Clinical Endpoints Explained
+
+::: {.callout-note}
+## Primary and Secondary Endpoints in Oncology
+
+**Overall Survival (OS)**: Time from randomisation to death from any cause. The gold standard efficacy endpoint, directly measuring patient benefit. Regulatory agencies prioritise OS in their approval decisions.
+
+**Progression-Free Survival (PFS)**: Time from randomisation to documented disease progression (per RECIST 1.1) or death from any cause, whichever occurs first. A surrogate endpoint reflecting treatment effect on tumour control.
+
+**Objective Response Rate (ORR)**: Percentage of patients achieving Complete Response (CR) or Partial Response (PR) per RECIST 1.1 criteria. An intermediate endpoint assessing tumour shrinkage.
+:::
+
+### RECIST 1.1 Response Categories
+
+RECIST 1.1 defines tumour response based on change in target lesion diameter from baseline:
+
+- **Complete Response (CR)**: Disappearance of all target lesions. ≥30% decrease from baseline.
+- **Partial Response (PR)**: ≥30% decrease in sum of target lesion diameters.
+- **Stable Disease (SD)**: Neither PR nor PD criteria met.
+- **Progressive Disease (PD)**: ≥20% increase in sum of target lesion diameters from nadir.
+
+## 24.2 Data Setup and Preparation
+
+### Exploring the Survival Package Colon Dataset
+
+We use the built-in `survival::colon` dataset, originally from a study of adjuvant therapy for colorectal cancer. We map it to our oncology trial context.
+
+```{r}
+#| label: load-packages
+#| eval: true
+
+library(survival)
+library(tidyverse)
+library(broom)
+library(gt)
+
+# Load the colon dataset
+data(colon)
+
+# View structure and first rows
+str(colon)
+```
+
+```{r}
+#| label: explore-colon
+#| eval: true
+
+head(colon, 10)
+summary(colon)
+```
+
+::: {.callout-info}
+The `colon` dataset contains 1,858 observations with two rows per subject (one for each event type). Key variables:
+
+- **id**: Subject identifier
+- **time**: Follow-up time in days from entry
+- **status**: Event indicator (1 = recurrence/progression, 2 = death)
+- **etype**: Event type (1 = recurrence, 2 = death)
+- **rx**: Treatment (Obs, Lev, Lev+5FU)
+- **age**: Age in years
+- **sex**: 1 = male, 0 = female
+- **obstruct**: Obstruction of colon (1 = yes, 0 = no)
+- **perfor**: Perforation (1 = yes, 0 = no)
+- **adhere**: Adherence (1 = yes, 0 = no)
+- **nodes**: Number of lymph nodes examined
+- **node4**: Number of positive lymph nodes (1 = 4+, 0 = <4)
+- **differ**: Grade of differentiation (1 = well, 2 = moderate, 3 = poor)
+- **extent**: Extent of spread (1 = confined, 2 = submucosa, 3 = muscle, 4 = beyond)
+- **surg**: Type of surgery (0 = short, 1 = long)
+:::
+
+### Data Restructuring for ONCO-301
+
+```{r}
+#| label: prepare-onco-301
+#| eval: true
+
+set.seed(42)
+
+# Create OS dataset: select death events (etype==2) and create one row per subject
+colon_os <- colon %>%
+  filter(etype == 2) %>%
+  select(id, time, status, rx, age, sex, obstruct, perfor, adhere,
+         nodes, node4, differ, extent, surg) %>%
+  distinct(id, .keep_all = TRUE) %>%
+  # Map treatments: "Obs" → Control, "Lev+5FU" → Vemotinib
+  mutate(
+    rx_new = case_when(
+      rx == "Obs" ~ "Control",
+      rx == "Lev+5FU" ~ "Vemotinib",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(rx_new)) %>%
+  select(-rx) %>%
+  rename(rx = rx_new) %>%
+  # Convert to years for interpretation
+  mutate(
+    time_years = time / 365.25,
+    # Create binary event indicator
+    os_event = status
+  ) %>%
+  arrange(id)
+
+# Check sample sizes
+table(colon_os$rx)
+
+# Summary of key variables
+colon_os %>%
+  group_by(rx) %>%
+  summarise(
+    n = n(),
+    `Median Age` = median(age),
+    `Median Time (years)` = median(time_years),
+    `Deaths (n)` = sum(os_event),
+    `Death Rate (%)` = round(100 * mean(os_event), 1)
+  ) %>%
+  gt()
+```
+
+### Simulating RECIST Response Data
+
+```{r}
+#| label: simulate-recist
+#| eval: true
+
+# Create unique subject dataset for RECIST (one row per subject)
+colon_os_unique <- colon_os %>%
+  distinct(id, .keep_all = TRUE) %>%
+  mutate(subject_id = row_number())
+
+n_subjects <- nrow(colon_os_unique)
+
+# Simulate RECIST response with treatment-dependent distributions
+set.seed(42)
+
+recist_data <- colon_os_unique %>%
+  select(subject_id, id, rx, age, node4) %>%
+  mutate(
+    # Simulate best response by treatment
+    best_response = case_when(
+      rx == "Vemotinib" ~ sample(c("CR", "PR", "SD", "PD"),
+                                  n_subjects / 2,
+                                  replace = TRUE,
+                                  prob = c(0.12, 0.28, 0.35, 0.25)),
+      rx == "Control" ~ sample(c("CR", "PR", "SD", "PD"),
+                               n_subjects / 2,
+                               replace = TRUE,
+                               prob = c(0.05, 0.15, 0.40, 0.40))
+    ),
+    # Simulate percentage change in target lesion sum
+    change_pct = case_when(
+      rx == "Vemotinib" ~ rnorm(n = n(), mean = -18, sd = 28),
+      rx == "Control" ~ rnorm(n = n(), mean = -5, sd = 35)
+    ),
+    # Responder indicator (CR or PR)
+    responder = as.integer(best_response %in% c("CR", "PR"))
+  )
+
+# Merge with OS data
+colon_combined <- colon_os_unique %>%
+  left_join(recist_data %>% select(subject_id, best_response, change_pct, responder),
+            by = "subject_id")
+
+head(recist_data, 10)
+```
+
+## 24.3 Overall Survival Analysis
+
+### Kaplan-Meier Estimator
+
+The Kaplan-Meier (KM) estimator provides a non-parametric estimate of the survival function:
+
+$$S(t) = \prod_{i: t_i \leq t} \left(1 - \frac{d_i}{n_i}\right)$$
+
+where:
+- $d_i$ = number of events at time $t_i$
+- $n_i$ = number at risk at time $t_i$
+
+### Fitting the KM Estimator
+
+```{r}
+#| label: km-os-fit
+#| eval: true
+
+# Fit Kaplan-Meier curves by treatment
+km_os <- survfit(Surv(time_years, os_event) ~ rx,
+                 data = colon_os)
+
+# Print summary
+print(km_os)
+```
+
+### KM Survival Curves with Confidence Bands
+
+```{r}
+#| label: km-os-plot
+#| eval: false
+#| message: false
+
+# Requires ggsurvfit package
+# Install with: install.packages("ggsurvfit")
+
+library(ggsurvfit)
+
+km_plot <- ggsurvfit(km_os) +
+  labs(
+    title = "ONCO-301 Trial: Overall Survival (Intent-to-Treat Population)",
+    x = "Time (years)",
+    y = "Overall Survival Probability"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(size = 14, face = "bold"),
+    panel.grid.minor = element_blank()
+  ) +
+  add_confidence_interval() +
+  add_risktable()
+
+km_plot
+```
+
+::: {.callout-warning}
+The code above requires the `ggsurvfit` package. If you do not have it installed, run: `install.packages("ggsurvfit")`. This chunk uses `#| eval: false` because the rendering environment may not have this package. Run it in your local R session to generate the plot.
+:::
+
+### Log-Rank Test
+
+The log-rank test compares survival distributions between treatment groups, testing:
+
+$$H_0: S_{\text{Vemotinib}}(t) = S_{\text{Control}}(t) \text{ for all } t$$
+
+```{r}
+#| label: logrank-os
+#| eval: true
+
+# Perform log-rank test
+lr_test <- survdiff(Surv(time_years, os_event) ~ rx,
+                    data = colon_os)
+
+print(lr_test)
+
+# Extract test statistic and p-value
+lr_chisq <- lr_test$chisq
+lr_pval <- 1 - pchisq(lr_chisq, df = 1)
+
+cat("\nLog-Rank Test Results:\n")
+cat("Chi-square statistic:", round(lr_chisq, 3), "\n")
+cat("Degrees of freedom:", 1, "\n")
+cat("P-value:", round(lr_pval, 4), "\n")
+```
+
+### Median Overall Survival and Confidence Intervals
+
+```{r}
+#| label: median-os
+#| eval: true
+
+# Extract survival summary by treatment
+summary_os <- as_tibble(summary(km_os)$table) %>%
+  rownames_to_column("Treatment") %>%
+  select(Treatment, `median`, `0.95LCL`, `0.95UCL`)
+
+colnames(summary_os) <- c("Treatment", "Median (years)", "95% CI Lower", "95% CI Upper")
+
+gt(summary_os) %>%
+  fmt_number(columns = c("Median (years)", "95% CI Lower", "95% CI Upper"),
+             decimals = 2)
+```
+
+::: {.callout-success}
+## Clinical Interpretation
+
+The log-rank test result indicates whether Vemotinib provides a statistically significant survival benefit compared to FOLFOX. If p < 0.05, we conclude the survival curves differ significantly between treatments. The median OS values quantify the difference clinically: a difference of 1–2 years in median OS often represents substantial clinical benefit in mCRC.
+:::
+
+## 24.4 Cox Proportional Hazards Model for Overall Survival
+
+### Fitting the Cox Model
+
+The Cox proportional hazards model relates covariates to the hazard rate:
+
+$$h(t | X) = h_0(t) \exp(\beta_1 X_1 + \beta_2 X_2 + \cdots + \beta_p X_p)$$
+
+The hazard ratio for treatment is $\exp(\beta_{\text{rx}})$, representing the relative risk of death.
+
+```{r}
+#| label: cox-os-fit
+#| eval: true
+
+# Fit Cox model with treatment and key prognostic factors
+cox_os <- coxph(Surv(time_years, os_event) ~ rx + age + sex + obstruct + node4,
+                data = colon_os)
+
+# Display model summary
+summary(cox_os)
+```
+
+### Extracting Hazard Ratios and Confidence Intervals
+
+```{r}
+#| label: cox-os-tidy
+#| eval: true
+
+# Use broom::tidy for clean extraction
+cox_tidy <- tidy(cox_os, exponentiate = TRUE, conf.int = TRUE) %>%
+  select(term, estimate, conf.low, conf.high, p.value) %>%
+  mutate(
+    term = case_when(
+      term == "rxVemotinib" ~ "Vemotinib vs Control",
+      term == "age" ~ "Age (per year)",
+      term == "sex" ~ "Sex (male vs female)",
+      term == "obstruct" ~ "Obstruction (yes vs no)",
+      term == "node4" ~ "≥4 Positive Nodes (yes vs no)",
+      TRUE ~ term
+    ),
+    across(estimate:p.value, ~round(., 4))
+  )
+
+gt(cox_tidy) %>%
+  cols_label(
+    term = "Variable",
+    estimate = "Hazard Ratio",
+    conf.low = "95% CI Lower",
+    conf.high = "95% CI Upper",
+    p.value = "P-value"
+  ) %>%
+  fmt_number(columns = estimate:p.value, decimals = 4)
+```
+
+### Checking Proportional Hazards Assumption
+
+The Cox model assumes proportional hazards: the hazard ratio between groups is constant over time. We test this using Schoenfeld residuals.
+
+```{r}
+#| label: cox-ph-test
+#| eval: true
+
+# Test proportional hazards assumption
+ph_test <- cox.zph(cox_os)
+print(ph_test)
+
+# Interpretation: large p-values (>0.05) suggest the PH assumption holds
+```
+
+::: {.callout-warning}
+The proportional hazards assumption is critical for Cox model validity. If any variable has p < 0.05 in the `cox.zph()` test, the PH assumption is violated and stratified or time-varying coefficient models may be needed. In this example, if the assumption is violated, consider fitting a stratified model: `coxph(Surv(time_years, os_event) ~ rx + age + strata(node4), data = colon_os)`.
+:::
+
+### Forest Plot of Hazard Ratios
+
+```{r}
+#| label: forest-os-ggplot
+#| eval: true
+
+forest_data <- cox_tidy %>%
+  mutate(
+    term = fct_reorder(term, estimate),
+    significant = if_else(p.value < 0.05, "Yes", "No")
+  )
+
+forest_plot <- ggplot(forest_data, aes(x = estimate, y = term)) +
+  geom_vline(xintercept = 1, linetype = "dashed", colour = "red", linewidth = 0.8) +
+  geom_point(aes(colour = significant), size = 4) +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high, colour = significant),
+                 height = 0.2, linewidth = 1) +
+  scale_x_log10() +
+  scale_colour_manual(values = c("Yes" = "#e41a1c", "No" = "#377eb8")) +
+  labs(
+    title = "ONCO-301: Cox Model Hazard Ratios for Overall Survival",
+    x = "Hazard Ratio (log scale, <1 = benefit)",
+    y = NULL,
+    colour = "Significant\n(p<0.05)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 13, face = "bold"),
+    panel.grid.major.x = element_line(colour = "grey90"),
+    legend.position = "bottom"
+  )
+
+forest_plot
+```
+
+## 24.5 Progression-Free Survival Analysis
+
+PFS (time to progression or death) is evaluated using the recurrence events from the colon dataset (etype==1).
+
+```{r}
+#| label: pfs-data
+#| eval: true
+
+# Create PFS dataset: select recurrence events (etype==1)
+colon_pfs <- colon %>%
+  filter(etype == 1) %>%
+  select(id, time, status, rx, age, sex, node4) %>%
+  distinct(id, .keep_all = TRUE) %>%
+  mutate(
+    rx_new = case_when(
+      rx == "Obs" ~ "Control",
+      rx == "Lev+5FU" ~ "Vemotinib",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(rx_new)) %>%
+  select(-rx) %>%
+  rename(rx = rx_new) %>%
+  mutate(
+    time_years = time / 365.25,
+    pfs_event = status
+  )
+
+# Fit KM for PFS
+km_pfs <- survfit(Surv(time_years, pfs_event) ~ rx, data = colon_pfs)
+print(km_pfs)
+```
+
+### PFS Log-Rank Test
+
+```{r}
+#| label: logrank-pfs
+#| eval: true
+
+lr_pfs <- survdiff(Surv(time_years, pfs_event) ~ rx, data = colon_pfs)
+print(lr_pfs)
+```
+
+### Cox Model for PFS
+
+```{r}
+#| label: cox-pfs
+#| eval: true
+
+cox_pfs <- coxph(Surv(time_years, pfs_event) ~ rx + age + sex + node4,
+                 data = colon_pfs)
+
+cox_pfs_tidy <- tidy(cox_pfs, exponentiate = TRUE, conf.int = TRUE) %>%
+  filter(term == "rxVemotinib") %>%
+  mutate(endpoint = "PFS")
+
+cox_os_comp <- tidy(cox_os, exponentiate = TRUE, conf.int = TRUE) %>%
+  filter(term == "rxVemotinib") %>%
+  mutate(endpoint = "OS")
+
+comparison <- bind_rows(cox_os_comp, cox_pfs_tidy) %>%
+  select(endpoint, estimate, conf.low, conf.high, p.value) %>%
+  mutate(across(estimate:p.value, ~round(., 4)))
+
+gt(comparison) %>%
+  cols_label(
+    endpoint = "Endpoint",
+    estimate = "HR (Vemotinib)",
+    conf.low = "95% CI Lower",
+    conf.high = "95% CI Upper",
+    p.value = "P-value"
+  )
+```
+
+::: {.callout-info}
+**OS vs PFS**: PFS is typically achieved earlier than OS and may show treatment differences earlier in a trial. However, OS is the definitive efficacy endpoint. Both endpoints should be pre-specified and reported to provide a complete picture of treatment effect.
+:::
+
+## 24.6 Objective Response Rate Analysis
+
+### ORR by Treatment Arm
+
+```{r}
+#| label: orr-summary
+#| eval: true
+
+orr_summary <- recist_data %>%
+  group_by(rx) %>%
+  summarise(
+    n = n(),
+    `CR (n)` = sum(best_response == "CR"),
+    `PR (n)` = sum(best_response == "PR"),
+    `SD (n)` = sum(best_response == "SD"),
+    `PD (n)` = sum(best_response == "PD"),
+    `Responders (CR+PR)` = sum(responder),
+    `ORR (%)` = round(100 * mean(responder), 1),
+    `95% CI` = sprintf("%.1f–%.1f",
+                       100 * (mean(responder) - 1.96 * sqrt(mean(responder) *
+                              (1 - mean(responder)) / n())),
+                       100 * (mean(responder) + 1.96 * sqrt(mean(responder) *
+                              (1 - mean(responder)) / n())))
+  )
+
+gt(orr_summary)
+```
+
+### Logistic Regression for ORR
+
+```{r}
+#| label: logistic-orr
+#| eval: true
+
+# Logistic model for response
+glm_orr <- glm(responder ~ rx + age + node4,
+               family = binomial(link = "logit"),
+               data = recist_data)
+
+# Extract odds ratios
+glm_tidy <- tidy(glm_orr, exponentiate = TRUE, conf.int = TRUE) %>%
+  filter(term != "(Intercept)") %>%
+  select(term, estimate, conf.low, conf.high, p.value) %>%
+  mutate(
+    term = case_when(
+      term == "rxVemotinib" ~ "Vemotinib vs Control",
+      term == "age" ~ "Age (per year)",
+      term == "node4" ~ "≥4 Positive Nodes",
+      TRUE ~ term
+    ),
+    across(estimate:p.value, ~round(., 4))
+  )
+
+gt(glm_tidy) %>%
+  cols_label(
+    term = "Variable",
+    estimate = "Odds Ratio",
+    conf.low = "95% CI Lower",
+    conf.high = "95% CI Upper",
+    p.value = "P-value"
+  )
+```
+
+### Chi-Square Test for ORR Difference
+
+```{r}
+#| label: chisq-orr
+#| eval: true
+
+# Create contingency table
+ct_orr <- table(recist_data$rx, recist_data$responder)
+print(ct_orr)
+
+# Chi-square test
+chisq_orr <- chisq.test(ct_orr)
+print(chisq_orr)
+
+cat("\nInterpretation: Chi-square statistic =", round(chisq_orr$statistic, 3),
+    ", p-value =", round(chisq_orr$p.value, 4), "\n")
+```
+
+## 24.7 Waterfall Plot (Tumour Response)
+
+The waterfall plot is a classic oncology visualization showing individual patient responses sorted by percent change from baseline.
+
+```{r}
+#| label: waterfall-plot
+#| eval: true
+
+# Prepare waterfall data
+waterfall_data <- recist_data %>%
+  arrange(change_pct) %>%
+  mutate(
+    patient_order = row_number(),
+    response_color = case_when(
+      best_response == "CR" ~ "#1b7837",
+      best_response == "PR" ~ "#66bd63",
+      best_response == "SD" ~ "#fee08b",
+      best_response == "PD" ~ "#d73027"
+    )
+  )
+
+# Create waterfall plot
+waterfall_plot <- ggplot(waterfall_data,
+                         aes(x = reorder(subject_id, change_pct),
+                             y = change_pct,
+                             fill = best_response)) +
+  geom_col(width = 1) +
+  geom_hline(yintercept = -30, linetype = "dashed", colour = "black", linewidth = 0.7) +
+  geom_hline(yintercept = 20, linetype = "dashed", colour = "black", linewidth = 0.7) +
+  scale_fill_manual(
+    values = c("CR" = "#1b7837", "PR" = "#66bd63", "SD" = "#fee08b", "PD" = "#d73027"),
+    name = "RECIST Response"
+  ) +
+  labs(
+    title = "ONCO-301: Waterfall Plot of Best Percentage Change in Target Lesion Sum",
+    x = "Patient",
+    y = "% Change from Baseline"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    plot.title = element_text(size = 13, face = "bold"),
+    legend.position = "bottom"
+  ) +
+  annotate("text", x = Inf, y = -30, label = "PR threshold (-30%)",
+           hjust = 1.1, vjust = -0.3, size = 3) +
+  annotate("text", x = Inf, y = 20, label = "PD threshold (+20%)",
+           hjust = 1.1, vjust = -0.3, size = 3)
+
+waterfall_plot
+```
+
+## 24.8 Subgroup Analysis (Forest Plot)
+
+Subgroup analyses evaluate whether treatment effects are consistent across patient populations.
+
+```{r}
+#| label: subgroup-analysis
+#| eval: true
+
+# Define subgroups
+subgroup_vars <- list(
+  age_group = list(var = "age", breaks = c(0, 65, Inf),
+                   labels = c("<65 years", "≥65 years")),
+  sex_group = list(var = "sex", breaks = c(-0.5, 0.5, 1.5),
+                   labels = c("Female", "Male")),
+  node_status = list(var = "node4", breaks = c(-0.5, 0.5, 1.5),
+                     labels = c("<4 nodes", "≥4 nodes")),
+  obstruction = list(var = "obstruct", breaks = c(-0.5, 0.5, 1.5),
+                     labels = c("No obstruction", "Obstruction"))
+)
+
+# Function to fit Cox model in subgroup
+fit_subgroup_cox <- function(data, subgroup_var, subgroup_label) {
+  data_sub <- data %>%
+    mutate(subgroup = subgroup_label)
+
+  cox_sub <- coxph(Surv(time_years, os_event) ~ rx, data = data_sub)
+
+  tidy(cox_sub, exponentiate = TRUE, conf.int = TRUE) %>%
+    filter(term == "rxVemotinib") %>%
+    mutate(
+      subgroup_var = subgroup_var,
+      subgroup_label = subgroup_label,
+      n = nrow(data_sub)
+    )
+}
+
+# Age subgroup
+subgroup_results <- bind_rows(
+  # <65 years
+  colon_os %>%
+    filter(age < 65) %>%
+    nest() %>%
+    mutate(result = map_df(data,
+                           ~fit_subgroup_cox(., "age", "<65 years"))) %>%
+    pull(result),
+  # ≥65 years
+  colon_os %>%
+    filter(age >= 65) %>%
+    nest() %>%
+    mutate(result = map_df(data,
+                           ~fit_subgroup_cox(., "age", "≥65 years"))) %>%
+    pull(result),
+  # Female
+  colon_os %>%
+    filter(sex == 0) %>%
+    nest() %>%
+    mutate(result = map_df(data,
+                           ~fit_subgroup_cox(., "sex", "Female"))) %>%
+    pull(result),
+  # Male
+  colon_os %>%
+    filter(sex == 1) %>%
+    nest() %>%
+    mutate(result = map_df(data,
+                           ~fit_subgroup_cox(., "sex", "Male"))) %>%
+    pull(result)
+) %>%
+  select(subgroup_var, subgroup_label, estimate, conf.low, conf.high, p.value, n)
+
+# Print subgroup results
+head(subgroup_results, 8)
+```
+
+### Subgroup Forest Plot
+
+```{r}
+#| label: subgroup-forest
+#| eval: true
+
+subgroup_forest <- subgroup_results %>%
+  mutate(
+    subgroup_label = factor(subgroup_label,
+                           levels = unique(subgroup_label)),
+    significant = if_else(p.value < 0.05, "p<0.05", "p≥0.05")
+  )
+
+forest_sg <- ggplot(subgroup_forest,
+                    aes(x = estimate, y = subgroup_label, colour = significant)) +
+  geom_vline(xintercept = 1, linetype = "dashed", colour = "red", linewidth = 0.8) +
+  geom_point(size = 4) +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high),
+                 height = 0.2, linewidth = 1) +
+  scale_x_log10() +
+  scale_colour_manual(values = c("p<0.05" = "#e41a1c", "p≥0.05" = "#377eb8")) +
+  facet_wrap(~subgroup_var, scales = "free_y") +
+  labs(
+    title = "ONCO-301: Subgroup Analysis of Vemotinib Effect on Overall Survival",
+    x = "Hazard Ratio (95% CI)",
+    y = NULL,
+    colour = "Significance"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 13, face = "bold"),
+    panel.grid.major.x = element_line(colour = "grey90")
+  )
+
+forest_sg
+```
+
+::: {.callout-success}
+## Interpretation of Subgroup Analyses
+
+Consistent hazard ratios across subgroups with overlapping confidence intervals suggest a homogeneous treatment effect—the benefit of Vemotinib does not differ meaningfully by age, sex, or disease extent. This supports broad applicability. Conversely, significant interactions (non-overlapping CIs, p < 0.05) may prompt further investigation and subgroup labelling in the labelling information.
+:::
+
+## 24.9 Safety Summary
+
+### Simulated Adverse Event Data
+
+```{r}
+#| label: simulate-ae
+#| eval: true
+
+set.seed(42)
+
+# Simulate AE data
+ae_socs <- c("Gastrointestinal", "Hematologic", "Constitutional",
+             "Skin", "Renal", "Cardiac")
+
+ae_data <- expand_grid(
+  subject_id = 1:nrow(colon_os_unique),
+  soc = ae_socs
+) %>%
+  left_join(colon_os_unique %>% select(subject_id, rx),
+            by = "subject_id") %>%
+  mutate(
+    # Incidence varies by treatment and SOC
+    ae_occurred = case_when(
+      rx == "Vemotinib" & soc == "Skin" ~ rbinom(n(), 1, prob = 0.35),
+      rx == "Vemotinib" & soc == "Gastrointestinal" ~ rbinom(n(), 1, prob = 0.40),
+      rx == "Vemotinib" & soc == "Hematologic" ~ rbinom(n(), 1, prob = 0.25),
+      rx == "Control" & soc == "Gastrointestinal" ~ rbinom(n(), 1, prob = 0.55),
+      rx == "Control" & soc == "Hematologic" ~ rbinom(n(), 1, prob = 0.45),
+      TRUE ~ rbinom(n(), 1, prob = 0.15)
+    ),
+    # Grade for occurred AEs
+    grade = if_else(ae_occurred == 1,
+                    sample(1:4, size = n(), replace = TRUE,
+                           prob = c(0.30, 0.35, 0.25, 0.10)),
+                    NA_integer_)
+  ) %>%
+  filter(ae_occurred == 1)
+
+# Grade 3-4 AE summary by treatment
+ae_summary <- ae_data %>%
+  mutate(grade_34 = as.integer(grade >= 3)) %>%
+  group_by(rx, soc) %>%
+  summarise(
+    `Any Grade (n, %)` = paste0(n(), " (",
+                               round(100 * n() / nrow(colon_os_unique) * 2, 0), ")"),
+    `Grade 3-4 (n, %)` = paste0(sum(grade_34), " (",
+                               round(100 * sum(grade_34) / nrow(colon_os_unique) * 2, 0), ")"),
+    .groups = "drop"
+  ) %>%
+  pivot_wider(
+    names_from = rx,
+    values_from = c(`Any Grade (n, %)`, `Grade 3-4 (n, %)`),
+    names_glue = "{rx}_{.value}"
+  )
+
+gt(ae_summary) %>%
+  cols_label(
+    soc = "System Organ Class",
+    Control_`Any Grade (n, %)` = "Control: Any Grade",
+    Control_`Grade 3-4 (n, %)` = "Control: Grade 3-4",
+    Vemotinib_`Any Grade (n, %)` = "Vemotinib: Any Grade",
+    Vemotinib_`Grade 3-4 (n, %)` = "Vemotinib: Grade 3-4"
+  )
+```
+
+::: {.callout-info}
+Safety reporting follows CTCAE v5.0 (Common Terminology Criteria for Adverse Events) grading: Grade 1 (mild), Grade 2 (moderate), Grade 3–4 (severe/life-threatening). Regulatory submissions require comprehensive AE tables by SOC/PT (System Organ Class / Preferred Term), treatment arm, and grade.
+:::
+
+## 24.10 Reporting Findings
+
+### CONSORT-Style Efficacy Reporting
+
+When reporting the primary efficacy result, adopt this structured format:
+
+::: {.callout-note}
+**Sample Primary Efficacy Result (CONSORT style)**:
+
+"In the intent-to-treat population, median overall survival was **3.2 years** (95% CI: 2.8–3.5) in the Vemotinib arm vs **2.4 years** (95% CI: 2.1–2.8) in the FOLFOX control arm. Vemotinib reduced the risk of death by 32% (hazard ratio [HR] 0.68, 95% CI: 0.54–0.86; p = 0.001 by log-rank test). The OS benefit was consistent across pre-specified subgroups of age, sex, and disease extent."
+:::
+
+### Key Tables for a Clinical Study Report (CSR)
+
+1. **Baseline Characteristics Table**: Patient demographics, disease characteristics, baseline labs by treatment
+2. **Primary Efficacy Table**: Primary endpoint results with KM estimates, log-rank test, Cox HR
+3. **Secondary Efficacy Table**: PFS, ORR with confidence intervals and p-values
+4. **Subgroup Analysis Table**: HR with 95% CI for each subgroup
+5. **Adverse Event Summary Table**: By SOC and grade
+6. **Patient Disposition Table**: Enrolled, randomised, treated, completed, withdrawn, reasons for discontinuation
+
+```{r}
+#| label: baseline-table
+#| eval: true
+
+# Baseline characteristics table
+baseline_table <- colon_os %>%
+  group_by(rx) %>%
+  summarise(
+    n = n(),
+    `Age (median, IQR)` = paste0(median(age), " (",
+                                quantile(age, 0.25), "–",
+                                quantile(age, 0.75), ")"),
+    `Male (n, %)` = paste0(sum(sex == 1), " (",
+                          round(100 * mean(sex == 1), 1), ")"),
+    `Obstruction (n, %)` = paste0(sum(obstruct == 1), " (",
+                                 round(100 * mean(obstruct == 1), 1), ")"),
+    `≥4 Positive Nodes (n, %)` = paste0(sum(node4 == 1), " (",
+                                       round(100 * mean(node4 == 1), 1), ")")
+  ) %>%
+  pivot_longer(cols = -rx, names_to = "Characteristic", values_to = "Value") %>%
+  pivot_wider(names_from = rx, values_from = Value)
+
+gt(baseline_table) %>%
+  cols_label(Characteristic = "Baseline Characteristic")
+```
+
+## Exercises
+
+### Beginner Exercises
+
+**Exercise 24.1**: Replicate the Kaplan-Meier plot for OS but stratify by both `rx` and `node4` (positive node status). How does node status modify the treatment effect visually?
+
+**Exercise 24.2**: Calculate the ORR for each treatment arm independently using base R (without the recist_data table). Use the formula: ORR = (CR + PR) / n × 100. Then compute the 95% exact binomial confidence interval for each arm using `binom.test()`.
+
+**Exercise 24.3**: Fit a Cox model for PFS including treatment, age, and sex. Extract the hazard ratio for Vemotinib and interpret it clinically. Is the PFS benefit greater or smaller than the OS benefit?
+
+### Advanced Exercises
+
+**Exercise 24.4**: Perform a landmark analysis at 1 year of follow-up. Restrict the OS dataset to patients with at least 1 year of follow-up, then re-fit the Cox model. Compare the treatment effect at the 1-year landmark to the full dataset Cox HR. What does this reveal about the timing of treatment benefit?
+
+**Exercise 24.5**: Conduct a competing risks analysis using the `cmprsk` package. For PFS, treat death without progression as a competing event. Fit a Fine-Gray model (subdistribution hazard) and compare the treatment effect to the standard Cox model. Interpret the differences.
+
+---
+
+## Summary
+
+This chapter demonstrated a complete Phase III oncology trial analysis using real-world concepts:
+
+- **Overall Survival Analysis**: Kaplan-Meier curves, log-rank test, Cox proportional hazards regression
+- **Progression-Free Survival**: Secondary efficacy endpoint with similar methods
+- **Response Evaluation**: Logistic regression for ORR, chi-square testing
+- **Data Visualization**: Waterfall plots for individual responses, forest plots for subgroups
+- **Subgroup Analyses**: Investigating treatment heterogeneity across patient populations
+- **Safety Reporting**: AE summaries by SOC and grade
+
+All analyses followed regulatory standards (CONSORT, ICH-GCP) and clinical best practices. The methods extend directly to real oncology trials and disease areas.

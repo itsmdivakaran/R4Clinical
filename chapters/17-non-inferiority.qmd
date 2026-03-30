@@ -1,0 +1,453 @@
+---
+title: "Chapter 17: Non-Inferiority and Equivalence Trials"
+---
+
+## Introduction
+
+When can you conclude that a new treatment is "good enough" even if it is not statistically superior to the standard? This is the fundamental question addressed by **non-inferiority** and **equivalence trials**. Unlike traditional superiority trials, which test whether a new drug beats a control, non-inferiority trials ask whether a new drug is not substantially worse than the standard. These designs are increasingly important in modern clinical research because they are often more realistic: new treatments may offer secondary benefits (fewer side effects, simpler dosing, lower cost) even if they do not improve the primary efficacy outcome.
+
+In this chapter, you will learn the regulatory framework for non-inferiority trials, the statistical methodology, the critical role of the non-inferiority margin, and how to design and analyze these trials in R.
+
+## 17.1 Superiority vs. Non-Inferiority vs. Equivalence
+
+### Three Hypothesis Testing Paradigms
+
+**Superiority Trial:**
+- $H_0$: New treatment ≤ Control
+- $H_1$: New treatment > Control
+- Objective: Prove the new treatment is *better*
+- Most clinical trials follow this paradigm
+
+**Non-Inferiority Trial:**
+- $H_0$: New treatment is *substantially worse* than Control (≤ Control − Δ)
+- $H_1$: New treatment is *not substantially worse* (> Control − Δ)
+- Objective: Prove the new treatment is "good enough"
+- Common when the new treatment has other advantages (fewer side effects, better tolerability, lower cost)
+
+**Equivalence Trial:**
+- $H_0$: New treatment is *substantially different* from Control (outside the range [Control − Δ, Control + Δ])
+- $H_1$: New treatment is *equivalent* to Control (within [Control − Δ, Control + Δ])
+- Objective: Prove the two treatments are essentially the same
+- Uncommon in practice; bioequivalence studies are a special case
+
+### Clinical Context Example
+
+Imagine a new antibiotic for urinary tract infection (UTI). The standard treatment is a 7-day course of nitrofurantoin with a response rate of 82%. The new antibiotic is:
+- Taken orally for only 3 days
+- Causes fewer gastrointestinal side effects
+- Is potentially less expensive
+
+The manufacturer wants to demonstrate that the 3-day regimen is "not substantially worse" than the 7-day standard, even if the response rate is slightly lower (e.g., 78%). This is a **non-inferiority** trial.
+
+## 17.2 The Non-Inferiority Margin (Δ)
+
+### Definition and Purpose
+
+The **non-inferiority margin** $\Delta$ is the largest clinically acceptable difference that we are willing to tolerate between the new and reference treatments. It defines the boundary of "non-inferiority."
+
+**Formally:**
+- Test treatment is non-inferior if: $\theta_{test} - \theta_{ref} > -\Delta$
+- Where $\theta$ is the treatment effect (e.g., response rate, improvement in score)
+- For adverse events: $\theta_{test} - \theta_{ref} < \Delta$ (we want test to be better or similar)
+
+### The Margin Must Be Clinically Justified
+
+The margin is **not** a statistical choice; it is a clinical and regulatory judgment. The FDA's guidance (ICH E10) recommends a two-step approach:
+
+1. **Step 1: Establish M1**
+   - Conduct a meta-analysis of placebo-controlled trials of the reference drug
+   - Estimate the effect size of the reference drug vs. placebo: M1 = $\theta_{ref} - \theta_{placebo}$
+   - Example: If nitrofurantoin shows 82% response vs. 50% placebo response, then M1 = 32% absolute difference
+
+2. **Step 2: Set Δ (the margin for non-inferiority)**
+   - The margin Δ ≤ M1 (cannot be larger than the known effect of active control)
+   - Typically, Δ = M1 / 2 or Δ = (0.5 × M1) to preserve half of the active control effect
+   - This ensures that rejecting non-inferiority means the new drug retains at least half the benefit over placebo
+   - Example: If M1 = 32%, then Δ might be 16% absolute difference
+
+The fraction (typically 50%) is called the **M2 fraction** or **retention fraction**.
+
+## 17.3 Statistical Framework for Non-Inferiority
+
+### Hypotheses and Test
+
+For a continuous outcome (e.g., blood pressure reduction):
+
+$$H_0: \mu_{test} - \mu_{ref} \leq -\Delta \quad \text{vs} \quad H_1: \mu_{test} - \mu_{ref} > -\Delta$$
+
+This is a **one-sided test** at significance level $\alpha = 0.025$ (corresponding to a 97.5% lower confidence bound, or equivalently, a 95% two-sided CI where the lower bound is compared to $-\Delta$).
+
+**Decision Rule (Confidence Interval Approach):**
+- Construct the 95% confidence interval for $\mu_{test} - \mu_{ref}$
+- If the **lower bound of the 95% CI > −Δ**, reject $H_0$ and conclude non-inferiority
+- Equivalently, if the lower bound > $-\Delta$, the interval lies entirely above $-\Delta$
+
+### For Binary Outcomes (Response Rates)
+
+Let $p_{test}$ = response rate in test group, $p_{ref}$ = response rate in reference group.
+
+$$H_0: p_{test} - p_{ref} \leq -\Delta \quad \text{vs} \quad H_1: p_{test} - p_{ref} > -\Delta$$
+
+Using normal approximation:
+$$Z = \frac{(p_{test} - p_{ref}) + \Delta}{\sqrt{\text{Var}(p_{test} - p_{ref})}}$$
+
+Reject $H_0$ if $Z > z_{\alpha}$ where $z_{\alpha}$ is the one-sided critical value (e.g., $z_{0.025} = 1.96$).
+
+## 17.4 The Assay Sensitivity and Constancy Assumptions
+
+### Assay Sensitivity
+
+**Assay sensitivity** is the ability of a trial to distinguish between an effective and ineffective treatment. It requires:
+- High-quality study conduct (proper randomization, blinding, follow-up)
+- Appropriate outcome measurement
+- Adequate sample size
+
+If assay sensitivity is not established, the non-inferiority margin is meaningless.
+
+### Constancy Assumption
+
+The **constancy assumption** states that the effect of the reference drug observed in the new trial is the same as the effect observed in historical trials (from which M1 was derived). This is critical because:
+- If the reference drug performs worse than expected in the current trial, the margin Δ should be reconsidered
+- If assay sensitivity is poor, we cannot assume the reference drug would have shown its historical effect
+
+## 17.5 Active Control Trials and Regulatory Context
+
+Non-inferiority trials are called **active control trials** because they compare against an active reference drug (not placebo). This design is ethical when:
+- Effective treatment already exists
+- Placebo would be unethical
+- Secondary benefits of the new treatment are compelling (e.g., fewer side effects)
+
+However, regulators require strong evidence of the reference drug's effect from prior data.
+
+## 17.6 Sample Size for Non-Inferiority Trials
+
+The sample size formula for a non-inferiority trial comparing means is:
+
+$$n = \frac{2(z_\alpha + z_\beta)^2 \sigma^2}{(\Delta - \delta)^2}$$
+
+where:
+- $z_\alpha = 1.645$ (one-sided test at $\alpha = 0.025$)
+- $z_\beta$ = critical value for power (e.g., 0.84 for 80% power)
+- $\sigma$ = standard deviation of the outcome
+- $\Delta$ = non-inferiority margin (the maximum tolerable difference)
+- $\delta$ = the true difference expected between treatments (ideally near 0 for non-inferiority)
+
+**Example:** If $\sigma = 10$, $\Delta = 5$, $\delta = 0$, power = 80%:
+
+$$n = \frac{2(1.645 + 0.84)^2 \times 100}{25} = \frac{2 \times 6.12 \times 100}{25} \approx 49 \text{ per group}$$
+
+For binary outcomes (response rates), the formula is:
+
+$$n = \frac{(z_\alpha + z_\beta)^2 [p_{ref}(1-p_{ref}) + p_{test}(1-p_{test})]}{\Delta^2}$$
+
+## 17.7 Switching from Non-Inferiority to Superiority
+
+Some trials are designed to test both non-inferiority and superiority using a **hierarchical testing strategy**:
+
+1. **Primary Test:** Is the new treatment non-inferior to the reference? (one-sided, α = 0.025)
+2. **Secondary Test (if primary succeeds):** Is the new treatment superior to the reference? (one-sided, α = 0.025)
+
+This is sometimes called a "non-inferiority gateway" design. Statistical significance in the primary test allows testing for superiority without inflating overall Type I error (due to the Bonferroni principle or pre-planned hierarchy).
+
+## 17.8 Practical Analysis in R
+
+### Simulating a Non-Inferiority Trial for Antibiotic Response
+
+```{r}
+library(tidyverse)
+library(stats)
+
+set.seed(123)
+
+# Scenario: Non-inferiority trial of a new 3-day antibiotic vs. standard 7-day nitrofurantoin
+# Primary endpoint: Microbiological cure rate at 4 weeks post-treatment
+# Reference (7-day nitrofurantoin): 82% cure rate (from historical trials)
+# Expected new treatment rate: 78% (4 percentage points lower)
+# Non-inferiority margin: Δ = 10 percentage points
+# Sample size: 120 per group
+
+n_per_group <- 120
+p_ref <- 0.82
+p_test <- 0.78
+delta_margin <- 0.10  # 10 percentage points
+
+# Simulate binary responses (1 = cured, 0 = not cured)
+set.seed(123)
+
+# Reference group responses
+response_ref <- rbinom(n_per_group, size = 1, prob = p_ref)
+
+# Test group responses
+response_test <- rbinom(n_per_group, size = 1, prob = p_test)
+
+# Create dataset
+trial_data <- data.frame(
+  treatment = c(rep("Reference", n_per_group), rep("Test", n_per_group)),
+  response = c(response_ref, response_test)
+)
+
+# Summary statistics
+summary_table <- trial_data %>%
+  group_by(treatment) %>%
+  summarise(
+    n = n(),
+    cured = sum(response),
+    not_cured = n() - sum(response),
+    cure_rate = mean(response),
+    .groups = "drop"
+  )
+
+print(summary_table)
+```
+
+### Computing the 95% Confidence Interval for the Difference
+
+```{r}
+# Extract observed response rates
+p_test_obs <- summary_table$cure_rate[summary_table$treatment == "Test"]
+p_ref_obs <- summary_table$cure_rate[summary_table$treatment == "Reference"]
+
+# Observed difference (Test - Reference)
+diff_obs <- p_test_obs - p_ref_obs
+
+cat("Observed response rates:\n")
+cat("  Reference:", round(p_ref_obs, 4), "\n")
+cat("  Test:", round(p_test_obs, 4), "\n")
+cat("  Difference (Test - Ref):", round(diff_obs, 4), "\n\n")
+
+# Standard error of the difference
+# SE = sqrt(p_test*(1-p_test)/n_test + p_ref*(1-p_ref)/n_ref)
+se_diff <- sqrt(
+  (p_test_obs * (1 - p_test_obs) / n_per_group) +
+  (p_ref_obs * (1 - p_ref_obs) / n_per_group)
+)
+
+cat("Standard Error of difference:", round(se_diff, 4), "\n\n")
+
+# 95% Confidence Interval
+# For one-sided test (non-inferiority), we use the lower 95% bound
+# Using normal approximation: CI = difference ± z_{0.025} * SE
+# But for non-inferiority, we focus on the lower bound
+
+z_alpha_025 <- qnorm(0.025, lower.tail = FALSE)  # = 1.96 for 95% CI
+
+ci_lower <- diff_obs - z_alpha_025 * se_diff
+ci_upper <- diff_obs + z_alpha_025 * se_diff
+
+cat("95% Confidence Interval for difference:\n")
+cat("  [", round(ci_lower, 4), ", ", round(ci_upper, 4), "]\n\n")
+
+# Non-inferiority decision
+# Non-inferiority is established if lower bound > -Δ
+cat("Non-Inferiority Margin (Δ):", delta_margin, "\n")
+cat("Lower bound of 95% CI:", round(ci_lower, 4), "\n")
+cat("Is lower bound > -Δ?", ci_lower > -delta_margin, "\n")
+
+if (ci_lower > -delta_margin) {
+  cat("\n*** CONCLUSION: NON-INFERIORITY ESTABLISHED ***\n")
+  cat("The test treatment is not substantially worse than the reference treatment.\n")
+} else {
+  cat("\n*** CONCLUSION: NON-INFERIORITY NOT ESTABLISHED ***\n")
+  cat("The test treatment may be substantially worse than the reference treatment.\n")
+}
+```
+
+### Applying an Exact Binomial Method
+
+For more rigorous inference with small samples or extreme response rates, use the Clopper-Pearson or Wilson score interval:
+
+```{r}
+# Use binom::binom.confint for more robust CI
+library(binom)
+
+# Confidence interval for reference group
+ci_ref <- binom.confint(
+  x = summary_table$cured[summary_table$treatment == "Reference"],
+  n = n_per_group,
+  method = "wilson"
+)
+
+# Confidence interval for test group
+ci_test <- binom.confint(
+  x = summary_table$cured[summary_table$treatment == "Test"],
+  n = n_per_group,
+  method = "wilson"
+)
+
+cat("Wilson Score CI for Reference:", round(ci_ref$lower, 4), "to", round(ci_ref$upper, 4), "\n")
+cat("Wilson Score CI for Test:", round(ci_test$lower, 4), "to", round(ci_test$upper, 4), "\n")
+
+# For the difference, use the normal approximation as above (adequate for large n)
+# Alternatively, Newcombe's method (implemented in binom package) can be used
+
+# Newcombe's method
+newcombe_ci <- binom.confint(
+  x = c(summary_table$cured[2], summary_table$cured[1]),
+  n = c(n_per_group, n_per_group),
+  method = "exact"
+)
+
+cat("\nUsing exact binomial methods for individual proportions:\n")
+print(newcombe_ci)
+```
+
+### Visualization: The Non-Inferiority Margin Plot
+
+```{r}
+# Create a visual representation of the non-inferiority result
+
+ni_plot_data <- data.frame(
+  treatment = c("Test - Reference"),
+  difference = diff_obs,
+  ci_lower = ci_lower,
+  ci_upper = ci_upper,
+  margin = -delta_margin
+)
+
+ggplot(ni_plot_data, aes(x = treatment, y = difference)) +
+  geom_point(size = 4, color = "steelblue") +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, size = 1.2, color = "steelblue") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray60", size = 0.8) +
+  geom_hline(yintercept = -delta_margin, linetype = "solid", color = "red", size = 1.2,
+             label = "Non-Inferiority Margin") +
+  annotate("rect", xmin = 0.6, xmax = 1.4, ymin = -delta_margin, ymax = 0.05,
+           alpha = 0.15, fill = "green") +
+  annotate("text", x = 1.5, y = -0.05, label = "Non-Inferiority\nZone", size = 3.5, color = "green") +
+  labs(
+    title = "Non-Inferiority Trial: 95% CI for Difference (Test - Reference)",
+    subtitle = paste("Margin Δ =", delta_margin * 100, "percentage points"),
+    x = "Comparison", y = "Difference in Cure Rate",
+    caption = "Non-inferiority is established if the lower bound of the CI > -Δ (red line)"
+  ) +
+  ylim(-0.15, 0.05) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 13),
+    plot.subtitle = element_text(size = 11),
+    axis.text.y = element_text(size = 10)
+  )
+```
+
+### Conducting a Formal Non-Inferiority Test
+
+```{r}
+# One-sided test: H_0: p_test - p_ref ≤ -Δ vs H_1: p_test - p_ref > -Δ
+# Test statistic: Z = (diff_obs + Δ) / SE
+# Reject H_0 if Z > z_{0.025} = 1.96
+
+z_stat <- (diff_obs + delta_margin) / se_diff
+p_value_ni <- 1 - pnorm(z_stat)  # one-sided upper tail
+
+cat("=== Non-Inferiority Test ===\n")
+cat("Test Statistic (Z):", round(z_stat, 4), "\n")
+cat("P-value (one-sided):", round(p_value_ni, 4), "\n")
+cat("Significance level (α):", 0.025, "\n")
+cat("Result:", ifelse(p_value_ni < 0.025, "REJECT H_0", "FAIL TO REJECT H_0"), "\n")
+cat("Conclusion:", ifelse(p_value_ni < 0.025,
+                          "Non-inferiority ESTABLISHED (p < 0.025)",
+                          "Non-inferiority NOT established (p ≥ 0.025)"), "\n")
+```
+
+### Extended Analysis: Sensitivity to Margin Choice
+
+What if the margin had been set differently? Let us explore:
+
+```{r}
+# Vary the non-inferiority margin and check conclusions
+
+margins <- seq(0.02, 0.15, by = 0.01)
+ni_results <- data.frame()
+
+for (delta in margins) {
+  z_test <- (diff_obs + delta) / se_diff
+  p_val <- 1 - pnorm(z_test)
+  ci_low <- diff_obs - z_alpha_025 * se_diff
+
+  ni_results <- rbind(ni_results, data.frame(
+    margin = delta * 100,
+    ci_lower = ci_low * 100,
+    z_statistic = z_test,
+    p_value = p_val,
+    ni_established = p_val < 0.025
+  ))
+}
+
+print(ni_results)
+
+# Plot: How does NI conclusion change with margin?
+ggplot(ni_results, aes(x = margin, y = ci_lower)) +
+  geom_line(size = 1, color = "steelblue") +
+  geom_point(size = 2, color = "steelblue") +
+  geom_abline(aes(slope = -1, intercept = 0), linetype = "dashed", color = "red", size = 0.9) +
+  annotate("rect", xmin = 0, xmax = 15, ymin = -100, ymax = 0,
+           alpha = 0.1, fill = "green") +
+  annotate("text", x = 7.5, y = -2, label = "NI Region", size = 3.5, color = "darkgreen") +
+  labs(
+    title = "Sensitivity Analysis: Lower CI Bound vs. Non-Inferiority Margin",
+    x = "Non-Inferiority Margin (percentage points)",
+    y = "Lower 95% CI Bound (percentage points)",
+    caption = "Non-inferiority is established where the line exceeds the diagonal (margin = -CI lower bound)"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 13))
+```
+
+## 17.9 Equivalence Trials (Two-Sided Non-Inferiority)
+
+An equivalence trial tests whether two treatments are similar in both directions:
+
+$$H_0: |\theta_{test} - \theta_{ref}| \geq \Delta \quad \text{vs} \quad H_1: |\theta_{test} - \theta_{ref}| < \Delta$$
+
+This requires **both** of the following to be true:
+1. Lower bound of 95% CI > $-\Delta$ (non-inferiority)
+2. Upper bound of 95% CI < $+\Delta$ (reverse non-inferiority / superiority cap)
+
+```{r}
+# Equivalence test using the same data
+
+delta_lower <- -delta_margin
+delta_upper <- delta_margin
+
+equivalence <- (ci_lower > delta_lower) && (ci_upper < delta_upper)
+
+cat("=== Equivalence Test ===\n")
+cat("Equivalence bounds: [", delta_lower * 100, "%,", delta_upper * 100, "%]\n")
+cat("95% CI for difference: [", round(ci_lower * 100, 2), "%,", round(ci_upper * 100, 2), "%]\n")
+cat("Is entire CI within bounds?", equivalence, "\n")
+
+if (equivalence) {
+  cat("\n*** CONCLUSION: EQUIVALENCE ESTABLISHED ***\n")
+} else {
+  cat("\n*** CONCLUSION: EQUIVALENCE NOT ESTABLISHED ***\n")
+}
+```
+
+## 17.10 Exercises
+
+### Beginner Exercises
+
+**Exercise 17.1:** Suppose a non-inferiority trial of a new blood pressure medication vs. standard treatment found:
+- Reference (standard): mean reduction of 15 mmHg, SD = 8
+- Test (new): mean reduction of 13 mmHg, SD = 8
+- Sample size: 100 per group
+- Non-inferiority margin: 5 mmHg
+
+Calculate the 95% CI for the difference and determine whether non-inferiority is established.
+
+**Exercise 17.2:** Explain in clinical terms why the non-inferiority margin in the antibiotic trial was set at 10 percentage points. What historical information would you need to justify this choice?
+
+**Exercise 17.3:** A drug company claims their new treatment is "not inferior" to the standard treatment based on a trial with a p-value of 0.06 (for one-sided non-inferiority test). Comment on this claim. What additional information would you need?
+
+### Advanced Exercises
+
+**Exercise 17.4:** Using the antibiotic trial dataset, conduct a **post-hoc analysis** to estimate what margin Δ would have been required for the trial to show non-inferiority. This is called the "boundary margin" or "critical margin." (Hint: Solve for Δ such that the lower CI bound equals −Δ.)
+
+**Exercise 17.5:** Design a new non-inferiority trial for a hypothetical treatment. Specify:
+- The clinical outcome (continuous or binary)
+- The reference drug and its expected effect (from literature)
+- The justification for M1 (effect vs. placebo) and the chosen margin Δ
+- The expected treatment difference (δ)
+- The required sample size for 80% power
+
+Show your calculations in R and create a power curve (varying n on x-axis, power on y-axis).
+

@@ -1,0 +1,740 @@
+---
+title: "Appendix C: Simulated Clinical Datasets"
+---
+
+# Appendix C: Simulated Clinical Datasets
+
+This appendix provides complete, runnable R code to generate four realistic clinical datasets for learning and practice. Each dataset is reproducible (uses `set.seed()`), includes realistic characteristics, and can be used to practice the analyses throughout this book.
+
+---
+
+## Dataset 1: HYPT_TRIAL — Hypertension Trial (200 subjects, 3 arms, 6 visits)
+
+A realistic randomized controlled trial of an antihypertensive agent with three treatment arms and longitudinal blood pressure measurements.
+
+### Data Characteristics
+
+- **Study Design**: Parallel-group, double-blind RCT
+- **Sample Size**: 200 subjects (balanced across 3 arms)
+- **Duration**: 12 weeks with visits at baseline, weeks 2, 4, 6, 8, and 12
+- **Primary Variable**: Systolic and diastolic blood pressure
+- **Arms**: Placebo, Drug_A_Low (50mg), Drug_A_High (100mg)
+- **Missing Data**: ~15% MCAR at Week 12 visit
+- **Key Features**: Age-related baseline SBP variation, treatment effect, dropout pattern
+
+### Code to Generate Dataset
+
+```r
+set.seed(2024)
+
+# Parameters
+n_subj <- 200
+n_per_arm <- n_subj / 3
+arms <- c("Placebo", "Drug_A_Low", "Drug_A_High")
+n_visits <- 6
+visit_days <- c(0, 14, 28, 42, 56, 84)
+visit_labels <- c("Visit 1 (Baseline)", "Visit 2 (Week 2)", "Visit 3 (Week 4)",
+                  "Visit 4 (Week 6)", "Visit 5 (Week 8)", "Visit 6 (Week 12)")
+
+# ===== Domain: Demographics (DM-like) =====
+hypt_dm <- data.frame(
+  SUBJID = 1:n_subj,
+  ARM = rep(arms, each = n_per_arm),
+  ARMCD = rep(c("PBO", "DL", "DH"), each = n_per_arm),
+  SITEID = sample(c("Site_01", "Site_02", "Site_03", "Site_04"), n_subj, replace = TRUE),
+  AGE = rnorm(n_subj, mean = 55, sd = 12),
+  AGEGR1 = NA_character_,
+  SEX = sample(c("M", "F"), n_subj, replace = TRUE),
+  RACE = sample(c("White", "Black", "Asian", "Other"), n_subj, replace = TRUE, prob = c(0.6, 0.2, 0.15, 0.05)),
+  WEIGHT = rnorm(n_subj, mean = 85, sd = 15),
+  HEIGHT = rnorm(n_subj, mean = 172, sd = 8),
+  RANDDT = as.Date("2024-01-15") + sample(0:30, n_subj, replace = TRUE)
+)
+
+# Derived variables
+hypt_dm$AGE <- pmax(18, pmin(85, round(hypt_dm$AGE, 1)))
+hypt_dm$WEIGHT <- round(hypt_dm$WEIGHT, 1)
+hypt_dm$HEIGHT <- round(hypt_dm$HEIGHT, 1)
+hypt_dm$BMI <- round(hypt_dm$WEIGHT / ((hypt_dm$HEIGHT / 100)^2), 1)
+
+# Age groups
+hypt_dm$AGEGR1 <- cut(hypt_dm$AGE,
+                       breaks = c(0, 45, 55, 65, 150),
+                       labels = c("<45", "45-54", "55-64", ">=65"))
+
+# ===== Domain: Vital Signs (VS-like) =====
+vs_list <- list()
+
+for (subj in 1:n_subj) {
+  arm <- hypt_dm$ARM[subj]
+  age <- hypt_dm$AGE[subj]
+
+  # Baseline SBP: age-related, with slight arm imbalance
+  baseline_sbp <- 150 + (age - 55) * 0.8 + rnorm(1, 0, 5)
+
+  # Treatment effect: Drug > Placebo, High > Low
+  treatment_effect <- ifelse(arm == "Placebo", 0,
+                             ifelse(arm == "Drug_A_Low", -8, -15))
+
+  # SBP trajectory over 12 weeks
+  sbp_trajectory <- baseline_sbp + treatment_effect * (1 - exp(-visit_days / 40)) + rnorm(n_visits, 0, 3)
+  dbp_trajectory <- baseline_sbp * 0.65 + treatment_effect * 0.6 * (1 - exp(-visit_days / 40)) + rnorm(n_visits, 0, 2)
+
+  # Add missing data at Week 12: ~15% MCAR
+  if (runif(1) < 0.15 && which.max(visit_days) == 6) {
+    sbp_trajectory[6] <- NA
+    dbp_trajectory[6] <- NA
+  }
+
+  # Create visit-level data
+  vs_subj <- data.frame(
+    SUBJID = subj,
+    VISIT = visit_labels,
+    VISITNUM = 1:n_visits,
+    VISITDY = visit_days,
+    VSTESTCD = "BP",
+    VSTEST = "Blood Pressure",
+    SBP = round(pmax(90, pmin(220, sbp_trajectory)), 0),
+    DBP = round(pmax(50, pmin(130, dbp_trajectory)), 0),
+    HR = round(rnorm(n_visits, mean = 72, sd = 8), 0),
+    VSDT = hypt_dm$RANDDT[subj] + visit_days,
+    VSDTC = as.character(hypt_dm$RANDDT[subj] + visit_days)
+  )
+
+  # Weight measurement: slight variation, decrease in drug arms
+  weight_change <- ifelse(arm == "Placebo", 0, -0.5 * (1 - exp(-visit_days / 42)))
+  vs_subj$WEIGHT <- round(hypt_dm$WEIGHT[subj] + weight_change + rnorm(n_visits, 0, 0.5), 1)
+
+  vs_list[[subj]] <- vs_subj
+}
+
+hypt_vs <- do.call(rbind, vs_list)
+rownames(hypt_vs) <- NULL
+
+# Add ARM and ARMCD to VS
+hypt_vs <- merge(hypt_vs[, c("SUBJID", "VISIT", "VISITNUM", "VISITDY", "SBP", "DBP", "HR", "WEIGHT", "VSDT", "VSDTC")],
+                  hypt_dm[, c("SUBJID", "ARM", "ARMCD")],
+                  by = "SUBJID")
+
+# Reorder columns
+hypt_vs <- hypt_vs[order(hypt_vs$SUBJID, hypt_vs$VISITNUM), c("SUBJID", "ARM", "ARMCD", "VISIT", "VISITNUM", "VISITDY", "SBP", "DBP", "HR", "WEIGHT", "VSDT", "VSDTC")]
+```
+
+### Data Dictionary: Demographics (DM)
+
+| Variable | Type | Description | Values/Range |
+|----------|------|-------------|--------------|
+| SUBJID | numeric | Subject ID | 1-200 |
+| ARM | character | Treatment arm name | Placebo, Drug_A_Low, Drug_A_High |
+| ARMCD | character | Treatment arm code | PBO, DL, DH |
+| SITEID | character | Clinical site ID | Site_01 to Site_04 |
+| AGE | numeric | Age in years | 18-85 |
+| AGEGR1 | factor | Age group | <45, 45-54, 55-64, >=65 |
+| SEX | character | Biological sex | M (Male), F (Female) |
+| RACE | character | Racial/ethnic category | White, Black, Asian, Other |
+| WEIGHT | numeric | Baseline weight (kg) | 55-125 |
+| HEIGHT | numeric | Height (cm) | 150-195 |
+| BMI | numeric | Body mass index (kg/m²) | 18.5-40 |
+| RANDDT | Date | Randomization date | 2024-01-15 to 2024-02-14 |
+
+### Data Dictionary: Vital Signs (VS)
+
+| Variable | Type | Description | Values/Range |
+|----------|------|-------------|--------------|
+| SUBJID | numeric | Subject ID (foreign key to DM) | 1-200 |
+| ARM | character | Treatment arm name | Placebo, Drug_A_Low, Drug_A_High |
+| ARMCD | character | Treatment arm code | PBO, DL, DH |
+| VISIT | character | Visit label | Visit 1 (Baseline) to Visit 6 (Week 12) |
+| VISITNUM | numeric | Visit number | 1-6 |
+| VISITDY | numeric | Visit day relative to baseline | 0, 14, 28, 42, 56, 84 |
+| SBP | numeric | Systolic blood pressure (mmHg) | 90-220 |
+| DBP | numeric | Diastolic blood pressure (mmHg) | 50-130 |
+| HR | numeric | Heart rate (beats/min) | 50-100 |
+| WEIGHT | numeric | Weight (kg) at visit | 54-128 |
+| VSDT | Date | Visit date | 2024-01-15 onward |
+| VSDTC | character | Visit date (ISO 8601) | YYYY-MM-DD format |
+
+### Example: head() Output
+
+```
+  SUBJID    ARM ARMCD             VISIT VISITNUM VISITDY SBP DBP HR WEIGHT       VSDT     VSDTC
+1      1 Placebo   PBO Visit 1 (Baseline)        1       0 155 101 68   84.7 2024-01-15 2024-01-15
+2      1 Placebo   PBO Visit 2 (Week 2)         2      14 153  99 71   84.5 2024-01-29 2024-01-29
+3      1 Placebo   PBO Visit 3 (Week 4)         3      28 151  98 69   84.3 2024-02-12 2024-02-12
+4      1 Placebo   PBO Visit 4 (Week 6)         4      42 152 100 72   84.1 2024-02-26 2024-02-26
+5      1 Placebo   PBO Visit 5 (Week 8)         5      56 154 101 70   83.9 2024-03-11 2024-03-11
+6      1 Placebo   PBO Visit 6 (Week 12)        6      84   NA  NA  NA     NA       NA       NA
+```
+
+### How to Use
+
+Save and load:
+```r
+# Save to CSV for portability
+write.csv(hypt_dm, "hypt_dm.csv", row.names = FALSE)
+write.csv(hypt_vs, "hypt_vs.csv", row.names = FALSE)
+
+# Load for analysis
+hypt_dm <- read.csv("hypt_dm.csv")
+hypt_vs <- read.csv("hypt_vs.csv")
+```
+
+Cross-reference to book chapters:
+- **Ch. 4-5**: Descriptive statistics (age, BMI by arm)
+- **Ch. 6**: Missing data handling (Week 12 MCAR)
+- **Ch. 7**: Baseline characteristics table
+- **Ch. 9**: Hypothesis testing (baseline SBP differences)
+- **Ch. 10-11**: ANOVA, linear regression (treatment effect on SBP)
+- **Ch. 12**: Mixed models (repeated measures MMRM)
+- **Ch. 13**: Safety summaries (adverse events linked dataset)
+
+---
+
+## Dataset 2: ONCO_SURVIVAL — Oncology Survival Study (300 subjects, 2 arms)
+
+A realistic oncology study with time-to-event outcomes (overall survival and progression-free survival).
+
+### Data Characteristics
+
+- **Study Design**: Phase III cancer trial with 2 treatment arms
+- **Sample Size**: 300 subjects (150 per arm)
+- **Primary Outcome**: Overall survival (OS) time in days
+- **Secondary**: Progression-free survival (PFS)
+- **Censoring**: ~25% censored (still alive at last follow-up)
+- **Key Features**: Weibull-distributed survival times, prognostic factors (ECOG PS, age, histology)
+
+### Code to Generate Dataset
+
+```r
+set.seed(2024)
+
+n_subj <- 300
+n_per_arm <- n_subj / 2
+
+# Generate baseline covariates
+onco_base <- data.frame(
+  SUBJID = 1:n_subj,
+  ARM = rep(c("Control", "Experimental"), each = n_per_arm),
+  AGE = rnorm(n_subj, mean = 62, sd = 10),
+  SEX = sample(c("M", "F"), n_subj, replace = TRUE),
+  ECOG_PS = sample(c(0, 1, 2), n_subj, replace = TRUE, prob = c(0.5, 0.35, 0.15)),
+  HISTOLOGY = sample(c("Adenocarcinoma", "Squamous", "Small Cell", "Other"),
+                     n_subj, replace = TRUE, prob = c(0.4, 0.3, 0.2, 0.1))
+)
+
+# Clean continuous variables
+onco_base$AGE <- pmax(18, pmin(85, round(onco_base$AGE, 0)))
+
+# Stratified by arm: Experimental has better baseline characteristics
+exp_idx <- onco_base$ARM == "Experimental"
+onco_base$ECOG_PS[exp_idx] <- pmin(2, onco_base$ECOG_PS[exp_idx] - rbinom(sum(exp_idx), 1, 0.3))
+
+# Generate survival times (Weibull distribution)
+# Control arm: worse prognosis; Experimental: better
+os_times <- numeric(n_subj)
+os_events <- numeric(n_subj)
+pfs_times <- numeric(n_subj)
+pfs_events <- numeric(n_subj)
+
+for (i in 1:n_subj) {
+  arm <- onco_base$ARM[i]
+  ecog <- onco_base$ECOG_PS[i]
+
+  # Shape and scale for Weibull
+  # Control: median OS ~400 days; Experimental: median ~650 days
+  if (arm == "Control") {
+    shape_os <- 1.5
+    scale_os <- 400 / gamma(1 + 1/shape_os)
+    shape_pfs <- 1.3
+    scale_pfs <- 250 / gamma(1 + 1/shape_pfs)
+  } else {
+    shape_os <- 1.5
+    scale_os <- 650 / gamma(1 + 1/shape_os)
+    shape_pfs <- 1.3
+    scale_pfs <- 380 / gamma(1 + 1/shape_pfs)
+  }
+
+  # Adjust for ECOG: worse performance → shorter survival
+  scale_os <- scale_os * exp(-0.3 * ecog)
+  scale_pfs <- scale_pfs * exp(-0.3 * ecog)
+
+  # Generate times
+  os_time <- rweibull(1, shape = shape_os, scale = scale_os)
+  pfs_time <- rweibull(1, shape = shape_pfs, scale = scale_pfs)
+
+  # Censoring: ~25% censored at 730 days (2 years)
+  if (runif(1) < 0.25) {
+    os_event <- 0
+    os_time <- min(os_time, 730)
+  } else {
+    os_event <- 1
+  }
+
+  if (runif(1) < 0.35) {
+    pfs_event <- 0
+    pfs_time <- min(pfs_time, 730)
+  } else {
+    pfs_event <- 1
+  }
+
+  os_times[i] <- round(os_time, 0)
+  os_events[i] <- os_event
+  pfs_times[i] <- round(pfs_time, 0)
+  pfs_events[i] <- pfs_event
+}
+
+onco_survival <- onco_base %>%
+  mutate(
+    OS_TIME_DAYS = os_times,
+    OS_EVENT = os_events,
+    OS_CENS_STR = ifelse(os_events == 1, "Yes", "No"),
+    PFS_TIME_DAYS = pfs_times,
+    PFS_EVENT = pfs_events,
+    PFS_CENS_STR = ifelse(pfs_events == 1, "Yes", "No"),
+    RANDDT = as.Date("2023-01-01") + sample(0:365, n_subj, replace = TRUE),
+    LSTDT = RANDDT + OS_TIME_DAYS,
+    RESPONSE = sample(c("CR", "PR", "SD", "PD"), n_subj, replace = TRUE,
+                      prob = c(0.15, 0.35, 0.35, 0.15))
+  ) %>%
+  arrange(SUBJID)
+
+onco_survival <- as.data.frame(onco_survival)
+```
+
+### Data Dictionary: Oncology Survival
+
+| Variable | Type | Description | Values/Range |
+|----------|------|-------------|--------------|
+| SUBJID | numeric | Subject ID | 1-300 |
+| ARM | character | Treatment arm | Control, Experimental |
+| AGE | numeric | Age in years at baseline | 18-85 |
+| SEX | character | Biological sex | M, F |
+| ECOG_PS | numeric | ECOG performance status | 0 (fully active), 1 (restricted), 2 (in bed >50%) |
+| HISTOLOGY | character | Tumor histology | Adenocarcinoma, Squamous, Small Cell, Other |
+| OS_TIME_DAYS | numeric | Overall survival time (days) | 50-730 |
+| OS_EVENT | numeric | OS event indicator | 1 (died/event), 0 (censored/alive) |
+| OS_CENS_STR | character | OS event as string | Yes, No |
+| PFS_TIME_DAYS | numeric | Progression-free survival time (days) | 30-730 |
+| PFS_EVENT | numeric | PFS event indicator | 1 (progression/event), 0 (censored) |
+| PFS_CENS_STR | character | PFS event as string | Yes, No |
+| RANDDT | Date | Randomization date | 2023-01-01 to 2023-12-31 |
+| LSTDT | Date | Last assessment date | Derived from RANDDT + OS_TIME_DAYS |
+| RESPONSE | character | RECIST response | CR (Complete), PR (Partial), SD (Stable), PD (Progressive) |
+
+### Example: head() Output
+
+```
+  SUBJID         ARM AGE SEX ECOG_PS       HISTOLOGY OS_TIME_DAYS OS_EVENT OS_CENS_STR PFS_TIME_DAYS
+1      1     Control  71   M       1      Squamous          127        1      Yes              92
+2      2     Control  59   F       0   Adenocarcinoma          318        1      Yes             210
+3      3     Control  65   M       0       Small Cell          512        1      Yes             421
+4      4 Experimental  58   M       0       Squamous          614        0       No             490
+5      5 Experimental  71   F       1   Adenocarcinoma          730        0       No             445
+6      6 Experimental  55   M       0          Other          680        1      Yes             589
+```
+
+### How to Use
+
+Save and load:
+```r
+write.csv(onco_survival, "onco_survival.csv", row.names = FALSE)
+onco_survival <- read.csv("onco_survival.csv")
+```
+
+Cross-reference to book chapters:
+- **Ch. 14**: Survival analysis (Kaplan-Meier curves by arm)
+- **Ch. 14**: Cox proportional hazards (effect of ECOG_PS, age on OS)
+- **Ch. 15**: Competing risks (OS vs. PFS)
+- **Ch. 6-7**: Baseline characteristics by arm (age, ECOG)
+
+---
+
+## Dataset 3: VACCINE_RCT — Vaccine Trial (500 subjects, 2 arms, 5 timepoints)
+
+A realistic vaccine immunogenicity and efficacy study with repeated antibody measurements and time-to-infection outcomes.
+
+### Data Characteristics
+
+- **Study Design**: Phase III vaccine efficacy trial
+- **Sample Size**: 500 subjects (250 per arm)
+- **Duration**: 6 months follow-up
+- **Primary Variable**: Antibody titers (log-scale) at 5 timepoints
+- **Secondary**: Time to infection
+- **Key Features**: Baseline serology, geometric mean titers, immunological non-responders
+
+### Code to Generate Dataset
+
+```r
+set.seed(2024)
+
+n_subj <- 500
+n_per_arm <- n_subj / 2
+timepoints <- c(0, 7, 14, 28, 180)  # Days post-vaccination
+timepoint_labels <- c("Day 0 (Baseline)", "Day 7", "Day 14", "Day 28", "Day 180 (6mo)")
+
+# Baseline covariates
+vaccine_dm <- data.frame(
+  SUBJID = 1:n_subj,
+  ARM = rep(c("Placebo", "Vaccine"), each = n_per_arm),
+  ARMCD = rep(c("PBO", "VAC"), each = n_per_arm),
+  SITEID = sample(c("Site_A", "Site_B", "Site_C"), n_subj, replace = TRUE),
+  AGE = rnorm(n_subj, mean = 45, sd = 15),
+  SEX = sample(c("M", "F"), n_subj, replace = TRUE),
+  BASELINE_SEROLOGY = sample(c("Seroneg", "Seropos"), n_subj, replace = TRUE, prob = c(0.6, 0.4)),
+  COMORBIDITY = sample(c("None", "Yes"), n_subj, replace = TRUE, prob = c(0.7, 0.3)),
+  SITE = sample(c(1, 2, 3), n_subj, replace = TRUE)
+)
+
+vaccine_dm$AGE <- pmax(18, pmin(85, round(vaccine_dm$AGE, 0)))
+
+# Generate antibody titers
+ab_list <- list()
+
+for (subj in 1:n_subj) {
+  arm <- vaccine_dm$ARM[subj]
+  baseline_serology <- vaccine_dm$BASELINE_SEROLOGY[subj]
+  age <- vaccine_dm$AGE[subj]
+
+  # Baseline titer (log10 scale)
+  baseline_log_ab <- ifelse(baseline_serology == "Seropos", 2.5, 0.5)
+
+  # Response after vaccination
+  if (arm == "Placebo") {
+    # Minimal response; slight increase due to natural exposure
+    peak_log_ab <- baseline_log_ab + rnorm(1, 0.1, 0.3)
+  } else {
+    # Strong vaccine response
+    responder <- runif(1) > 0.15  # ~85% responder rate
+    if (responder) {
+      peak_log_ab <- baseline_log_ab + 3.5 + rnorm(1, 0, 0.5)
+    } else {
+      # Non-responder: minimal response
+      peak_log_ab <- baseline_log_ab + 0.2 + rnorm(1, 0, 0.3)
+    }
+  }
+
+  # Age effect: older subjects weaker response
+  peak_log_ab <- peak_log_ab - (age - 45) * 0.01
+
+  # Decay over 6 months
+  log_ab_trajectory <- numeric(length(timepoints))
+  log_ab_trajectory[1] <- baseline_log_ab
+
+  for (t_idx in 2:length(timepoints)) {
+    days <- timepoints[t_idx]
+    # Exponential decay with half-life ~60 days
+    log_ab_trajectory[t_idx] <- baseline_log_ab + (peak_log_ab - baseline_log_ab) * exp(-0.01155 * days)
+    log_ab_trajectory[t_idx] <- log_ab_trajectory[t_idx] + rnorm(1, 0, 0.2)
+  }
+
+  ab_subj <- data.frame(
+    SUBJID = subj,
+    TIMEPOINT = timepoint_labels,
+    TIMEPOINTNUM = 1:length(timepoints),
+    DAY = timepoints,
+    LOG_ANTIBODY = log_ab_trajectory,
+    ANTIBODY = 10^log_ab_trajectory,  # Untransformed
+    VISITDT = vaccine_dm$SITEID[subj]  # Placeholder for date
+  )
+
+  ab_list[[subj]] <- ab_subj
+}
+
+vaccine_antibody <- do.call(rbind, ab_list)
+rownames(vaccine_antibody) <- NULL
+
+# Merge in ARM and ARMCD
+vaccine_antibody <- merge(vaccine_antibody,
+                          vaccine_dm[, c("SUBJID", "ARM", "ARMCD")],
+                          by = "SUBJID")
+
+vaccine_antibody <- vaccine_antibody[order(vaccine_antibody$SUBJID, vaccine_antibody$TIMEPOINTNUM),
+                                      c("SUBJID", "ARM", "ARMCD", "TIMEPOINT", "TIMEPOINTNUM", "DAY", "LOG_ANTIBODY", "ANTIBODY")]
+
+# Infection outcomes (secondary)
+vaccine_infection <- data.frame(
+  SUBJID = 1:n_subj,
+  ARM = vaccine_dm$ARM,
+  BASELINE_SEROLOGY = vaccine_dm$BASELINE_SEROLOGY,
+  TIME_TO_INFECTION_DAYS = NA_numeric_,
+  INFECTION_EVENT = NA_numeric_
+)
+
+for (i in 1:n_subj) {
+  arm <- vaccine_infection$ARM[i]
+  baseline_sero <- vaccine_infection$BASELINE_SEROLOGY[i]
+
+  # Hazard of infection
+  if (arm == "Placebo") {
+    lambda <- ifelse(baseline_sero == "Seropos", 0.001, 0.003)
+  } else {
+    lambda <- ifelse(baseline_sero == "Seropos", 0.0002, 0.0005)
+  }
+
+  time_to_infection <- rexp(1, rate = lambda) * 365  # Convert to days in 1-year period
+
+  # Censoring at 180 days
+  if (time_to_infection < 180) {
+    vaccine_infection$TIME_TO_INFECTION_DAYS[i] <- round(time_to_infection, 0)
+    vaccine_infection$INFECTION_EVENT[i] <- 1
+  } else {
+    vaccine_infection$TIME_TO_INFECTION_DAYS[i] <- 180
+    vaccine_infection$INFECTION_EVENT[i] <- 0
+  }
+}
+
+vaccine_dm <- merge(vaccine_dm, vaccine_infection[, c("SUBJID", "TIME_TO_INFECTION_DAYS", "INFECTION_EVENT")],
+                    by = "SUBJID")
+```
+
+### Data Dictionary: Vaccine Demographics
+
+| Variable | Type | Description | Values/Range |
+|----------|------|-------------|--------------|
+| SUBJID | numeric | Subject ID | 1-500 |
+| ARM | character | Treatment arm | Placebo, Vaccine |
+| ARMCD | character | Treatment arm code | PBO, VAC |
+| SITEID | character | Clinical site | Site_A, Site_B, Site_C |
+| AGE | numeric | Age at enrollment (years) | 18-85 |
+| SEX | character | Biological sex | M, F |
+| BASELINE_SEROLOGY | character | Baseline serostatus | Seroneg (negative), Seropos (positive) |
+| COMORBIDITY | character | Presence of comorbidity | None, Yes |
+| TIME_TO_INFECTION_DAYS | numeric | Days to infection (or censoring) | 0-180 |
+| INFECTION_EVENT | numeric | Infection status | 1 (infected), 0 (censored) |
+
+### Data Dictionary: Vaccine Antibodies
+
+| Variable | Type | Description | Values/Range |
+|----------|------|-------------|--------------|
+| SUBJID | numeric | Subject ID | 1-500 |
+| ARM | character | Treatment arm | Placebo, Vaccine |
+| ARMCD | character | Treatment arm code | PBO, VAC |
+| TIMEPOINT | character | Timepoint label | Day 0 to Day 180 |
+| TIMEPOINTNUM | numeric | Timepoint number | 1-5 |
+| DAY | numeric | Day relative to vaccination | 0, 7, 14, 28, 180 |
+| LOG_ANTIBODY | numeric | Log10 antibody titer | 0.5-7.0 |
+| ANTIBODY | numeric | Untransformed antibody titer (mIU/mL) | 3-10,000,000 |
+
+### How to Use
+
+```r
+write.csv(vaccine_dm, "vaccine_dm.csv", row.names = FALSE)
+write.csv(vaccine_antibody, "vaccine_antibody.csv", row.names = FALSE)
+```
+
+Cross-reference:
+- **Ch. 12**: Mixed models (repeated antibody measurements; random intercept by subject)
+- **Ch. 13-14**: Seroconversion rates and efficacy analysis
+- **Ch. 7**: Baseline characteristics (baseline serology)
+
+---
+
+## Dataset 4: AE_DATASET — Adverse Events (1,500 records, linked to HYPT_TRIAL)
+
+A standalone adverse events dataset linked to the hypertension trial with realistic AE characteristics.
+
+### Data Characteristics
+
+- **Sample**: 1,500 AE records from 200 subjects (1-8 AEs per subject)
+- **Key Features**: MedDRA-like coding, severity gradation, causality assessment
+- **Pattern**: More AEs in Drug_A_High arm; more serious in older subjects
+
+### Code to Generate Dataset
+
+```r
+set.seed(2024)
+
+# Create subject-level AE counts (Poisson-like)
+n_subj <- 200
+arms <- c("Placebo", "Drug_A_Low", "Drug_A_High")
+
+# AE probability by arm
+ae_probs <- c(0.3, 0.5, 0.65)
+
+ae_counts <- numeric(n_subj)
+ae_records <- list()
+ae_index <- 1
+
+for (subj in 1:n_subj) {
+  arm_idx <- ((subj - 1) %% 3) + 1
+  arm <- arms[arm_idx]
+
+  # Number of AEs: Poisson with lambda dependent on arm
+  lambda <- ifelse(arm == "Placebo", 1.5,
+                   ifelse(arm == "Drug_A_Low", 2.5, 4.0))
+  n_ae <- rpois(1, lambda)
+
+  if (n_ae > 0) {
+    for (ae_num in 1:n_ae) {
+      # AE term (MedDRA-like)
+      ae_term <- sample(
+        c("Headache", "Dizziness", "Fatigue", "Cough", "Diarrhea",
+          "Nausea", "Rash", "Hypokalemia", "Hypercreatinine", "Hypotension",
+          "Tachycardia", "Chest Pain", "Insomnia", "Dry Mouth", "Muscle Pain"),
+        1
+      )
+
+      # Preferred Term (PT) and System Organ Class (SOC)
+      soc_map <- list(
+        "Headache" = "Nervous System Disorders",
+        "Dizziness" = "Nervous System Disorders",
+        "Fatigue" = "General Disorders",
+        "Cough" = "Respiratory, Thoracic and Mediastinal Disorders",
+        "Diarrhea" = "Gastrointestinal Disorders",
+        "Nausea" = "Gastrointestinal Disorders",
+        "Rash" = "Skin and Subcutaneous Tissue Disorders",
+        "Hypokalemia" = "Investigations",
+        "Hypercreatinine" = "Investigations",
+        "Hypotension" = "Vascular Disorders",
+        "Tachycardia" = "Cardiac Disorders",
+        "Chest Pain" = "Cardiac Disorders",
+        "Insomnia" = "Nervous System Disorders",
+        "Dry Mouth" = "Gastrointestinal Disorders",
+        "Muscle Pain" = "Musculoskeletal and Connective Tissue Disorders"
+      )
+      soc <- soc_map[[ae_term]]
+
+      # Severity: more severe in high-dose arm and older subjects
+      severity_probs <- c(0.65, 0.25, 0.10)  # Mild, Moderate, Severe
+
+      if (arm == "Drug_A_High") {
+        severity_probs <- c(0.45, 0.40, 0.15)
+      }
+
+      severity <- sample(c("Mild", "Moderate", "Severe"), 1, prob = severity_probs)
+
+      # Serious flag
+      is_serious <- ifelse(severity == "Severe", runif(1) < 0.5, runif(1) < 0.05)
+      aeser <- ifelse(is_serious, "Y", "N")
+      aesev <- severity
+
+      # Causality: "Related" or "Not Related"
+      if (arm == "Placebo") {
+        causality_prob <- 0.2  # Mostly not related in placebo
+      } else {
+        causality_prob <- 0.7  # Mostly related in treatment
+      }
+
+      aecausal <- ifelse(runif(1) < causality_prob, "Related", "Not Related")
+
+      # Dates
+      aestdy <- sample(1:84, 1)  # AE start day within study
+      aeduration <- sample(1:60, 1)  # Duration in days
+      aectcae <- ifelse(is_serious, "Y", "N")
+
+      # Create AE record
+      ae_rec <- data.frame(
+        AESEQ = ae_num,
+        SUBJID = subj,
+        ARM = arm,
+        ARMCD = ifelse(arm == "Placebo", "PBO",
+                       ifelse(arm == "Drug_A_Low", "DL", "DH")),
+        AETERM = ae_term,
+        AEPT = ae_term,  # PT = preferred term
+        AESOC = soc,
+        AESEV = aesev,
+        AESER = aeser,
+        AECAUSAL = aecausal,
+        AESTDY = aestdy,
+        AEDUR = aeduration,
+        AECTCAE = aectcae
+      )
+
+      ae_records[[ae_index]] <- ae_rec
+      ae_index <- ae_index + 1
+    }
+  }
+}
+
+ae_dataset <- do.call(rbind, ae_records)
+rownames(ae_dataset) <- NULL
+
+# Ensure AESEQ is sequential within subject
+ae_dataset <- ae_dataset %>%
+  arrange(SUBJID) %>%
+  group_by(SUBJID) %>%
+  mutate(AESEQ = row_number()) %>%
+  ungroup() %>%
+  as.data.frame()
+```
+
+### Data Dictionary: Adverse Events
+
+| Variable | Type | Description | Values/Range |
+|----------|------|-------------|--------------|
+| AESEQ | numeric | Sequence number within subject | 1-8 |
+| SUBJID | numeric | Subject ID | 1-200 |
+| ARM | character | Treatment arm | Placebo, Drug_A_Low, Drug_A_High |
+| ARMCD | character | Treatment arm code | PBO, DL, DH |
+| AETERM | character | Adverse event term | See AE list below |
+| AEPT | character | Preferred term (same as AETERM) | See AE list below |
+| AESOC | character | System Organ Class (MedDRA) | Various SOCs |
+| AESEV | character | Severity | Mild, Moderate, Severe |
+| AESER | character | Seriousness flag | Y (Yes), N (No) |
+| AECAUSAL | character | Causality assessment | Related, Not Related |
+| AESTDY | numeric | AE start day | 1-84 |
+| AEDUR | numeric | AE duration (days) | 1-60 |
+| AECTCAE | character | Life-threatening? | Y, N |
+
+### Example: head() Output
+
+```
+  AESEQ SUBJID       ARM ARMCD    AETERM AEPT AESOC     AESEV AESER AECAUSAL AESTDY AEDUR AECTCAE
+1     1      1     Placebo   PBO   Headache Headache Nervous System Disorders   Mild      N Not Related      15    12       N
+2     1      4 Drug_A_Low    DL   Nausea   Nausea   Gastrointestinal Disorders Mild      N Related      22      8       N
+3     2      4 Drug_A_Low    DL   Diarrhea Diarrhea Gastrointestinal Disorders Moderate N Related      31     14       N
+4     1      5 Drug_A_High   DH   Hypotension Hypotension Vascular Disorders Severe    Y Related       8     21       N
+5     2      5 Drug_A_High   DH   Rash     Rash     Skin and Subcutaneous Tissue Disorders Moderate N Related      42      5       N
+```
+
+### How to Use
+
+```r
+write.csv(ae_dataset, "ae_dataset.csv", row.names = FALSE)
+ae_dataset <- read.csv("ae_dataset.csv")
+
+# Merge with demographics for safety analysis
+ae_with_dm <- ae_dataset %>%
+  left_join(hypt_dm, by = c("SUBJID" = "SUBJID", "ARM" = "ARM"))
+
+# Safety summary table
+ae_summary <- ae_dataset %>%
+  group_by(ARM) %>%
+  summarise(
+    total_ae = n(),
+    subjects_with_ae = n_distinct(SUBJID),
+    pct_with_ae = n_distinct(SUBJID) / 67 * 100,  # 67 subjects per arm
+    serious_ae = sum(AESER == "Y"),
+    severe_ae = sum(AESEV == "Severe")
+  )
+```
+
+Cross-reference:
+- **Ch. 6-7**: Safety summary tables
+- **Ch. 13**: Adverse event listings (regulatory format)
+- **Ch. 2**: CDISC AE domain structure
+
+---
+
+## Summary: Using These Datasets
+
+All four datasets are **reproducible** with `set.seed(2024)` and **realistic**:
+
+| Dataset | Use Case | Key Features |
+|---------|----------|--------------|
+| HYPT_TRIAL | Efficacy (continuous repeated measures) | MMRM, mixed models, baseline demographics |
+| ONCO_SURVIVAL | Time-to-event analysis | Cox regression, Kaplan-Meier, competing risks |
+| VACCINE_RCT | Immunogenicity with repeated measures + efficacy | Geometric mean titers, infection analysis |
+| AE_DATASET | Safety analyses and regulatory reporting | Serious AEs, severity grades, MedDRA coding |
+
+**How to use in practice:**
+
+1. Generate all datasets once (run the code above)
+2. Save to CSV for portability
+3. Use in each chapter's exercises:
+   - **Chapters 4-7**: Data import, cleaning, exploratory analysis
+   - **Chapters 8-11**: Hypothesis testing, ANOVA, regression
+   - **Chapters 12-14**: Mixed models, survival, advanced analyses
+   - **Chapters 15-16**: Table creation, regulatory reporting
+
+All datasets include realistic features: missing data, censoring, baseline imbalances, and heterogeneous treatment effects.

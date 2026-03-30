@@ -1,0 +1,729 @@
+---
+title: "Chapter 6: Exploratory Data Analysis (EDA)"
+subtitle: "Understanding Your Data Before Analysis"
+author: "Mahesh Divakaran, Jayadevan Sreedharan, Gunjan Singh"
+---
+
+# Chapter 6: Exploratory Data Analysis (EDA)
+
+## Learning Objectives
+
+By the end of this chapter, you will:
+- Understand why "look before you model" is critical in clinical research
+- Compute and interpret summary statistics (mean, median, SD, IQR, quantiles)
+- Assess distributional assumptions using histograms, Q-Q plots, and normality tests
+- Detect and handle outliers using multiple methods
+- Perform correlation analysis (Pearson, Spearman)
+- Create publication-ready summary tables with gtsummary
+- Apply EDA to real CDISC-formatted clinical data
+
+## 6.1 Why Exploratory Data Analysis Matters
+
+### "Look Before You Model"
+
+In 2003, statistician Anscombe created four datasets, each with identical summary statistics:
+- Mean of X: 9.0
+- Mean of Y: 7.5
+- Correlation: 0.82
+- Regression line: y = 3 + 0.5x
+
+Yet when plotted, the datasets told four completely different stories: one linear, one quadratic, one non-linear with one outlier, and one with a single influencer point.
+
+**The lesson**: Summary statistics can hide the truth. Always visualize and explore your data first.
+
+### Clinical Context: A Hypertension Trial
+
+Imagine analyzing a 12-week randomized trial of 300 patients on three antihypertensive drugs. You plan a simple t-test to compare systolic BP reduction between arms.
+
+Before running any statistical test, EDA should answer:
+
+1. **Are the data normally distributed?** (If not, maybe use non-parametric tests)
+2. **Are there outliers?** (A single patient with BP = 40 mmHg would skew results)
+3. **Are baseline characteristics balanced?** (Randomization should achieve this, but verify)
+4. **What's the missing data pattern?** (If 40% of Week 12 data is missing, results may be biased)
+5. **Are assumptions met?** (Equal variances, independence of observations)
+
+Missing just one of these checks could invalidate your entire analysis.
+
+::: {.callout-important}
+## FDA Guidance on Data Quality
+The FDA's guidance on biostatistical principles emphasizes exploratory analysis to identify data quality issues *before* confirmatory analysis. This is not optional—it's expected in submissions.
+:::
+
+---
+
+## 6.2 Summary Statistics
+
+### Measures of Central Tendency and Spread
+
+Let's define the statistics we'll compute:
+
+**Central Tendency:**
+- **Mean**: $$\bar{x} = \frac{1}{n}\sum_{i=1}^{n} x_i$$
+- **Median**: Middle value when data are sorted
+- **Mode**: Most frequently occurring value
+
+**Spread:**
+- **Standard Deviation**: $$SD = \sqrt{\frac{1}{n-1}\sum_{i=1}^{n}(x_i - \bar{x})^2}$$
+- **Variance**: $$Var = SD^2$$
+- **Interquartile Range**: IQR = Q3 - Q1 (25th to 75th percentile)
+- **Range**: Max - Min
+
+### When to Use Each Statistic
+
+| Statistic | Use When | Not When |
+|-----------|----------|----------|
+| Mean | Data are normally distributed | Outliers present or skewed data |
+| Median | Data are skewed or non-normal | You need a parametric test |
+| SD | Data are normal, comparing to reference | You're describing a non-normal distribution |
+| IQR | Data are skewed or have outliers | You want to compare to parametric tests |
+
+---
+
+## 6.3 Distribution Assessment
+
+### Why Check Normality?
+
+Many statistical tests (t-tests, ANOVA, linear regression) assume normality. If violated:
+- Test results may be unreliable
+- P-values may be incorrect
+- Confidence intervals may be inaccurate
+
+### Visual Assessment: Histogram
+
+```{r}
+# Load required packages
+library(pharmaversesdtm)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Load vital signs data
+data(vs)
+
+# Extract systolic blood pressure at baseline
+sbp_baseline <- vs %>%
+  filter(VSTESTCD == "SYSBP", VISITNUM == 0) %>%
+  pull(VSSTRESN) %>%
+  as.numeric()
+
+# Histogram with normal curve overlay
+hist(sbp_baseline,
+     main = "Distribution of Baseline Systolic Blood Pressure",
+     xlab = "Systolic BP (mmHg)",
+     ylab = "Frequency",
+     breaks = 15,
+     prob = TRUE)
+
+# Overlay normal distribution curve
+x <- seq(min(sbp_baseline, na.rm = TRUE),
+         max(sbp_baseline, na.rm = TRUE),
+         length = 100)
+normal_curve <- dnorm(x, mean = mean(sbp_baseline, na.rm = TRUE),
+                      sd = sd(sbp_baseline, na.rm = TRUE))
+lines(x, normal_curve, col = "red", lwd = 2)
+```
+
+**Interpretation**: If the histogram roughly matches the red normal curve, data are approximately normal. Asymmetry (skewness) suggests non-normality.
+
+### Q-Q Plot: Quantile-Quantile
+
+The Q-Q plot compares observed quantiles to theoretical normal quantiles:
+
+```{r}
+# Q-Q plot
+qqnorm(sbp_baseline,
+       main = "Q-Q Plot: Systolic BP")
+qqline(sbp_baseline, col = "red", lwd = 2)
+```
+
+**Interpretation**:
+- Points closely follow the red line → approximately normal
+- Points deviate from the line → non-normal
+- "S" curve → data are skewed
+- Extreme deviations at tails → heavy tails (outliers likely)
+
+### Shapiro-Wilk Normality Test
+
+The **Shapiro-Wilk test** tests the null hypothesis: "Data are normally distributed."
+
+$$H_0: \text{Data come from a normal distribution}$$
+$$H_A: \text{Data do not come from a normal distribution}$$
+
+```{r}
+# Shapiro-Wilk test
+test_result <- shapiro.test(sbp_baseline)
+
+cat("Shapiro-Wilk Test for Normality\n")
+cat("Test Statistic W =", round(test_result$statistic, 4), "\n")
+cat("P-value =", round(test_result$p.value, 4), "\n")
+
+if (test_result$p.value < 0.05) {
+  cat("Conclusion: Data are NOT normally distributed (p < 0.05)\n")
+} else {
+  cat("Conclusion: Data may be normally distributed (p >= 0.05)\n")
+}
+```
+
+::: {.callout-tip}
+## Sample Size and Normality
+With large samples (n > 100), even trivial deviations from normality may give p < 0.05. Always combine the test with visual inspection. A histogram might show the data are "close enough" to normal for practical purposes.
+:::
+
+---
+
+## 6.4 Outlier Detection
+
+### Method 1: IQR Method (Tukey Fences)
+
+The **Tukey fence** method flags outliers as:
+- **Lower fence** = Q1 - 1.5 × IQR
+- **Upper fence** = Q3 + 1.5 × IQR
+- Any point beyond these fences is a potential outlier
+
+```{r}
+# Calculate quartiles and IQR
+Q1 <- quantile(sbp_baseline, 0.25, na.rm = TRUE)
+Q3 <- quantile(sbp_baseline, 0.75, na.rm = TRUE)
+IQR <- Q3 - Q1
+
+lower_fence <- Q1 - 1.5 * IQR
+upper_fence <- Q3 + 1.5 * IQR
+
+cat("Q1 (25th percentile) =", Q1, "\n")
+cat("Q3 (75th percentile) =", Q3, "\n")
+cat("IQR =", IQR, "\n")
+cat("Lower Fence =", lower_fence, "\n")
+cat("Upper Fence =", upper_fence, "\n\n")
+
+# Identify outliers
+outliers_iqr <- sbp_baseline[sbp_baseline < lower_fence | sbp_baseline > upper_fence]
+cat("Number of outliers:", length(outliers_iqr), "\n")
+cat("Outlier values:", outliers_iqr, "\n")
+```
+
+### Method 2: Z-Score Method
+
+The **Z-score** measures how many standard deviations a point is from the mean:
+
+$$Z = \frac{x_i - \bar{x}}{SD}$$
+
+Points with |Z| > 3 are often considered outliers; |Z| > 2.5 are flagged for review.
+
+```{r}
+# Calculate Z-scores
+sbp_df <- data.frame(SBP = sbp_baseline)
+sbp_df <- sbp_df %>%
+  mutate(
+    Z_score = (SBP - mean(SBP, na.rm = TRUE)) / sd(SBP, na.rm = TRUE),
+    Outlier_Z3 = abs(Z_score) > 3,
+    Outlier_Z25 = abs(Z_score) > 2.5
+  )
+
+# Display outliers
+outliers_z <- sbp_df %>%
+  filter(Outlier_Z3 | Outlier_Z25) %>%
+  arrange(desc(abs(Z_score)))
+
+cat("Outliers by Z-score (|Z| > 2.5):\n")
+print(outliers_z)
+
+cat("\nNumber of extreme outliers (|Z| > 3):", sum(sbp_df$Outlier_Z3, na.rm = TRUE), "\n")
+```
+
+### Boxplot Visualization
+
+```{r}
+# Boxplot shows quartiles and outliers visually
+boxplot(sbp_baseline,
+        main = "Systolic BP: Boxplot with Outliers",
+        ylab = "SBP (mmHg)")
+
+# Add mean point
+points(1, mean(sbp_baseline, na.rm = TRUE), pch = 4, col = "red", cex = 2)
+legend("topright", "Mean", pch = 4, col = "red")
+```
+
+::: {.callout-warning}
+## Outliers Require Investigation, Not Deletion
+Never automatically delete outliers. First investigate:
+- **Data entry error?** Verify in source documents
+- **Measurement error?** Was the device calibrated?
+- **Real biological extreme?** Some patients do have very low or high BP
+- **Eligibility violation?** Does this patient meet criteria?
+
+Only after investigation should you decide to exclude or transform.
+:::
+
+---
+
+## 6.5 Correlation Analysis
+
+### Pearson Correlation (Normal Data)
+
+For normally distributed data, **Pearson's r** measures linear association:
+
+$$r = \frac{\sum_{i=1}^{n}(x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\sum_{i=1}^{n}(x_i - \bar{x})^2 \sum_{i=1}^{n}(y_i - \bar{y})^2}}$$
+
+Where: r ranges from -1 (perfect negative) to +1 (perfect positive); r = 0 (no linear relationship)
+
+```{r}
+# Load lab data
+data(lb)
+
+# Extract baseline lab values for multiple tests
+baseline_labs <- lb %>%
+  filter(LBBLFL == "Y") %>%  # Baseline flag
+  select(USUBJID, LBTESTCD, LBSTRESN) %>%
+  pivot_wider(
+    names_from = LBTESTCD,
+    values_from = LBSTRESN,
+    values_fn = mean  # In case of multiple baseline records
+  ) %>%
+  # Select key lab tests
+  select(USUBJID,
+         ALB = ALB,  # Albumin (g/dL)
+         CREAT = CREAT,  # Creatinine (mg/dL)
+         GLU = GLU)  # Glucose (mg/dL)
+
+# Remove rows with missing values
+baseline_labs_complete <- baseline_labs %>%
+  filter(complete.cases(.))
+
+# Compute Pearson correlations
+cor_matrix <- cor(baseline_labs_complete[, -1], method = "pearson")
+
+cat("Pearson Correlation Matrix (Baseline Labs)\n")
+print(cor_matrix)
+
+# Test for significance
+library(corrplot)
+# cor_pval function to get p-values
+cor_test <- Hmisc::rcorr(as.matrix(baseline_labs_complete[, -1]))
+print(cor_test$P)  # P-value matrix
+```
+
+### Spearman Correlation (Non-Normal Data)
+
+When data are non-normal or you're measuring monotonic (not necessarily linear) association, use **Spearman's rank correlation**:
+
+$$\rho = 1 - \frac{6 \sum_{i=1}^{n} d_i^2}{n(n^2 - 1)}$$
+
+Where: $d_i$ = difference in ranks for each pair
+
+```{r}
+# Spearman correlation (rank-based, robust to non-normality)
+spearman_matrix <- cor(baseline_labs_complete[, -1], method = "spearman")
+
+cat("\nSpearman Correlation Matrix (Baseline Labs)\n")
+print(spearman_matrix)
+
+# Pearson vs. Spearman comparison
+cat("\nComparison:\n")
+cat("Pearson r (ALB vs CREAT) =", round(cor_matrix["ALB", "CREAT"], 3), "\n")
+cat("Spearman rho (ALB vs CREAT) =", round(spearman_matrix["ALB", "CREAT"], 3), "\n")
+```
+
+---
+
+## 6.6 Cross-Tabulation and Categorical Analysis
+
+### Table Function
+
+```{r}
+# Load demographics
+data(dm)
+
+# Simple 1-way frequency table
+treatment_table <- table(dm$ARM)
+cat("Treatment Arm Distribution:\n")
+print(treatment_table)
+
+# 2-way crosstab: Treatment by Sex
+crosstab <- table(dm$ARM, dm$SEX)
+cat("\nTreatment Arm by Sex:\n")
+print(crosstab)
+
+# Add margins (row and column totals)
+addmargins(crosstab)
+```
+
+### Proportions and Percentages
+
+```{r}
+# Row proportions (% within each treatment arm)
+row_prop <- prop.table(crosstab, margin = 1) * 100
+cat("\nPercentage by Sex within each Arm:\n")
+print(round(row_prop, 1))
+
+# Column proportions (% within each sex)
+col_prop <- prop.table(crosstab, margin = 2) * 100
+cat("\nPercentage by Arm within each Sex:\n")
+print(round(col_prop, 1))
+```
+
+---
+
+## 6.7 Publication-Ready Tables with gtsummary
+
+The **gtsummary** package creates FDA-submission-quality tables with minimal code.
+
+```{r}
+# Install if needed: install.packages("gtsummary")
+library(gtsummary)
+
+# Load data
+data(dm)
+data(vs)
+data(lb)
+
+# Merge demographics with baseline vitals and labs
+baseline_data <- dm %>%
+  left_join(
+    vs %>%
+      filter(VSTESTCD == "SYSBP", VISITNUM == 0) %>%
+      select(USUBJID, VSSTRESN) %>%
+      mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
+      rename(SBP_Baseline = VSSTRESN),
+    by = "USUBJID"
+  ) %>%
+  left_join(
+    lb %>%
+      filter(LBTESTCD == "CREAT", LBBLFL == "Y") %>%
+      select(USUBJID, LBSTRESN) %>%
+      rename(CREATININE = LBSTRESN),
+    by = "USUBJID"
+  ) %>%
+  mutate(
+    # Convert age to categorical for table
+    AGE_GR = case_when(
+      AGE < 40 ~ "<40",
+      AGE >= 40 & AGE < 65 ~ "40-64",
+      AGE >= 65 ~ ">=65"
+    )
+  ) %>%
+  select(ARM, AGE, AGE_GR, SEX, RACE, SBP_Baseline, CREATININE)
+
+# Create baseline characteristics table
+baseline_table <- baseline_data %>%
+  tbl_summary(
+    by = ARM,  # Stratify by treatment arm
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd})",  # Mean (SD) for continuous
+      all_categorical() ~ "{n} ({p}%)"  # N (%) for categorical
+    ),
+    digits = list(
+      all_continuous() ~ 1,
+      all_categorical() ~ 0
+    ),
+    label = list(
+      AGE ~ "Age (years)",
+      SEX ~ "Sex",
+      RACE ~ "Race",
+      SBP_Baseline ~ "Baseline Systolic BP (mmHg)",
+      CREATININE ~ "Baseline Creatinine (mg/dL)"
+    )
+  ) %>%
+  # Add overall column
+  add_overall() %>%
+  # Add p-values for comparison
+  add_p() %>%
+  # Modify header
+  modify_header(label ~ "**Characteristic**") %>%
+  # Convert to standard table format for display
+  as_gt()
+
+print(baseline_table)
+```
+
+### Customized Summary Statistics
+
+```{r}
+# Example: Summary by treatment arm with custom statistics
+baseline_data %>%
+  select(ARM, AGE, SBP_Baseline, CREATININE) %>%
+  tbl_summary(
+    by = ARM,
+    statistic = list(
+      AGE ~ "{median} ({p25}, {p75})",  # Median and IQR
+      SBP_Baseline ~ "{mean} ± {sd}",   # Mean ± SD
+      CREATININE ~ "{min}-{max}"        # Range
+    ),
+    missing = "no"  # Don't show missing counts
+  ) %>%
+  add_overall() %>%
+  as_gt()
+```
+
+---
+
+## 6.8 Complete EDA Workflow: Hypertension Trial
+
+Here's a comprehensive EDA for our hypertension trial example:
+
+```{r}
+# ============================================
+# COMPLETE EDA WORKFLOW
+# Hypertension Trial - Baseline Analysis
+# ============================================
+
+library(pharmaversesdtm)
+library(dplyr)
+library(tidyr)
+library(gtsummary)
+
+# Load SDTM domains
+data(dm)
+data(vs)
+data(lb)
+data(ae)
+
+# ========== STEP 1: DEMOGRAPHIC SUMMARY ==========
+cat("=== DEMOGRAPHIC SUMMARY ===\n\n")
+
+demo_summary <- dm %>%
+  select(ARM, AGE, SEX, RACE, ETHNIC) %>%
+  tbl_summary(
+    by = ARM,
+    statistic = list(
+      AGE ~ "{mean} ({sd})",
+      all_categorical() ~ "{n} ({p}%)"
+    ),
+    digits = list(AGE ~ 1, everything() ~ 0),
+    missing = "no"
+  ) %>%
+  add_overall() %>%
+  add_p()
+
+print(demo_summary)
+
+# ========== STEP 2: BASELINE VITALS ==========
+cat("\n=== BASELINE VITALS BY ARM ===\n\n")
+
+baseline_vitals <- vs %>%
+  filter(VISITNUM == 0, VSTESTCD %in% c("SYSBP", "DIABP", "HR")) %>%
+  select(USUBJID, VSTESTCD, VSSTRESN) %>%
+  mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
+  pivot_wider(
+    names_from = VSTESTCD,
+    values_from = VSSTRESN
+  ) %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  select(ARM, SYSBP, DIABP, HR)
+
+baseline_vitals %>%
+  tbl_summary(
+    by = ARM,
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd}) [{min}-{max}]"
+    ),
+    digits = list(all_continuous() ~ 1),
+    label = list(
+      SYSBP ~ "Systolic BP (mmHg)",
+      DIABP ~ "Diastolic BP (mmHg)",
+      HR ~ "Heart Rate (bpm)"
+    ),
+    missing = "no"
+  ) %>%
+  add_overall() %>%
+  add_p()
+
+# ========== STEP 3: DISTRIBUTION CHECKS ==========
+cat("\n=== NORMALITY TESTS (SHAPIRO-WILK) ===\n\n")
+
+sbp_by_arm <- vs %>%
+  filter(VISITNUM == 0, VSTESTCD == "SYSBP") %>%
+  select(USUBJID, VSSTRESN) %>%
+  mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID")
+
+for (arm in unique(sbp_by_arm$ARM)) {
+  sbp_values <- sbp_by_arm %>%
+    filter(ARM == arm) %>%
+    pull(VSSTRESN)
+
+  test <- shapiro.test(sbp_values)
+  cat(sprintf("%s: W = %.4f, p-value = %.4f\n",
+              arm, test$statistic, test$p.value))
+}
+
+# ========== STEP 4: OUTLIER DETECTION ==========
+cat("\n=== OUTLIER DETECTION (IQR METHOD) ===\n\n")
+
+sbp_all <- vs %>%
+  filter(VISITNUM == 0, VSTESTCD == "SYSBP") %>%
+  pull(VSSTRESN) %>%
+  as.numeric()
+
+Q1 <- quantile(sbp_all, 0.25, na.rm = TRUE)
+Q3 <- quantile(sbp_all, 0.75, na.rm = TRUE)
+IQR_val <- Q3 - Q1
+lower_fence <- Q1 - 1.5 * IQR_val
+upper_fence <- Q3 + 1.5 * IQR_val
+
+outlier_count <- sum(sbp_all < lower_fence | sbp_all > upper_fence, na.rm = TRUE)
+cat(sprintf("Fences: [%.1f, %.1f]\n", lower_fence, upper_fence))
+cat(sprintf("Number of outliers: %d\n", outlier_count))
+
+# ========== STEP 5: BASELINE LAB CORRELATIONS ==========
+cat("\n=== BASELINE LAB CORRELATIONS ===\n\n")
+
+baseline_labs_corr <- lb %>%
+  filter(LBBLFL == "Y") %>%
+  select(USUBJID, LBTESTCD, LBSTRESN) %>%
+  pivot_wider(
+    names_from = LBTESTCD,
+    values_from = LBSTRESN,
+    values_fn = mean
+  ) %>%
+  # Select numeric labs only
+  select(-USUBJID) %>%
+  select(where(is.numeric))
+
+cor_matrix <- cor(baseline_labs_corr, use = "complete.obs", method = "pearson")
+cat("Pearson Correlation Matrix:\n")
+print(round(cor_matrix, 2))
+
+# ========== STEP 6: ADVERSE EVENTS OVERVIEW ==========
+cat("\n=== ADVERSE EVENTS OVERVIEW ===\n\n")
+
+ae_summary <- ae %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  group_by(ARM) %>%
+  summarise(
+    Total_AE = n(),
+    Subjects_with_AE = n_distinct(USUBJID),
+    .groups = 'drop'
+  ) %>%
+  mutate(AE_per_Subject = round(Total_AE / Subjects_with_AE, 2))
+
+print(ae_summary)
+
+cat("\n=== MOST COMMON ADVERSE EVENTS ===\n\n")
+ae %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  group_by(ARM, AETERM) %>%
+  summarise(
+    N = n(),
+    .groups = 'drop'
+  ) %>%
+  arrange(ARM, desc(N)) %>%
+  head(15) %>%
+  print()
+
+cat("\n=== EDA COMPLETE ===\n")
+```
+
+---
+
+## 6.9 Key Decisions from EDA
+
+Before moving to formal analysis, EDA should inform your analytical approach:
+
+| EDA Finding | Implication |
+|-------------|-------------|
+| Data non-normal, outliers present | Use non-parametric tests (Mann-Whitney, Kruskal-Wallis) |
+| Baseline characteristics unbalanced | Consider stratified analysis or ANCOVA |
+| High missing data (>20%) | Use multiple imputation or sensitivity analysis |
+| Extreme outliers present | Investigate and possibly exclude; document reasoning |
+| Variables highly correlated (r > 0.9) | May have multicollinearity; consider dropping one |
+
+---
+
+## Summary: Why EDA is Non-Negotiable
+
+- **Detects data quality issues** before they invalidate analysis
+- **Informs methodological choices** (parametric vs. non-parametric)
+- **Builds credibility** with regulators (shows you understand your data)
+- **Prevents analytical errors** (outliers, missing data patterns)
+- **Produces publication tables** (baseline characteristics, summary statistics)
+
+In clinical trials, EDA is not a "nice-to-have"—it's essential due diligence.
+
+---
+
+## Exercises
+
+### Beginner Exercises
+
+**6.1 Summary Statistics**
+
+Using the pharmaversesdtm::vs dataset, filter to VSTESTCD == "SYSBP" and VISITNUM == 0 (baseline), then calculate:
+1. Mean
+2. Median
+3. Standard Deviation
+4. IQR
+5. Range (min to max)
+
+**Answer template:**
+```{r}
+data(vs)
+sbp <- vs %>%
+  filter(VSTESTCD == "SYSBP", VISITNUM == 0) %>%
+  pull(VSSTRESN) %>%
+  as.numeric()
+
+mean(sbp, na.rm = TRUE)     # Mean
+median(sbp, na.rm = TRUE)   # Median
+sd(sbp, na.rm = TRUE)       # SD
+IQR(sbp, na.rm = TRUE)      # IQR
+range(sbp, na.rm = TRUE)    # Range
+```
+
+**6.2 Outlier Detection**
+
+For the same baseline SBP data:
+1. Calculate the Tukey fences (lower and upper)
+2. Identify how many values fall outside these fences
+3. What are the outlier values?
+
+**Hint**: Q1 - 1.5*IQR and Q3 + 1.5*IQR
+
+**6.3 Normality Assessment**
+
+1. Create a histogram of baseline SBP
+2. Create a Q-Q plot
+3. Run Shapiro-Wilk test
+4. Based on all three, is the data approximately normal? Why or why not?
+
+---
+
+### Advanced Exercises
+
+**6.4 Baseline Characteristics Table**
+
+Using pharmaversesdtm data:
+1. Merge dm, vs (baseline SYSBP), and lb (baseline CREATININE)
+2. Create a gtsummary table stratified by ARM showing:
+   - Age (mean ± SD)
+   - Sex (N %)
+   - Race (N %)
+   - Baseline SBP (mean ± SD)
+   - Baseline Creatinine (mean ± SD)
+3. Add an overall column and p-values for comparison
+4. Format for publication
+
+**Expected output**: A professional baseline characteristics table suitable for a regulatory submission.
+
+**6.5 Correlation Analysis and Missing Data Investigation**
+
+Using pharmaversesdtm::lb:
+1. Create a matrix of baseline lab values (filter to LBBLFL == "Y")
+2. Calculate both Pearson and Spearman correlations for all numeric labs
+3. Identify which pairs are highly correlated (|r| > 0.7)
+4. Investigate the missing data pattern:
+   - What percentage of baseline labs are missing for each test?
+   - Are missings correlated with treatment arm?
+5. Recommend which labs to include in analysis based on data completeness
+
+---
+
+## Key Takeaways
+
+- **EDA precedes all formal analysis**: No exceptions
+- **Look for violations of assumptions**: Normality, outliers, missing data
+- **Use multiple methods**: Visual (histogram, boxplot, Q-Q) and statistical (Shapiro-Wilk)
+- **gtsummary creates publication tables** with minimal effort
+- **Document all findings** for regulatory compliance
+- **Outliers need investigation, not deletion**: Understand before deciding
+

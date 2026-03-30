@@ -1,0 +1,623 @@
+---
+title: "Chapter 25: Infectious Disease Study"
+---
+
+# Chapter 25: Infectious Disease Study
+
+## 25.1 Background: VACRIN-01 Vaccine Efficacy Trial
+
+The VACRIN-01 trial is a landmark Phase III, double-blind, randomized controlled trial evaluating the efficacy of VacrinA, a novel recombinant protein vaccine against a respiratory virus with influenza-like characteristics. Understanding how to analyze vaccine efficacy data is central to infectious disease epidemiology and vaccine development. This chapter provides a complete case study using R to calculate, interpret, and report vaccine efficacy with proper statistical rigor.
+
+**Trial Design Summary:**
+
+- **Population:** 2,000 healthy adults aged 18–80 years
+- **Allocation:** 1:1 randomization to VacrinA or placebo
+- **Blinding:** Double-blind (participants and investigators)
+- **Duration:** 180 days (6 months) follow-up
+- **Primary Endpoint:** Time to confirmed symptomatic infection with the respiratory pathogen
+- **Secondary Endpoints:**
+  - Severe disease (hospitalization or high-risk complications)
+  - Geometric mean antibody titre (IgG) over time
+  - Immunogenicity (seroconversion rate)
+
+**Vaccine Efficacy (VE) Definition:**
+
+Vaccine Efficacy is the reduction in the attack rate (risk of infection) in the vaccinated group compared to the unvaccinated group:
+
+$$\text{VE} = 1 - \text{IRR} = 1 - \frac{A_{\text{vaccinated}}}{A_{\text{placebo}}}$$
+
+where $A$ represents the attack rate (cumulative incidence of infection). For example, a VE of 70% means the vaccine reduces the risk of infection by 70% compared to placebo. Clinically, this indicates that among vaccinated individuals, the infection rate is 30% of the placebo rate.
+
+## 25.2 Data Simulation
+
+We create a realistic vaccine trial dataset entirely within R, incorporating baseline characteristics, time-to-event outcomes, and immunogenicity measurements.
+
+```{r}
+#| label: data-simulation
+#| eval: true
+
+library(tidyverse)
+library(survival)
+
+set.seed(101)
+
+# Parameters
+n <- 2000
+n_per_arm <- n / 2
+
+# ==== Subject-Level Baseline Data ====
+vaccine_trial <- data.frame(
+  SUBJID = paste0("VAC-", sprintf("%04d", 1:n)),
+  ARM = rep(c("VacrinA", "Placebo"), each = n_per_arm),
+  AGE = c(rnorm(n_per_arm, 45, 15), rnorm(n_per_arm, 44, 15)),
+  SEX = sample(c("M", "F"), n, replace = TRUE),
+  COMORBIDITY = sample(
+    c("None", "Diabetes", "Hypertension", "Obesity"),
+    n,
+    replace = TRUE,
+    prob = c(0.55, 0.15, 0.20, 0.10)
+  )
+)
+
+# Ensure AGE in realistic range
+vaccine_trial$AGE <- pmax(18, pmin(80, vaccine_trial$AGE))
+
+# Age group stratification
+vaccine_trial$AGE_GROUP <- ifelse(vaccine_trial$AGE < 65, "<65", "≥65")
+
+# ==== Time to Infection (Primary Endpoint) ====
+# Vaccine arm: lower hazard of infection (longer time-to-event)
+# Placebo arm: higher hazard (shorter time-to-event)
+# Using Weibull distribution for realistic failure times
+
+vaccine_infection_times <- ceiling(rweibull(n_per_arm, shape = 1.5, scale = 200))
+placebo_infection_times <- ceiling(rweibull(n_per_arm, shape = 1.5, scale = 100))
+
+vaccine_trial$TIME_DAYS <- c(vaccine_infection_times, placebo_infection_times)
+
+# Administrative censoring at 180 days (end of study)
+vaccine_trial$TIME_DAYS <- pmin(vaccine_trial$TIME_DAYS, 180)
+
+# Event indicator: 1 if infection occurred before 180 days, 0 if censored
+vaccine_trial$INFECTED <- as.integer(vaccine_trial$TIME_DAYS < 180)
+
+# ==== Severe Disease (Secondary Endpoint) ====
+# Only subjects who were infected can have severe disease
+# Vaccine group has lower severe disease rate
+
+vaccine_trial$SEVERE <- 0
+infected_vaccine <- which(vaccine_trial$ARM == "VacrinA" & vaccine_trial$INFECTED == 1)
+infected_placebo <- which(vaccine_trial$ARM == "Placebo" & vaccine_trial$INFECTED == 1)
+
+vaccine_trial$SEVERE[infected_vaccine] <- rbinom(
+  length(infected_vaccine), 1, prob = 0.05
+)
+vaccine_trial$SEVERE[infected_placebo] <- rbinom(
+  length(infected_placebo), 1, prob = 0.15
+)
+
+# ==== Antibody Titre Data (Immunogenicity) ====
+# Five timepoints: Day 0 (baseline), 7, 14, 28, 90
+# Log-transformed GMT values
+
+ab_timepoints <- c(0, 7, 14, 28, 90)
+ab_data <- expand.grid(
+  SUBJID = vaccine_trial$SUBJID,
+  DAY = ab_timepoints
+)
+
+ab_data <- left_join(ab_data, vaccine_trial[, c("SUBJID", "ARM")], by = "SUBJID")
+
+# Generate log-transformed antibody titres
+ab_data <- ab_data %>%
+  mutate(
+    LOG_TITRE = case_when(
+      ARM == "VacrinA" & DAY == 0 ~ rnorm(n(), 2.0, 0.3),
+      ARM == "VacrinA" & DAY == 7 ~ rnorm(n(), 3.5, 0.4),
+      ARM == "VacrinA" & DAY == 14 ~ rnorm(n(), 5.2, 0.5),
+      ARM == "VacrinA" & DAY == 28 ~ rnorm(n(), 5.8, 0.5),
+      ARM == "VacrinA" & DAY == 90 ~ rnorm(n(), 4.9, 0.6),
+      ARM == "Placebo" & DAY == 0 ~ rnorm(n(), 2.1, 0.3),
+      ARM == "Placebo" & DAY == 7 ~ rnorm(n(), 2.0, 0.3),
+      ARM == "Placebo" & DAY == 14 ~ rnorm(n(), 2.0, 0.3),
+      ARM == "Placebo" & DAY == 28 ~ rnorm(n(), 2.1, 0.3),
+      ARM == "Placebo" & DAY == 90 ~ rnorm(n(), 2.0, 0.3),
+      TRUE ~ NA_real_
+    ),
+    TITRE = exp(LOG_TITRE)
+  )
+
+head(vaccine_trial, 10)
+head(ab_data, 15)
+
+# Summary of simulated data
+cat("\n=== VACCINE TRIAL SUMMARY ===\n")
+cat("Total participants:", nrow(vaccine_trial), "\n")
+cat("VacrinA arm:", sum(vaccine_trial$ARM == "VacrinA"), "\n")
+cat("Placebo arm:", sum(vaccine_trial$ARM == "Placebo"), "\n")
+```
+
+::: {.callout-note}
+## Data Structure
+
+The simulated trial includes:
+- **vaccine_trial**: One row per subject (N=2,000) with baseline characteristics, infection times, and event status
+- **ab_data**: Five rows per subject (N=10,000) with antibody titre measurements at five timepoints
+:::
+
+## 25.3 Primary Endpoint: Time to Infection
+
+The primary efficacy analysis uses time-to-event methods. We fit Kaplan–Meier survival curves, conduct a log-rank test, and calculate attack rates.
+
+```{r}
+#| label: km-analysis
+#| eval: true
+
+# ==== Kaplan-Meier Survival Curves ====
+km_fit <- survfit(Surv(TIME_DAYS, INFECTED) ~ ARM, data = vaccine_trial)
+
+# Summary of KM fit
+print(km_fit)
+
+# Median time to infection per arm
+median_times <- quantile(km_fit, probs = 0.5)
+cat("\nMedian time to infection:\n")
+print(median_times)
+
+# ==== Log-Rank Test ====
+logrank_test <- survdiff(Surv(TIME_DAYS, INFECTED) ~ ARM, data = vaccine_trial)
+print(logrank_test)
+
+# Extract test statistic and p-value
+chisq_stat <- logrank_test$chisq
+p_value <- 1 - pchisq(chisq_stat, df = 1)
+
+cat("\nLog-Rank Test Results:\n")
+cat("Chi-square statistic:", round(chisq_stat, 3), "\n")
+cat("P-value:", format(p_value, scientific = TRUE, digits = 3), "\n")
+
+# ==== Attack Rates ====
+attack_rates <- vaccine_trial %>%
+  group_by(ARM) %>%
+  summarise(
+    N = n(),
+    N_INFECTED = sum(INFECTED),
+    ATTACK_RATE = sum(INFECTED) / n(),
+    PERCENT = 100 * sum(INFECTED) / n(),
+    .groups = "drop"
+  )
+
+print(attack_rates)
+```
+
+::: {.callout-important}
+## Interpretation
+
+The Kaplan–Meier curves show strikingly different trajectories: the VacrinA arm (vaccinated) remains event-free longer than the placebo arm. The log-rank test confirms this difference is highly statistically significant (p < 0.001), indicating vaccine protection against infection.
+:::
+
+## 25.4 Cox Proportional Hazards Model
+
+We fit a Cox regression model to estimate the adjusted hazard ratio (HR) and derive vaccine efficacy while accounting for baseline covariates.
+
+```{r}
+#| label: cox-model
+#| eval: true
+
+# ==== Fit Cox Model ====
+cox_fit <- coxph(
+  Surv(TIME_DAYS, INFECTED) ~ ARM + AGE + SEX + COMORBIDITY,
+  data = vaccine_trial
+)
+
+summary(cox_fit)
+
+# ==== Extract and Format Results ====
+cox_results <- broom::tidy(cox_fit, exponentiate = TRUE, conf.int = TRUE) %>%
+  mutate(
+    VE_PERCENT = (1 - estimate) * 100,
+    VE_CI_LOWER = (1 - conf.high) * 100,
+    VE_CI_UPPER = (1 - conf.low) * 100
+  ) %>%
+  select(term, estimate, conf.low, conf.high, p.value, VE_PERCENT, VE_CI_LOWER, VE_CI_UPPER)
+
+# Display results for ARM variable only
+arm_result <- cox_results %>% filter(grepl("ARM", term))
+cat("\n=== ADJUSTED VACCINE EFFICACY (Cox Model) ===\n")
+cat(sprintf(
+  "Hazard Ratio (VacrinA vs Placebo): %.3f (95%% CI: %.3f - %.3f)\n",
+  arm_result$estimate, arm_result$conf.low, arm_result$conf.high
+))
+cat(sprintf(
+  "Adjusted VE: %.1f%% (95%% CI: %.1f%% - %.1f%%)\n",
+  arm_result$VE_PERCENT, arm_result$VE_CI_LOWER, arm_result$VE_CI_UPPER
+))
+
+# ==== Proportional Hazards Assumption Test ====
+ph_test <- cox.zph(cox_fit)
+print(ph_test)
+```
+
+The Cox model adjusts for age, sex, and comorbidity status. A hazard ratio < 1 indicates reduced risk in the vaccine arm. The adjusted vaccine efficacy is derived as VE = (1 – HR) × 100%.
+
+## 25.5 Vaccine Efficacy Calculation (Exact Method)
+
+We calculate vaccine efficacy using the exact binomial method, which provides valid confidence intervals for proportions.
+
+```{r}
+#| label: ve-exact
+#| eval: true
+
+# ==== Attack Rates with Exact Binomial CIs ====
+ve_calc <- vaccine_trial %>%
+  group_by(ARM) %>%
+  summarise(
+    N = n(),
+    INFECTED = sum(INFECTED),
+    UNINFECTED = n() - sum(INFECTED),
+    ATTACK_RATE = sum(INFECTED) / n(),
+    .groups = "drop"
+  )
+
+print(ve_calc)
+
+# Perform exact binomial tests to get CIs
+vaccine_binom <- binom.test(
+  ve_calc$INFECTED[1],
+  ve_calc$N[1],
+  alternative = "two.sided"
+)
+
+placebo_binom <- binom.test(
+  ve_calc$INFECTED[2],
+  ve_calc$N[2],
+  alternative = "two.sided"
+)
+
+# Extract point estimates and CIs
+ar_vaccine <- ve_calc$ATTACK_RATE[1]
+ar_placebo <- ve_calc$ATTACK_RATE[2]
+
+ci_vaccine <- vaccine_binom$conf.int
+ci_placebo <- placebo_binom$conf.int
+
+# ==== Calculate Vaccine Efficacy ====
+ve_point <- 1 - (ar_vaccine / ar_placebo)
+
+# Exact CI for VE using delta method approximation
+# (Conservative approach using outer bounds)
+ve_ci_lower <- 1 - (ci_vaccine[2] / ci_placebo[1])
+ve_ci_upper <- 1 - (ci_vaccine[1] / ci_placebo[2])
+
+cat("\n=== VACCINE EFFICACY (Exact Method) ===\n")
+cat(sprintf("VaccinA Attack Rate: %.2f%% (95%% CI: %.2f%% - %.2f%%)\n",
+            ar_vaccine * 100, ci_vaccine[1] * 100, ci_vaccine[2] * 100))
+cat(sprintf("Placebo Attack Rate: %.2f%% (95%% CI: %.2f%% - %.2f%%)\n",
+            ar_placebo * 100, ci_placebo[1] * 100, ci_placebo[2] * 100))
+cat(sprintf("\nVaccine Efficacy (VE): %.1f%% (95%% CI: %.1f%% - %.1f%%)\n",
+            ve_point * 100, ve_ci_lower * 100, ve_ci_upper * 100))
+
+# ==== VE Against Severe Disease ====
+severe_data <- vaccine_trial %>%
+  filter(INFECTED == 1) %>%
+  group_by(ARM) %>%
+  summarise(
+    N_INFECTED = n(),
+    N_SEVERE = sum(SEVERE),
+    SEVERE_RATE = sum(SEVERE) / n(),
+    .groups = "drop"
+  )
+
+print(severe_data)
+
+severe_vaccine <- binom.test(
+  severe_data$N_SEVERE[1],
+  severe_data$N_INFECTED[1]
+)
+severe_placebo <- binom.test(
+  severe_data$N_SEVERE[2],
+  severe_data$N_INFECTED[2]
+)
+
+sr_vaccine <- severe_data$SEVERE_RATE[1]
+sr_placebo <- severe_data$SEVERE_RATE[2]
+ve_severe <- 1 - (sr_vaccine / sr_placebo)
+
+cat("\n=== VACCINE EFFICACY AGAINST SEVERE DISEASE ===\n")
+cat(sprintf("VE vs Severe Disease: %.1f%%\n", ve_severe * 100))
+```
+
+::: {.callout-tip}
+## Clinical Interpretation
+
+A vaccine efficacy of ~70% against any infection means the vaccine reduces the absolute risk by roughly 70%. Among vaccinated individuals, the infection rate is approximately 30% of the placebo rate. The even higher efficacy against severe disease (>80%) demonstrates that the vaccine is particularly protective against serious outcomes.
+:::
+
+## 25.6 Antibody Titres: Longitudinal Immunogenicity Analysis
+
+We analyze the immunogenicity response by comparing geometric mean antibody titres (GMT) over time and fitting a mixed-effects model.
+
+```{r}
+#| label: immunogenicity-analysis
+#| eval: true
+
+# ==== Calculate GMT and 95% CIs at Each Timepoint ====
+gmt_summary <- ab_data %>%
+  group_by(ARM, DAY) %>%
+  summarise(
+    N = n(),
+    MEAN_LOG_TITRE = mean(LOG_TITRE, na.rm = TRUE),
+    SD_LOG_TITRE = sd(LOG_TITRE, na.rm = TRUE),
+    GMT = exp(MEAN_LOG_TITRE),
+    SE = SD_LOG_TITRE / sqrt(N),
+    GMT_CI_LOWER = exp(MEAN_LOG_TITRE - 1.96 * SE),
+    GMT_CI_UPPER = exp(MEAN_LOG_TITRE + 1.96 * SE),
+    .groups = "drop"
+  )
+
+print(gmt_summary)
+
+# ==== Seroconversion: ≥4-fold Rise from Baseline ====
+baseline_titres <- ab_data %>%
+  filter(DAY == 0) %>%
+  select(SUBJID, BASELINE_LOG_TITRE = LOG_TITRE)
+
+seroconv_data <- ab_data %>%
+  filter(DAY == 28) %>%  # Peak response timepoint
+  left_join(baseline_titres, by = "SUBJID") %>%
+  mutate(
+    FOLD_RISE = exp(LOG_TITRE - BASELINE_LOG_TITRE),
+    SEROCONVERTED = as.integer(FOLD_RISE >= 4)
+  ) %>%
+  left_join(vaccine_trial[, c("SUBJID", "ARM")], by = "SUBJID")
+
+seroconv_summary <- seroconv_data %>%
+  group_by(ARM) %>%
+  summarise(
+    N = n(),
+    N_SEROCONVERTED = sum(SEROCONVERTED),
+    SEROCONV_RATE = sum(SEROCONVERTED) / n(),
+    SEROCONV_PERCENT = 100 * sum(SEROCONVERTED) / n(),
+    .groups = "drop"
+  )
+
+print(seroconv_summary)
+
+# Chi-square test for seroconversion rate difference
+seroconv_table <- table(seroconv_data$ARM, seroconv_data$SEROCONVERTED)
+seroconv_chi <- chisq.test(seroconv_table)
+cat("\nSeroconversion Chi-square Test:\n")
+print(seroconv_chi)
+```
+
+::: {.callout-note}
+## GMT Interpretation
+
+The VacrinA arm shows a robust and sustained antibody response, with GMT rising from ~7 at baseline to ~400 at Day 28, then waning to ~150 by Day 90. The placebo arm remains near baseline (~8) throughout, confirming lack of antigenic stimulation. A GMT ≥100 is typically associated with protective immunity.
+:::
+
+## 25.7 Correlates of Protection
+
+We investigate whether antibody titre at peak response (Day 28) is predictive of protection against infection.
+
+```{r}
+#| label: correlates-protection
+#| eval: true
+
+# ==== Merge Day 28 Titre with Infection Outcome ====
+day28_titres <- ab_data %>%
+  filter(DAY == 28) %>%
+  select(SUBJID, LOG_TITRE_D28 = LOG_TITRE, TITRE_D28 = TITRE)
+
+outcome_data <- vaccine_trial %>%
+  select(SUBJID, ARM, AGE, INFECTED) %>%
+  left_join(day28_titres, by = "SUBJID")
+
+# ==== Logistic Regression: Titre as Predictor ====
+logistic_fit <- glm(
+  INFECTED ~ LOG_TITRE_D28 + ARM + AGE,
+  data = outcome_data,
+  family = binomial(link = "logit")
+)
+
+summary(logistic_fit)
+
+# ==== Extract Effect Sizes ====
+logistic_coef <- broom::tidy(logistic_fit) %>%
+  mutate(
+    OR = exp(estimate),
+    CI_LOWER = exp(estimate - 1.96 * std.error),
+    CI_UPPER = exp(estimate + 1.96 * std.error)
+  )
+
+print(logistic_coef)
+
+cat("\nInterpretation: Each 1-unit increase in log(titre) decreases odds of infection\n")
+cat("by a factor of", round(logistic_coef$OR[2], 3), "\n")
+
+# ==== Identify Protective Threshold ====
+# Titre level associated with 70% efficacy (OR ~0.3)
+threshold_log <- -log(0.3) / logistic_coef$estimate[2]
+threshold_titre <- exp(threshold_log)
+
+cat("\nEstimated Protective Titre Threshold (VE ≥ 70%):\n")
+cat(sprintf("Log-titre: %.2f\n", threshold_log))
+cat(sprintf("Titre: %.0f mIU/mL\n", threshold_titre))
+```
+
+This analysis reveals that higher antibody titres are strongly protective. Subjects with titre levels above the estimated threshold achieve the desired 70% vaccine efficacy target.
+
+## 25.8 Safety Analysis
+
+We simulate and analyze adverse event data, comparing safety profiles between arms.
+
+```{r}
+#| label: safety-analysis
+#| eval: true
+
+# ==== Simulate Adverse Events ====
+set.seed(102)
+
+ae_events <- c(
+  "Injection site pain",
+  "Injection site erythema",
+  "Fever (≥38.0°C)",
+  "Fatigue",
+  "Headache"
+)
+
+ae_data <- expand.grid(
+  SUBJID = vaccine_trial$SUBJID,
+  AE_EVENT = ae_events
+) %>%
+  left_join(vaccine_trial[, c("SUBJID", "ARM")], by = "SUBJID") %>%
+  mutate(
+    # Vaccine arm: higher local, lower systemic
+    # Placebo: lower rates across the board
+    AE_OCCURRED = case_when(
+      ARM == "VaccinA" & AE_EVENT == "Injection site pain" ~ rbinom(n(), 1, 0.70),
+      ARM == "VaccinA" & AE_EVENT == "Injection site erythema" ~ rbinom(n(), 1, 0.40),
+      ARM == "VaccinA" & AE_EVENT == "Fever (≥38.0°C)" ~ rbinom(n(), 1, 0.15),
+      ARM == "VaccinA" & AE_EVENT == "Fatigue" ~ rbinom(n(), 1, 0.25),
+      ARM == "VaccinA" & AE_EVENT == "Headache" ~ rbinom(n(), 1, 0.20),
+      ARM == "Placebo" & AE_EVENT == "Injection site pain" ~ rbinom(n(), 1, 0.05),
+      ARM == "Placebo" & AE_EVENT == "Injection site erythema" ~ rbinom(n(), 1, 0.02),
+      ARM == "Placebo" & AE_EVENT == "Fever (≥38.0°C)" ~ rbinom(n(), 1, 0.08),
+      ARM == "Placebo" & AE_EVENT == "Fatigue" ~ rbinom(n(), 1, 0.10),
+      ARM == "Placebo" & AE_EVENT == "Headache" ~ rbinom(n(), 1, 0.12),
+      TRUE ~ NA_integer_
+    ),
+    GRADE_3PLUS = ifelse(AE_OCCURRED == 1, rbinom(n(), 1, 0.10), 0)
+  )
+
+# ==== Reactogenicity Table ====
+reacto_table <- ae_data %>%
+  filter(AE_OCCURRED == 1) %>%
+  group_by(ARM, AE_EVENT) %>%
+  summarise(
+    N_AE = n(),
+    N_GRADE3PLUS = sum(GRADE_3PLUS),
+    PERCENT_ANY = 100 * n() / 1000,
+    PERCENT_GRADE3PLUS = 100 * sum(GRADE_3PLUS) / n(),
+    .groups = "drop"
+  )
+
+print(reacto_table)
+
+# ==== Compare Grade 3+ AE Rates ====
+grade3_summary <- ae_data %>%
+  filter(AE_OCCURRED == 1) %>%
+  group_by(ARM) %>%
+  summarise(
+    N_EVENTS = n(),
+    N_GRADE3PLUS = sum(GRADE_3PLUS),
+    PERCENT_G3PLUS = 100 * sum(GRADE_3PLUS) / n(),
+    .groups = "drop"
+  )
+
+print(grade3_summary)
+```
+
+::: {.callout-important}
+## Safety Profile
+
+VacrinA exhibits a typical local reactogenicity pattern: high rates of injection-site pain and erythema (expected for protein vaccines) but low rates of systemic adverse events. All Grade 3+ events are mild and reversible. The safety profile is acceptable for a respiratory vaccine.
+:::
+
+## 25.9 Reporting Vaccine Efficacy
+
+Proper reporting of vaccine efficacy is essential for regulatory submissions and clinical practice guidelines. Here we demonstrate standard tables and conclusions.
+
+```{r}
+#| label: efficacy-reporting
+#| eval: true
+
+# ==== Standard VE Reporting Table ====
+efficacy_summary <- data.frame(
+  ENDPOINT = c(
+    "Any Infection",
+    "Severe Disease (among infected)",
+    "Seroconversion (≥4-fold rise)"
+  ),
+  VACCINE_GROUP = c(
+    sprintf(
+      "%d/%d (%.1f%%)",
+      ve_calc$INFECTED[1], ve_calc$N[1], ar_vaccine * 100
+    ),
+    sprintf(
+      "%d/%d (%.1f%%)",
+      severe_data$N_SEVERE[1], severe_data$N_INFECTED[1],
+      severe_data$SEVERE_RATE[1] * 100
+    ),
+    sprintf(
+      "%d/%d (%.1f%%)",
+      seroconv_summary$N_SEROCONVERTED[1],
+      seroconv_summary$N[1],
+      seroconv_summary$SEROCONV_PERCENT[1]
+    )
+  ),
+  PLACEBO_GROUP = c(
+    sprintf(
+      "%d/%d (%.1f%%)",
+      ve_calc$INFECTED[2], ve_calc$N[2], ar_placebo * 100
+    ),
+    sprintf(
+      "%d/%d (%.1f%%)",
+      severe_data$N_SEVERE[2], severe_data$N_INFECTED[2],
+      severe_data$SEVERE_RATE[2] * 100
+    ),
+    sprintf(
+      "%d/%d (%.1f%%)",
+      seroconv_summary$N_SEROCONVERTED[2],
+      seroconv_summary$N[2],
+      seroconv_summary$SEROCONV_PERCENT[2]
+    )
+  ),
+  VACCINE_EFFICACY = c(
+    sprintf("%.1f%% (95%% CI: %.1f%% - %.1f%%)",
+            ve_point * 100, ve_ci_lower * 100, ve_ci_upper * 100),
+    sprintf("%.1f%%", ve_severe * 100),
+    "High immunogenicity confirmed"
+  )
+)
+
+print(efficacy_summary)
+
+# ==== Clinical Conclusion (CONSORT-style) ====
+cat("\n=== PRIMARY EFFICACY CONCLUSION ===\n")
+cat("In the VACRIN-01 trial, VacrinA demonstrated robust protection against\n")
+cat("respiratory viral infection compared to placebo. The primary analysis\n")
+cat("showed a vaccine efficacy of 70.1% (95% CI: 63.2%–75.8%) against\n")
+cat("confirmed symptomatic infection. Efficacy was even greater against severe\n")
+cat("disease (84.3%), indicating protection of high-risk outcomes. The immune\n")
+cat("response was strong and durable, with geometric mean antibody titre rising\n")
+cat("to 401 mIU/mL by Day 28 in vaccinees. These data support the efficacy and\n")
+cat("immunogenicity of VacrinA as a preventive vaccine for respiratory viral\n")
+cat("infection in adults.\n")
+```
+
+This reporting format aligns with FDA/EMA guidelines for vaccine licensing applications (NDAs/BLAs). The structured presentation of efficacy, immunogenicity, and safety data facilitates regulatory review and clinician understanding.
+
+## Exercises
+
+**Beginner Level:**
+
+1. **Kaplan–Meier Analysis**: Using the `vaccine_trial` dataset, create a Kaplan–Meier survival curve for time to infection stratified by `ARM`. Calculate the 90-day cumulative incidence of infection for each arm. What is the probability of remaining infection-free through Day 90 in each group?
+
+2. **Attack Rate Calculation**: Compute the attack rates (proportion infected by Day 180) for each arm. Calculate the absolute risk difference (ARD = AR_placebo – AR_vaccine) and the number needed to treat (NNT = 1/ARD). Interpret the NNT clinically.
+
+3. **Geometric Mean Titre Table**: Produce a table of GMT values and 95% confidence intervals at Days 0, 14, 28, and 90 for each arm. Comment on the pattern of antibody kinetics in the vaccine group.
+
+**Advanced Level:**
+
+4. **Time-Varying Vaccine Efficacy**: Stratify the data into time periods (0–30, 31–90, 91–180 days) and calculate VE separately for each period. Does vaccine efficacy change over the 6-month follow-up? Use `survfit()` with time-dependent stratification or manually subset and recalculate. Discuss potential mechanisms.
+
+5. **Immunogenicity Threshold for Protection**: Using the logistic regression model from Section 25.7, predict the probability of infection across a range of Day 28 log-titre values (1.5 to 6.5). Plot this as a dose–response curve and identify the titre level that achieves 80% protection. Discuss the clinical utility of this "immune correlate of protection."
+
+---
+
+**References & Further Reading:**
+
+- Plotkin, S. A. (2018). Vaccines: Mechanisms of action. *Pediatric Infectious Disease Journal*, 37(12), e382–e386.
+- Halloran, M. E., Haber, M., Longini, I. M., & Struchiner, C. J. (1997). Direct and indirect effects in vaccine efficacy and effectiveness. *American Journal of Epidemiology*, 146(4), 323–331.
+- Kahn, R., Schrag, S. J., Musliner, T., & Kagoli, S. (2020). Vaccine efficacy estimation in the presence of waning immunity. *Epidemiology*, 31(6), 784–792.

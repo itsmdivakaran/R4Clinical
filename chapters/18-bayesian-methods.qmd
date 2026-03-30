@@ -1,0 +1,496 @@
+---
+title: "Chapter 18: Bayesian Methods in Clinical Trials"
+---
+
+## Introduction
+
+For over a century, clinical trials have been analyzed using **frequentist statistics**—computing p-values, confidence intervals, and power, all conditional on the null hypothesis being true. But frequentist inference cannot directly answer the question clinicians really want to know: *Given my data, what is the probability that my drug actually works?*
+
+**Bayesian methods** answer this question directly. They combine prior knowledge with observed data to compute the **posterior probability** that a hypothesis is true. This chapter introduces Bayesian thinking, explains Bayes' theorem, covers conjugate models, introduces MCMC for complex problems, and demonstrates how to implement Bayesian clinical trial analyses in R.
+
+## 18.1 Frequentist vs. Bayesian Philosophy
+
+### The Fundamental Difference
+
+**Frequentist inference:**
+- Parameters are fixed but unknown
+- Data are random; imagine repeated sampling under the same conditions
+- P-value = Probability of seeing data *as or more extreme* than observed, *if the null hypothesis were true*
+- Cannot say "probability the drug works" — only "probability of data given null"
+
+**Bayesian inference:**
+- Parameters are random (follow a probability distribution)
+- Data are fixed (what we observe)
+- Posterior = Probability of the parameter *given the observed data*
+- Can directly answer: "What is P(drug is effective | my data)?"
+
+### A Concrete Example
+
+A clinical trial shows a new pain medication reduces pain score by 3 points vs. placebo. A frequentist might report: "p = 0.04; we reject the null hypothesis at the 0.05 level."
+
+A Bayesian might report: "Given our prior knowledge about similar drugs and the data from this trial, there is an 87% probability the true pain reduction is greater than 2 points (clinically meaningful)."
+
+## 18.2 Bayes' Theorem
+
+### The Foundation
+
+Bayes' theorem expresses how to update beliefs in light of new evidence:
+
+$$P(\theta | \text{data}) = \frac{P(\text{data} | \theta) \cdot P(\theta)}{P(\text{data})}$$
+
+Breaking this down:
+
+- **$P(\theta | \text{data})$** = **Posterior**: Probability of the parameter (e.g., treatment effect) given the observed data. This is what we want.
+- **$P(\text{data} | \theta)$** = **Likelihood**: Probability of observing the data under a specific parameter value. This comes from the statistical model (e.g., binomial, normal).
+- **$P(\theta)$** = **Prior**: Probability distribution for the parameter *before* seeing the data. This encodes prior knowledge or assumptions.
+- **$P(\text{data})$** = **Marginal likelihood** or **evidence**: Probability of the data averaging over all possible parameter values. This is a normalizing constant.
+
+### Simplified Form
+
+Often written as:
+
+$$\text{Posterior} \propto \text{Likelihood} \times \text{Prior}$$
+
+The proportionality symbol (∝) reminds us that the posterior is proportional to likelihood times prior, up to a normalizing constant.
+
+## 18.3 Prior Distributions
+
+### Three Types of Priors
+
+**1. Informative Priors**
+- Incorporate substantial prior knowledge
+- Example: Beta(10, 2) for a treatment response rate, based on historical data showing typically high response
+- Advantages: More efficient (smaller sample size), reflects real knowledge
+- Disadvantages: Subjective, can be controversial
+
+**2. Weakly Informative Priors**
+- Provide minimal constraint but prevent extreme values
+- Example: Normal(0, 10) for a treatment effect (mean 0, SD 10)
+- Advantages: Balance between objectivity and efficiency
+- Disadvantages: Still involves some choice
+
+**3. Non-Informative (Flat) Priors**
+- Assign equal probability to all parameter values
+- Example: Uniform(0, 1) for a response rate
+- Advantages: Aim for "objectivity" (letting data dominate)
+- Disadvantages: Actually still impose assumptions; can lead to improper posteriors
+
+### The Beta Distribution for Proportions
+
+For binary outcomes (response = yes/no), the **Beta distribution** is natural:
+
+$$\theta \sim \text{Beta}(\alpha, \beta)$$
+
+where $\alpha$ and $\beta$ are shape parameters:
+- **Mean**: $\frac{\alpha}{\alpha + \beta}$
+- **Variance**: $\frac{\alpha \beta}{(\alpha+\beta)^2(\alpha+\beta+1)}$
+
+**Interpretation:**
+- $\alpha$ = number of "successes" (pseudo-observations)
+- $\beta$ = number of "failures" (pseudo-observations)
+
+**Examples:**
+- Beta(1, 1): Uniform prior (non-informative)
+- Beta(5, 5): Centered at 0.5, moderately informative
+- Beta(10, 2): High response rate expected (mean = 10/12 ≈ 0.83)
+- Beta(0.5, 0.5): U-shaped, bimodal prior (rare)
+
+## 18.4 Conjugate Priors: Beta-Binomial Model
+
+### The Conjugate Family
+
+When the prior and likelihood are **conjugate**, the posterior has a closed-form solution (no MCMC needed). The **Beta-Binomial** model is the simplest:
+
+- **Prior**: $\theta \sim \text{Beta}(\alpha, \beta)$
+- **Likelihood**: $X \sim \text{Binomial}(n, \theta)$ where $X$ = number of successes
+- **Posterior**: $\theta | X \sim \text{Beta}(\alpha + X, \beta + n - X)$
+
+### Why This Is Elegant
+
+The posterior is also Beta with updated shape parameters:
+- New successes: $\alpha + X$
+- New failures: $\beta + n - X$
+
+Updating is intuitive: add observed successes to $\alpha$, add observed failures to $\beta$.
+
+### Interpretation of Posterior
+
+Once we have the posterior Beta distribution, we can compute:
+- **Posterior mean**: $\frac{\alpha + X}{\alpha + \beta + n}$ (estimates the true response rate)
+- **Posterior credible interval**: Quantiles of the Beta distribution (e.g., 2.5th and 97.5th percentiles)
+- **Probability of clinical benefit**: $P(\theta > \theta_0 | X)$ where $\theta_0$ is a threshold (e.g., 0.50 response rate)
+
+## 18.5 The Normal-Normal Model
+
+For continuous outcomes, when both the prior and likelihood are normal:
+
+- **Prior**: $\mu \sim \text{Normal}(\mu_0, \tau_0^2)$
+- **Likelihood**: $X_i \sim \text{Normal}(\mu, \sigma^2)$ (known variance $\sigma^2$)
+- **Posterior**: $\mu | X \sim \text{Normal}(\mu_1, \tau_1^2)$
+
+where:
+$$\mu_1 = \frac{\mu_0 / \tau_0^2 + \sum X_i / \sigma^2}{1/\tau_0^2 + n/\sigma^2}, \quad \tau_1^{-2} = \tau_0^{-2} + \frac{n}{\sigma^2}$$
+
+The posterior mean is a weighted average of the prior mean and sample mean, with weights reflecting precision (inverse variance).
+
+## 18.6 Markov Chain Monte Carlo (MCMC)
+
+### When Conjugacy Fails
+
+Many realistic clinical trial models (hierarchical models, regression with multiple covariates, mixture models) do not have conjugate priors. For these, we use **Markov Chain Monte Carlo (MCMC)**.
+
+### Conceptual Overview
+
+MCMC generates a sequence of posterior samples by:
+1. Starting at an initial parameter value
+2. Proposing a new value
+3. Accepting or rejecting based on the ratio of posterior probabilities
+4. Repeating thousands of times to build a representative sample from the posterior
+
+The sequence forms a "chain" whose long-run empirical distribution approximates the true posterior.
+
+### Popular MCMC Algorithms
+
+- **Metropolis-Hastings**: Symmetric proposal distribution
+- **Gibbs Sampling**: Special case for models with conjugate conditionals
+- **Hamiltonian MC (HMC)**: Uses gradient information; very efficient but complex
+- **No-U-Turn Sampler (NUTS)**: Adaptive HMC; implemented in Stan and rstanarm
+
+## 18.7 Convergence Diagnostics
+
+After running MCMC, we must verify that the chain has converged to the posterior.
+
+### Trace Plots
+
+A trace plot shows the parameter value at each iteration. Good traces look like "white noise" (no trends or long excursions).
+
+### The Gelman-Rubin Statistic (R-hat)
+
+Run multiple MCMC chains (e.g., 4) in parallel. The R-hat compares within-chain and between-chain variance:
+
+$$\hat{R} = \sqrt{\frac{\text{Var}_{\text{between}}}{\text{Var}_{\text{within}}}}$$
+
+- $\hat{R} \approx 1.00$ = chains have converged (chains indistinguishable)
+- $\hat{R} > 1.05$ = convergence questionable; run longer
+- $\hat{R} > 1.10$ = convergence problematic; reassess model or priors
+
+## 18.8 Credible Intervals vs. Confidence Intervals
+
+- **Credible Interval (Bayesian)**: Range of parameter values containing 95% of the posterior probability mass. Interpretation: "Given the data, there is a 95% probability the true parameter lies in this interval."
+
+- **Confidence Interval (Frequentist)**: Constructed so that 95% of hypothetical repeated samples would produce an interval containing the true parameter. Interpretation: "If we repeated the study many times, 95% of such intervals would contain the true value."
+
+Credible intervals are more intuitive for clinicians but require specification of prior.
+
+## 18.9 Practical Analysis in R
+
+### Example 1: Phase II Oncology Trial (Beta-Binomial Analysis)
+
+A Phase II trial of a new immunotherapy evaluates response rate. Historical data suggest prior response rates in this cancer type range from 20% to 50%.
+
+```{r}
+library(tidyverse)
+
+# Data: 12 out of 30 patients responded
+n_patients <- 30
+n_responses <- 12
+
+# Prior: Beta(2, 8) — represents belief that response rate is around 20-30%
+# (mean = 2/(2+8) = 0.20; concentrated on lower rates)
+alpha_prior <- 2
+beta_prior <- 8
+
+# Posterior: Beta(2 + 12, 8 + 30 - 12) = Beta(14, 26)
+alpha_post <- alpha_prior + n_responses
+beta_post <- beta_prior + (n_patients - n_responses)
+
+cat("=== Phase II Oncology Trial: Bayesian Response Rate Analysis ===\n\n")
+cat("Prior: Beta(", alpha_prior, ",", beta_prior, ")\n")
+cat("Prior mean:", round(alpha_prior / (alpha_prior + beta_prior), 3), "\n\n")
+
+cat("Data: ", n_responses, " responses out of ", n_patients, " patients\n\n")
+
+cat("Posterior: Beta(", alpha_post, ",", beta_post, ")\n")
+
+# Posterior mean (best point estimate)
+post_mean <- alpha_post / (alpha_post + beta_post)
+cat("Posterior mean:", round(post_mean, 3), "\n")
+
+# Posterior standard deviation
+post_sd <- sqrt((alpha_post * beta_post) / ((alpha_post + beta_post)^2 * (alpha_post + beta_post + 1)))
+cat("Posterior SD:", round(post_sd, 3), "\n\n")
+
+# Posterior credible interval (95%)
+ci_lower <- qbeta(0.025, alpha_post, beta_post)
+ci_upper <- qbeta(0.975, alpha_post, beta_post)
+
+cat("95% Credible Interval: [", round(ci_lower, 3), ", ", round(ci_upper, 3), "]\n\n")
+
+# Probability of clinically relevant response (e.g., >30%)
+prob_clinical_benefit <- 1 - pbeta(0.30, alpha_post, beta_post)
+cat("P(response rate > 30% | data):", round(prob_clinical_benefit, 3), "\n")
+```
+
+### Visualizing Prior, Likelihood, and Posterior
+
+```{r}
+# Create a range of theta values
+theta <- seq(0, 1, by = 0.01)
+
+# Prior density
+prior_density <- dbeta(theta, alpha_prior, beta_prior)
+
+# Likelihood (proportional to Binomial pmf)
+# L(theta) ∝ theta^12 * (1-theta)^18
+likelihood_density <- theta^n_responses * (1 - theta)^(n_patients - n_responses)
+# Normalize for plotting
+likelihood_density <- likelihood_density / max(likelihood_density) * max(prior_density)
+
+# Posterior density
+posterior_density <- dbeta(theta, alpha_post, beta_post)
+
+# Create data frame for plotting
+density_df <- data.frame(
+  theta = rep(theta, 3),
+  density = c(prior_density, likelihood_density, posterior_density),
+  component = rep(c("Prior", "Likelihood (scaled)", "Posterior"), each = length(theta))
+)
+
+ggplot(density_df, aes(x = theta, y = density, fill = component, color = component)) +
+  geom_area(alpha = 0.3, outline.type = "full") +
+  geom_line(size = 1) +
+  scale_color_manual(values = c("Prior" = "blue", "Likelihood (scaled)" = "orange", "Posterior" = "red")) +
+  scale_fill_manual(values = c("Prior" = "blue", "Likelihood (scaled)" = "orange", "Posterior" = "red")) +
+  annotate("vline", xintercept = post_mean, linetype = "dashed", color = "red", size = 1) +
+  annotate("text", x = post_mean + 0.05, y = max(posterior_density) * 0.9,
+           label = paste("Posterior Mean =", round(post_mean, 3)), size = 4) +
+  labs(
+    title = "Bayesian Analysis: Prior × Likelihood → Posterior",
+    subtitle = "Phase II Oncology Trial Response Rate",
+    x = "Response Rate (θ)", y = "Density",
+    caption = "The posterior (red) represents the updated belief after observing 12/30 responses."
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 13),
+    legend.position = "topright"
+  )
+
+# Plot just the posterior with credible interval
+posterior_plot_df <- data.frame(theta = theta, density = posterior_density)
+
+ggplot(posterior_plot_df, aes(x = theta, y = density)) +
+  geom_area(fill = "steelblue", alpha = 0.4) +
+  geom_line(color = "steelblue", size = 1) +
+  geom_vline(xintercept = ci_lower, linetype = "dashed", color = "red", size = 1) +
+  geom_vline(xintercept = ci_upper, linetype = "dashed", color = "red", size = 1) +
+  geom_vline(xintercept = post_mean, linetype = "solid", color = "darkblue", size = 1) +
+  annotate("text", x = post_mean, y = max(posterior_density) * 0.85,
+           label = paste("Mean:", round(post_mean, 3)), size = 4, color = "darkblue") +
+  annotate("text", x = ci_lower, y = max(posterior_density) * 0.70,
+           label = round(ci_lower, 3), size = 3.5, color = "red") +
+  annotate("text", x = ci_upper, y = max(posterior_density) * 0.70,
+           label = round(ci_upper, 3), size = 3.5, color = "red") +
+  labs(
+    title = "Posterior Distribution of Response Rate",
+    subtitle = paste("95% Credible Interval: [", round(ci_lower, 3), ", ", round(ci_upper, 3), "]"),
+    x = "Response Rate (θ)", y = "Posterior Density"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 13))
+```
+
+### Example 2: Bayesian Logistic Regression with rstanarm
+
+For more complex models (e.g., multiple covariates, hierarchical structures), we use MCMC. The `rstanarm` package provides a user-friendly interface to Stan.
+
+```{r}
+library(rstanarm)
+
+# Create a simulated clinical trial dataset
+# Outcome: response (1) vs. no response (0)
+# Predictor 1: treatment group (0 = control, 1 = intervention)
+# Predictor 2: baseline severity score (0-100)
+
+set.seed(42)
+
+n_total <- 200
+treatment <- rep(c(0, 1), each = n_total / 2)
+baseline_severity <- rnorm(n_total, mean = 50, sd = 15)
+
+# True model: log-odds = -2 + 1.5 * treatment - 0.02 * baseline_severity
+true_intercept <- -2
+true_treatment_effect <- 1.5
+true_severity_effect <- -0.02
+
+linear_predictor <- true_intercept + true_treatment_effect * treatment + true_severity_effect * baseline_severity
+response_prob <- plogis(linear_predictor)  # inverse logit
+response <- rbinom(n_total, size = 1, prob = response_prob)
+
+clinical_data <- data.frame(
+  response = response,
+  treatment = factor(treatment, labels = c("Control", "Intervention")),
+  baseline_severity = baseline_severity
+)
+
+# Fit Bayesian logistic regression using rstanarm
+# Priors:
+# - intercept: Normal(0, 2.5) — weakly informative
+# - coefficients: Normal(0, 1) — centered at 0, weak effect
+# - uses QR decomposition for stability
+
+bayesian_logistic <- stan_glm(
+  response ~ treatment + baseline_severity,
+  data = clinical_data,
+  family = binomial(link = "logit"),
+  prior = normal(location = 0, scale = 1),
+  prior_intercept = normal(location = 0, scale = 2.5),
+  chains = 4,
+  iter = 2000,  # 2000 iterations per chain
+  warmup = 1000,  # first 1000 are burn-in
+  refresh = 0  # suppress iteration printing
+)
+
+# Summarize results
+cat("=== Bayesian Logistic Regression Results ===\n")
+summary(bayesian_logistic)
+```
+
+### Extracting and Visualizing Posterior Samples
+
+```{r}
+# Extract posterior samples for treatment effect
+posterior_samples <- as.data.frame(bayesian_logistic)
+
+# Transform log-odds to odds ratio
+posterior_odds_ratio <- exp(posterior_samples$treatmentIntervention)
+
+cat("Posterior Summary for Treatment Effect (Odds Ratio):\n")
+cat("  Mean:", round(mean(posterior_odds_ratio), 3), "\n")
+cat("  Median:", round(median(posterior_odds_ratio), 3), "\n")
+cat("  95% Credible Interval: [",
+    round(quantile(posterior_odds_ratio, 0.025), 3), ", ",
+    round(quantile(posterior_odds_ratio, 0.975), 3), "]\n\n")
+
+# Probability that treatment is beneficial (OR > 1)
+prob_beneficial <- mean(posterior_odds_ratio > 1)
+cat("P(OR > 1 | data) = P(treatment beneficial) =", round(prob_beneficial, 3), "\n\n")
+
+# Visualize posterior distribution
+posterior_or_df <- data.frame(odds_ratio = posterior_odds_ratio)
+
+ggplot(posterior_or_df, aes(x = odds_ratio)) +
+  geom_histogram(bins = 40, fill = "steelblue", alpha = 0.7, color = "white") +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "red", size = 1) +
+  geom_vline(xintercept = mean(posterior_odds_ratio), linetype = "solid", color = "darkblue", size = 1) +
+  annotate("text", x = mean(posterior_odds_ratio) + 0.15, y = max(table(round(posterior_odds_ratio, 2)))/2,
+           label = paste("Mean OR =", round(mean(posterior_odds_ratio), 3)), size = 4) +
+  labs(
+    title = "Posterior Distribution of Treatment Odds Ratio",
+    subtitle = "Bayesian Logistic Regression: Intervention vs. Control",
+    x = "Odds Ratio (Intervention / Control)",
+    y = "Count (MCMC Samples)"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 13))
+```
+
+### Convergence Diagnostics
+
+```{r}
+# Check R-hat (Gelman-Rubin statistic)
+cat("R-hat values (should be < 1.05 for convergence):\n")
+print(bayesian_logistic$diagnostics)
+
+# Trace plots for visual inspection
+plot(bayesian_logistic, ask = FALSE)
+```
+
+## 18.10 Bayesian Clinical Trial Designs
+
+### Interim Analyses and Predictive Probability
+
+Bayesian designs enable **adaptive trials** with interim analyses. At an interim look:
+
+1. Compute posterior probability of efficacy based on observed data
+2. Compute **predictive probability**: P(efficacy at final analysis | current data)
+3. Possible decisions: stop for efficacy, stop for futility, continue enrollment
+
+### Example: Predictive Probability Stopping Rule
+
+Stop for efficacy if P(future response rate > 40% | current data) > 90%.
+
+```{r}
+# Simple illustration: predict response rate at final analysis
+# Current data: 8 responses out of 20 patients
+# Assume 40 more patients will be enrolled
+
+n_current <- 20
+r_current <- 8
+n_future <- 40
+
+# Posterior after current data (conjugate Beta update)
+alpha_current <- 1 + r_current
+beta_current <- 1 + (n_current - r_current)
+
+# Prior for future patients is the current posterior
+# Predictive distribution: what response rates could we observe in future patients?
+
+# Simulate: draw 10,000 posterior samples of theta, then for each, simulate future responses
+set.seed(42)
+
+posterior_theta_samples <- rbeta(10000, alpha_current, beta_current)
+simulated_future_responses <- rbinom(10000, size = n_future, prob = posterior_theta_samples)
+
+# Final response rate if we continue and see median future responses
+median_future <- median(simulated_future_responses)
+total_future_responses <- r_current + simulated_future_responses
+total_patients <- n_current + n_future
+final_response_rates <- total_future_responses / total_patients
+
+# Predictive probability of >40% response at final analysis
+pred_prob_efficacy <- mean(final_response_rates > 0.40)
+
+cat("Interim Analysis Predictive Probability:\n")
+cat("  Current data: ", r_current, "/", n_current, " responses\n")
+cat("  Projected: ", median_future, " additional responses in next ", n_future, " patients\n")
+cat("  Projected final response rate: ", round(median(final_response_rates), 3), "\n")
+cat("  P(final response rate > 40% | current data, continued enrollment) =", round(pred_prob_efficacy, 3), "\n\n")
+
+if (pred_prob_efficacy > 0.90) {
+  cat("DECISION: Stop for efficacy (predictive probability > 90%)\n")
+} else if (pred_prob_efficacy < 0.10) {
+  cat("DECISION: Stop for futility (predictive probability < 10%)\n")
+} else {
+  cat("DECISION: Continue enrollment\n")
+}
+```
+
+## 18.11 Exercises
+
+### Beginner Exercises
+
+**Exercise 18.1:** A historical study of a pain medication found a response rate of 55% (95% CI: 45%–65%). Based on this, specify a Beta prior distribution for the response rate in a new trial. (Hint: match the mean and approximate the 95% CI range.)
+
+**Exercise 18.2:** In a new Phase II trial of a cancer drug, 7 out of 20 patients respond. Using a uniform prior Beta(1,1), compute:
+- Posterior mean response rate
+- 95% credible interval
+- Probability that response rate exceeds 25%
+
+**Exercise 18.3:** Explain in plain language why the posterior is a weighted average of the prior and the data in the Normal-Normal model. Which weight (prior vs. data) dominates when the prior variance is very large?
+
+### Advanced Exercises
+
+**Exercise 18.4:** Using the `bayesian_logistic` model from Example 2, extract the posterior samples for the baseline_severity effect. Compute:
+- Posterior mean and 95% credible interval for the log-odds ratio
+- Posterior probability that increasing baseline severity by 10 points *decreases* the log-odds of response by at least 0.15
+- Create a trace plot and verify convergence (R-hat < 1.05)
+
+**Exercise 18.5:** Design a Bayesian adaptive trial for a Phase IIb antihypertensive drug:
+- Primary endpoint: systolic blood pressure reduction at 12 weeks
+- Interim analysis at 50 patients, final analysis at 100 patients
+- Efficacy stopping rule: If P(mean reduction > 10 mmHg | interim data) > 85%, stop and declare efficacy
+- Futility stopping rule: If P(mean reduction > 10 mmHg | interim data) < 20%, stop for futility
+
+Propose informative priors based on historical trials and sketch a decision tree for the adaptive design.
+

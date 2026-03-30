@@ -1,0 +1,724 @@
+---
+title: "Chapter 5: CDISC Standards (SDTM & ADaM)"
+subtitle: "Regulatory Standards for Clinical Data Organization and Analysis"
+author: "Mahesh Divakaran, Jayadevan Sreedharan, Gunjan Singh"
+---
+
+# Chapter 5: CDISC Standards (SDTM & ADaM)
+
+## Learning Objectives
+
+By the end of this chapter, you will:
+- Understand why CDISC standards are critical for regulatory submissions
+- Navigate SDTM domain structures and naming conventions
+- Recognize key ADaM datasets and their relationships to SDTM
+- Build and derive analysis datasets from SDTM domains
+- Implement metadata and traceability in clinical data workflows
+- Use R packages (pharmaversesdtm, admiral) to work with standards-compliant data
+
+## 5.1 Why CDISC Standards Matter
+
+### The Regulatory Imperative
+
+When Moderna submitted data for the COVID-19 vaccine trial to the FDA in late 2020, every table, figure, and listing (TFL) submitted was built from standardized data formatted according to CDISC standards. The same was true for the Pfizer-BioNTech submission. This isn't an accident or best practice—it's a regulatory *requirement*.
+
+The **Clinical Data Interchange Standards Consortium (CDISC)** publishes standards that:
+
+1. **Ensure regulatory acceptance**: FDA, EMA, PMDA, and Health Canada accept CDISC-formatted data
+2. **Enable data sharing**: Multiple sites, CROs, and statisticians work with consistent definitions
+3. **Facilitate audits**: Regulators and auditors can trace any analysis result back to source data
+4. **Reduce transcription errors**: Automated validation catches inconsistencies
+5. **Enable re-use**: Future analyses (meta-analyses, real-world studies) can leverage existing data
+
+::: {.callout-important}
+## FDA Guidance
+The FDA's guidance on "Providing Regulatory Submissions in Electronic Format—Certain Human and Animal Drug Applications" (2013, updated 2018) explicitly recommends CDISC standards for submissions. Many recent submissions now use CDISC as a requirement, not a suggestion.
+:::
+
+### Real-World Context: A Hypertension Trial
+
+Imagine you're a statistician at a 12-week randomized controlled trial comparing three antihypertensive drugs (treatment arms A, B, C) in 300 patients across 15 sites. Data comes from:
+
+- Electronic Case Report Forms (eCRFs) at each site
+- Laboratory systems (automated uploads of lab values)
+- Vital sign machines (automated BP readings)
+- Pharmacy systems (dosing and medication history)
+- Safety reporting forms (adverse events)
+
+Without standardization, merging these sources would be chaotic. CDISC solves this by providing:
+- A **common vocabulary** (what does "baseline" mean? Visit 1? First post-dose? The median of 3 pre-dose readings?)
+- **Consistent variable names** (SYSTOLIC vs SBP vs SBPRES?)
+- **Traceable data flow** (SDTM → ADaM → TLF)
+
+---
+
+## 5.2 SDTM: Study Data Tabulation Model
+
+### Overview
+
+The **SDTM** is the FDA-preferred format for submitting raw and derived clinical data. Think of SDTM as the "source of truth"—it documents exactly what happened in the trial, with minimal interpretation.
+
+**Key principles:**
+- **One observation per row**: Each row represents one test, one adverse event, one medication administration, etc.
+- **Domains**: Data is organized by type (demographics, adverse events, labs, vital signs)
+- **Standardized variable naming**: Variables follow consistent patterns
+- **No derived calculations**: Values are directly from the case report form (CRF) or automatically captured systems
+- **Traceability**: Each value can be traced back to its source
+
+### SDTM Domains
+
+Major domains include:
+
+| Domain | Full Name | Content | Rows |
+|--------|-----------|---------|------|
+| **DM** | Demographics | Age, sex, ethnicity, enrollment date | One per subject |
+| **AE** | Adverse Events | All reported adverse events | One per event |
+| **LB** | Laboratory | All lab test results | One per test per visit |
+| **VS** | Vital Signs | Blood pressure, heart rate, temperature | One per type per visit |
+| **EX** | Exposure | Drug doses, administration times | One per dose per day |
+| **CM** | Concomitant Medications | Other drugs taken during trial | One per medication per date range |
+| **MH** | Medical History | Pre-trial medical conditions | One per condition |
+| **SV** | Subject Visits | Planned visits | One per visit |
+| **PE** | Physical Examination | Exam findings | One per exam |
+
+For our hypertension example, key domains are **DM** (baseline characteristics), **VS** (blood pressure readings), **LB** (kidney function, potassium), **AE** (side effects), **EX** (drug doses), and **CM** (background medications like other antihypertensives).
+
+### SDTM Variable Naming Conventions
+
+SDTM uses a systematic naming structure:
+
+**Prefix–Suffix pattern:**
+- **STUDYID**: Study identifier (e.g., "HT-2024-001")
+- **USUBJID**: Unique subject identifier (e.g., "HT-2024-001-0042")
+- **--STDTC** / **--DTC**: Start/occurrence date-time in ISO 8601 format (YYYY-MM-DD'T'HH:MM:SS)
+  - Example: "2024-03-15" or "2024-03-15T09:30:00"
+- **--DTCF**: Date imputation flag (shows if date was complete or imputed)
+- **DOMAIN**: Two-letter domain code (DM, AE, LB, etc.)
+- **--SEQ**: Sequence number (row ID within domain for a subject)
+- **--TESTCD**: Short test code (e.g., "SYSBP" for systolic BP)
+- **--TEST**: Long test name (e.g., "Systolic Blood Pressure")
+- **--RESULT**: The actual value
+- **--UNIT**: Unit of measurement (e.g., "mmHg", "g/dL")
+- **--VISIT**: Visit name (e.g., "Week 0", "Week 4")
+- **--VISITNUM**: Visit sequence (0 = baseline, 1 = week 2, etc.)
+
+**Example**: In the VS domain for systolic blood pressure:
+- **VSSTDTC** = "2024-03-15T09:30:00" (time of measurement)
+- **VSTEST** = "Systolic Blood Pressure"
+- **VSTESTCD** = "SYSBP"
+- **VSSTRESN** = "148"
+- **VSUNIT** = "mmHg"
+
+This structure ensures any analyst can understand the data without additional documentation.
+
+::: {.callout-tip}
+## CDISC Controlled Terminology
+The CDISC Controlled Terminology (CT) defines allowed values for many variables. For example, SEXN (sex numeric) uses 1 = Male, 2 = Female. The CT is updated annually; always reference the correct version used in your trial protocol.
+:::
+
+---
+
+## 5.3 ADaM: Analysis Data Model
+
+### Overview and Relationship to SDTM
+
+While SDTM captures raw data, analysis requires *derived* variables. This is where **ADaM** comes in.
+
+**ADaM** (Analysis Data Model) is built *from* SDTM but adds:
+- **Derived variables**: Calculated fields like change from baseline, treatment-emergent status
+- **Subject-level data**: Demographics merged with outcomes
+- **Analysis-ready format**: One row = one analysis unit (subject, subject-visit, subject-event)
+- **Audit trail**: Variables show which SDTM records contributed to each ADaM row
+
+**The SDTM → ADaM → TLF flow:**
+
+```
+Raw Data (CRF, Labs, EHR)
+        ↓
+SDTM (standardized raw data, one observation per event)
+        ↓
+ADaM (derived analysis data, one row = one analysis unit)
+        ↓
+TLF (Tables, Listings, Figures for submission)
+```
+
+### Key ADaM Datasets
+
+**1. ADSL: Subject-Level Analysis Dataset**
+- One row per subject
+- Contains: demographics, baseline characteristics, treatment assignment, trial status
+- Example variables:
+  - USUBJID, STUDYID
+  - TRT01A (actual treatment assigned)
+  - TRT01PN (treatment sequence number)
+  - TRTSTDT (treatment start date)
+  - TRTENDT (treatment end date)
+  - SAFFL (safety population flag, 1 if in analysis)
+  - EFFFL (efficacy population flag)
+  - DTHFL (death flag) / RFENDTC (end of reference period - used to derive discontinuation)
+  - BASE (baseline value of primary outcome)
+  - AGE, SEX, ETHNIC, RACE
+
+**2. ADAE: Adverse Events Analysis Dataset**
+- One row per adverse event per subject (or one row per event for detailed analysis)
+- Built from SDTM AE domain
+- Added variables:
+  - AESEV (severity: mild, moderate, severe)
+  - AEREL (relationship to study drug: unrelated, remote, possible, probable, definite)
+  - AESER (serious adverse event flag)
+  - AETOXGR (toxicity grade, often 1–5)
+  - AESTDTC (start date)
+  - AEENDTC (end date)
+  - TRTSDT (study treatment start date, for relatedness determination)
+
+**3. ADLB: Laboratory Analysis Dataset**
+- One row per lab test per visit per subject
+- Built from SDTM LB domain
+- Added variables:
+  - AVAL (analysis value, e.g., 142 for serum potassium)
+  - BASE (baseline lab value)
+  - CHG (change from baseline: AVAL - BASE)
+  - PCHG (percent change: (CHG / BASE) × 100)
+  - ANRIND (abnormality indicator: "L" for low, "H" for high, "N" for normal)
+  - ABLFL (baseline flag, "Y" for baseline visit)
+
+**4. ADTTE: Time-to-Event Analysis Dataset**
+- One row per subject
+- Built from SDTM domains (AE, LB, DM) and external events
+- Variables:
+  - AVAL (time from baseline to event in days)
+  - CNSR (censoring flag: 0 = event occurred, 1 = censored/did not occur by study end)
+  - ADEVENT (event description)
+  - EVENTDTC (event date)
+
+### ADaM Variable Conventions
+
+Key ADaM variables follow strict patterns:
+
+- **AVAL**: The analysis value (primary outcome value at visit)
+- **BASE**: Baseline value of the same variable
+- **CHG**: Change from baseline = AVAL - BASE
+- **PCHG**: Percent change = (CHG / BASE) × 100
+- **DTYPE**: Data type flag
+  - "C" = Calculated derived variable
+  - "D" = Dummy record (added for consistency)
+- **PARAM / PARAMCD**: Parameter and parameter code
+  - Example: PARAMCD="SYSBP", PARAM="Systolic Blood Pressure"
+- **ABLFL**: Analysis baseline flag ("Y" = baseline, "N" or missing = not baseline)
+- **ANRIND**: Abnormality indicator for lab values ("L", "H", "N")
+
+---
+
+## 5.4 From SDTM to ADaM in R
+
+Let's work with real CDISC data. We'll use the **pharmaversesdtm** package (contains example SDTM datasets) and **admiral** package (tools for ADaM derivation).
+
+### Installation and Data Load
+
+```{r}
+# Install packages if needed
+# install.packages("pharmaversesdtm")
+# install.packages("admiral")
+# install.packages("dplyr")
+# install.packages("lubridate")
+
+library(pharmaversesdtm)
+library(dplyr)
+library(lubridate)
+library(admiral)
+
+# Load SDTM domains
+data(dm)    # Demographics
+data(ae)    # Adverse Events
+data(ex)    # Exposure (drug doses)
+data(vs)    # Vital Signs
+data(lb)    # Laboratory
+
+# Inspect the DM domain (demographics)
+head(dm, 3)
+```
+
+**Output (conceptual, showing structure):**
+```
+STUDYID USUBJID   SUBJID AGE AGEU SEX RACE  ETHNIC    ARMCD    ARM
+STUDY01 STUDY01-1 001   65   YEARS  M WHITE NOT HISP  1        Drug A
+STUDY01 STUDY01-2 002   72   YEARS  F WHITE NOT HISP  2        Drug B
+STUDY01 STUDY01-3 003   58   YEARS  M BLACK NOT HISP  3        Drug C
+```
+
+### Understanding the EX Domain (Exposure)
+
+The EX domain tells us exactly what drug each subject received.
+
+```{r}
+# Explore EX domain
+head(ex, 3)
+
+# Key EX variables:
+# - EXSTDTC: drug start date
+# - EXENDTC: drug end date
+# - EXTRT: treatment name (Drug A, Drug B, etc.)
+# - EXDOSE: dose amount
+# - EXDOSU: dose unit (mg, mL, etc.)
+
+# Summarize treatment by arm
+ex %>%
+  distinct(USUBJID, EXTRT) %>%
+  group_by(EXTRT) %>%
+  summarise(N = n(), .groups = 'drop')
+```
+
+### Building ADSL: Subject-Level Analysis Dataset
+
+```{r}
+# Step 1: Start with DM domain
+adsl <- dm %>%
+  select(STUDYID, USUBJID, AGE, SEX, RACE, ETHNIC, ARMCD, ARM) %>%
+  rename(TRT01A = ARM,
+         TRT01AN = ARMCD) %>%
+  mutate(
+    # Create subject-level identifiers
+    SAFFL = "Y",  # All subjects are in safety population
+    EFFFL = ifelse(AGE >= 18, "Y", "N"),  # Efficacy pop: age >= 18
+
+    # Add baseline characteristics
+    AGEGR1 = case_when(
+      AGE < 40 ~ "<40",
+      AGE >= 40 & AGE < 65 ~ "40-64",
+      AGE >= 65 ~ ">=65"
+    ),
+
+    SEXN = ifelse(SEX == "M", 1, 2),
+
+    # Add treatment dates (from EX domain)
+    TRTSTDT = min(as.Date(ex$EXSTDTC), na.rm = TRUE),
+    TRTENDT = max(as.Date(ex$EXENDTC), na.rm = TRUE)
+  ) %>%
+  arrange(USUBJID)
+
+# Verify ADSL structure
+head(adsl, 3)
+nrow(adsl)  # Should match number of subjects
+```
+
+### Merging ADSL with Lab Baseline
+
+```{r}
+# Step 2: Get baseline lab values (e.g., systolic BP from VS domain)
+baseline_labs <- vs %>%
+  filter(VISITNUM == 0) %>%  # Baseline visit
+  select(USUBJID, VSTESTCD, VSSTRESN) %>%
+  rename(TESTCD_BASE = VSTESTCD,
+         BASE = VSSTRESN) %>%
+  mutate(BASE = as.numeric(BASE))
+
+# For systolic blood pressure (SYSBP)
+baseline_sysbp <- baseline_labs %>%
+  filter(TESTCD_BASE == "SYSBP") %>%
+  select(USUBJID, BASE) %>%
+  rename(BASE_SBP = BASE)
+
+# Merge into ADSL
+adsl <- adsl %>%
+  left_join(baseline_sysbp, by = "USUBJID") %>%
+  mutate(BASE_SBP = as.numeric(BASE_SBP))
+
+head(adsl[, c("USUBJID", "AGE", "TRT01A", "BASE_SBP")], 5)
+```
+
+### Building ADLB: Lab Analysis Dataset
+
+```{r}
+# Step 3: Build ADLB from VS domain (using vital signs as example labs)
+adlb <- vs %>%
+  select(STUDYID, USUBJID, VSTESTCD, VSTEST, VSSTRESN, VSUNIT,
+         VISITNUM, VISIT, VSSTDTC) %>%
+  rename(PARAMCD = VSTESTCD,
+         PARAM = VSTEST,
+         AVAL = VSSTRESN,
+         UNIT = VSUNIT) %>%
+  mutate(
+    # Parse dates
+    VSDTC = as.Date(VSSTDTC),
+    AVAL = as.numeric(AVAL),
+
+    # Add analysis flags
+    ABLFL = ifelse(VISITNUM == 0, "Y", "N"),  # Baseline flag
+    DTYPE = NA_character_  # Not a calculated variable (raw SDTM)
+  ) %>%
+  select(-VSSTDTC)
+
+# Merge with baseline values
+adlb <- adlb %>%
+  left_join(
+    adlb %>%
+      filter(ABLFL == "Y") %>%
+      select(USUBJID, PARAMCD, AVAL) %>%
+      rename(BASE = AVAL),
+    by = c("USUBJID", "PARAMCD")
+  ) %>%
+  mutate(
+    # Derive change from baseline
+    CHG = ifelse(is.na(BASE), NA_real_, AVAL - BASE),
+    PCHG = ifelse(is.na(BASE) | BASE == 0, NA_real_,
+                  (CHG / BASE) * 100)
+  )
+
+# View structure
+head(adlb[, c("USUBJID", "PARAMCD", "VISITNUM", "AVAL", "BASE", "CHG", "PCHG")], 8)
+```
+
+### Building ADAE: Adverse Events Analysis Dataset
+
+```{r}
+# Step 4: Build ADAE from AE domain
+adae <- ae %>%
+  select(STUDYID, USUBJID, AETERM, AESOC, AESTDTC, AEENDTC, AESEV) %>%
+  rename(AETEXT = AETERM,
+         AEBODY = AESOC) %>%
+  mutate(
+    # Parse dates
+    AESTDTC = as.Date(AESTDTC),
+    AEENDTC = as.Date(AEENDTC),
+
+    # Add analysis-level variables
+    AETOXGR = case_when(
+      AESEV == "MILD" ~ 1,
+      AESEV == "MODERATE" ~ 2,
+      AESEV == "SEVERE" ~ 3,
+      TRUE ~ NA_integer_
+    ),
+
+    # Treatment-emergent flag (started after treatment start date)
+    TRTEMFL = "Y"  # For simplicity; normally compare to TRTSTDT
+  ) %>%
+  group_by(USUBJID) %>%
+  mutate(AESEQ = row_number()) %>%
+  ungroup()
+
+# View sample
+head(adae[, c("USUBJID", "AETEXT", "AESEV", "AETOXGR", "AESTDTC")], 6)
+```
+
+### Verification and Quality Checks
+
+```{r}
+# Quality check: Verify all subjects in ADSL have a baseline record
+cat("ADSL subjects:", nrow(adsl), "\n")
+cat("Subjects with baseline SBP:", sum(!is.na(adsl$BASE_SBP)), "\n")
+
+# Check ADLB completeness
+adlb_baselines <- adlb %>%
+  filter(ABLFL == "Y") %>%
+  distinct(USUBJID, PARAMCD) %>%
+  nrow()
+cat("ADLB baseline records:", adlb_baselines, "\n")
+
+# Verify treatment assignment
+table(adsl$TRT01A)
+
+# Check AE data
+cat("Total adverse events:", nrow(adae), "\n")
+cat("Subjects with AEs:", n_distinct(adae$USUBJID), "\n")
+```
+
+---
+
+## 5.5 Metadata and Traceability
+
+### Why Metadata Matters
+
+In a regulatory submission, the FDA asks: *"Where did this number come from?"* Metadata—data about data—provides the answer.
+
+**Essential metadata for each ADaM variable:**
+- **Variable name and label**: AVAL = "Analysis Value"
+- **Definition**: How was it calculated?
+- **Source**: Which SDTM variables contributed?
+- **Derivation**: Formula (e.g., CHG = AVAL - BASE)
+- **Validation rules**: What values are valid?
+
+```{r}
+# Example: Create a metadata data frame for ADLB
+adlb_metadata <- tibble::tribble(
+  ~Variable, ~Label, ~Definition, ~Source_Domain, ~Derivation,
+  "USUBJID", "Unique Subject ID", "Subject identifier", "SDTM AE", "From AE domain",
+  "PARAMCD", "Parameter Code", "Lab test code", "SDTM VS", "VSTESTCD from VS",
+  "AVAL", "Analysis Value", "Result value at visit", "SDTM VS", "VSSTRESN from VS",
+  "BASE", "Baseline Value", "Value at baseline visit", "SDTM VS", "AVAL where VISITNUM=0",
+  "CHG", "Change from Baseline", "Difference from baseline", "SDTM VS", "AVAL - BASE",
+  "PCHG", "Percent Change", "Percent difference from baseline", "SDTM VS", "(CHG/BASE)*100"
+)
+
+print(adlb_metadata)
+```
+
+::: {.callout-warning}
+## Documentation is Compliance
+In FDA audits, inadequate documentation of data derivations is a common 483 observation. Document *every* derived variable, *every* filter, *every* assumption.
+:::
+
+---
+
+## 5.6 The Admiral Package for Streamlined ADaM Derivation
+
+The **admiral** package (Analysis Data Model in R Asset Library) automates common ADaM derivations. While a full admiral tutorial is beyond scope, here's a taste:
+
+```{r}
+# Example: Using admiral to add analysis flags
+library(admiral)
+
+# admiral contains functions like:
+# - derive_vars_dt() : Add date variables
+# - derive_vars_base() : Add baseline comparators
+# - derive_vars_chg() : Calculate change from baseline
+
+# Simple example with ADLB:
+adlb_admiral <- adlb %>%
+  # Convert character dates to date type
+  mutate(
+    across(c(VSDTC), as.Date)
+  ) %>%
+  # Derive flag for treatment-emergent lab abnormality
+  mutate(
+    ANRIND = case_when(
+      PARAMCD == "SYSBP" & AVAL > 140 ~ "H",  # High BP
+      PARAMCD == "SYSBP" & AVAL < 90 ~ "L",   # Low BP
+      TRUE ~ "N"
+    )
+  )
+
+head(adlb_admiral[, c("USUBJID", "PARAMCD", "AVAL", "BASE", "CHG", "ANRIND")], 6)
+```
+
+---
+
+## 5.7 SDTM → ADaM → TLF: Complete Flow Diagram
+
+Here's a visual representation of data flow:
+
+```
+┌─────────────────────────────────────────────────┐
+│  RAW DATA (CRF, EHR, Lab Systems, ECS)          │
+└──────────────────┬──────────────────────────────┘
+                   │
+                   ↓
+        ┌──────────────────────┐
+        │  SDTM DOMAINS        │
+        │  DM, AE, LB, VS, EX  │
+        │  (Standardized Raw)  │
+        └──────────┬───────────┘
+                   │
+    ┌──────────────┼──────────────┐
+    ↓              ↓              ↓
+┌────────┐    ┌────────┐    ┌────────┐
+│ ADSL   │    │ ADLB   │    │ ADAE   │
+│(Subj.) │    │(Labs)  │    │(Events)│
+└────┬───┘    └────┬───┘    └────┬───┘
+     │             │             │
+     │  (Merged)   │             │
+     └─────────────┼─────────────┘
+                   │
+                   ↓
+        ┌──────────────────────┐
+        │  TLF OUTPUTS         │
+        │  Tables, Listings,   │
+        │  Figures for FDA     │
+        └──────────────────────┘
+```
+
+---
+
+## 5.8 Practical Example: A Complete SDTM-to-ADaM Workflow
+
+Let's build a comprehensive example for a hypothetical hypertension trial:
+
+```{r}
+# ============================================
+# COMPLETE WORKFLOW: Hypertension Trial
+# ============================================
+
+# 1. Load and inspect SDTM domains
+head(dm[, c("USUBJID", "AGE", "SEX", "ARM")], 3)
+head(ex[, c("USUBJID", "EXTRT", "EXSTDTC", "EXENDTC")], 3)
+head(vs[, c("USUBJID", "VSTESTCD", "VSSTRESN", "VISITNUM")], 3)
+
+# 2. Build ADSL (subject-level)
+adsl_complete <- dm %>%
+  select(STUDYID, USUBJID, AGE, SEX, RACE, ETHNIC, ARMCD, ARM) %>%
+  mutate(
+    # Treatment assignment
+    TRT01A = ARM,
+    TRT01AN = as.numeric(factor(ARMCD)),
+
+    # Eligibility flags
+    SAFFL = "Y",
+    EFFFL = "Y",
+
+    # Demographics
+    AGEGR1 = case_when(
+      AGE < 40 ~ "<40",
+      AGE >= 40 & AGE < 65 ~ "40-64",
+      AGE >= 65 ~ ">=65"
+    ),
+    SEXN = ifelse(SEX == "M", 1, 2),
+
+    # Treatment dates
+    TRTSTDT = as.Date("2024-01-15"),  # Common start
+    TRTENDT = as.Date("2024-03-15")
+  ) %>%
+  arrange(USUBJID)
+
+# 3. Build ADLB (vital signs as lab analogue)
+adlb_complete <- vs %>%
+  # Filter to key parameters
+  filter(VSTESTCD %in% c("SYSBP", "DIABP", "HR")) %>%
+  select(STUDYID, USUBJID, VSTESTCD, VSTEST, VSSTRESN, VSUNIT,
+         VISITNUM, VISIT, VSSTDTC) %>%
+  rename(PARAMCD = VSTESTCD,
+         PARAM = VSTEST,
+         AVAL = VSSTRESN) %>%
+  mutate(
+    AVAL = as.numeric(AVAL),
+    VISITDT = as.Date(VSSTDTC),
+    ABLFL = ifelse(VISITNUM == 0, "Y", "N")
+  ) %>%
+  # Add baseline values
+  left_join(
+    vs %>%
+      filter(VSTESTCD %in% c("SYSBP", "DIABP", "HR"),
+             VISITNUM == 0) %>%
+      select(USUBJID, VSTESTCD, VSSTRESN) %>%
+      mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
+      rename(PARAMCD = VSTESTCD, BASE = VSSTRESN),
+    by = c("USUBJID", "PARAMCD")
+  ) %>%
+  mutate(
+    CHG = AVAL - BASE,
+    PCHG = ifelse(BASE != 0, (CHG / BASE) * 100, NA_real_)
+  ) %>%
+  select(STUDYID, USUBJID, PARAMCD, PARAM, VISITNUM, VISIT, VISITDT,
+         AVAL, BASE, CHG, PCHG, ABLFL)
+
+# 4. Summary: Baseline characteristics
+cat("=== BASELINE DEMOGRAPHICS ===\n")
+adsl_complete %>%
+  group_by(TRT01A) %>%
+  summarise(
+    N = n(),
+    Mean_Age = mean(AGE),
+    SD_Age = sd(AGE),
+    Male_N = sum(SEX == "M"),
+    .groups = 'drop'
+  )
+
+# 5. Summary: Baseline vitals by treatment
+cat("\n=== BASELINE SYSTOLIC BP BY ARM ===\n")
+adlb_complete %>%
+  filter(PARAMCD == "SYSBP", ABLFL == "Y") %>%
+  left_join(adsl_complete %>% select(USUBJID, TRT01A), by = "USUBJID") %>%
+  group_by(TRT01A) %>%
+  summarise(
+    N = n(),
+    Mean = mean(AVAL),
+    SD = sd(AVAL),
+    Min = min(AVAL),
+    Max = max(AVAL),
+    .groups = 'drop'
+  )
+```
+
+---
+
+## Summary: CDISC Standards in Context
+
+CDISC standards (SDTM and ADaM) are not bureaucratic hurdles—they're the skeleton that holds clinical data together, enabling:
+
+- **Regulatory acceptance** (FDA submissions)
+- **Data reuse** (meta-analyses, subgroup analyses)
+- **Quality assurance** (validation rules, metadata)
+- **Collaboration** (multiple sites, CROs, statisticians speak the same language)
+
+In the chapters ahead, we'll apply these standardized datasets to exploratory analysis (Chapter 6) and visualization (Chapter 7).
+
+---
+
+## Exercises
+
+### Beginner Exercises
+
+**5.1 SDTM Domain Matching**
+
+Match each SDTM domain to its content:
+1. DM → _____ (A: Lab test results)
+2. AE → _____ (B: Demographics and enrollment info)
+3. LB → _____ (C: Adverse events)
+
+**Answer**: 1-B, 2-C, 3-A
+
+**5.2 Variable Interpretation**
+
+What does each variable tell us?
+- USUBJID = "STUDY-001-0042"
+- VSTESTCD = "SYSBP"
+- AVAL = "145"
+- UNIT = "mmHg"
+
+Write a sentence describing what these values represent.
+
+**Answer**: Subject 0042 from study STUDY-001 had a systolic blood pressure measurement of 145 mmHg.
+
+**5.3 Change from Baseline Calculation**
+
+If a subject's baseline systolic BP (from SDTM VS at VISITNUM=0) was 150 mmHg, and at Week 4 (VISITNUM=1) it was 138 mmHg, calculate:
+- CHG = ?
+- PCHG = ?
+
+**Answer**: CHG = 138 - 150 = -12 mmHg; PCHG = (-12/150) × 100 = -8%
+
+---
+
+### Advanced Exercises
+
+**5.4 ADSL Derivation and Quality Control**
+
+Using the pharmaversesdtm package:
+1. Load the DM and EX domains
+2. Build an ADSL dataset with these variables:
+   - USUBJID, STUDYID, AGE, SEX, ARM (renamed to TRT01A)
+   - TRTSTDT (first dose date from EX)
+   - TRTENDT (last dose date from EX)
+   - SAFFL = "Y" for all subjects
+   - EFFFL = "Y" for subjects with AGE >= 18
+
+3. Validate: How many subjects are in ADSL? How many are in EFFFL?
+
+**Hint code:**
+```{r}
+# Load data
+data(dm); data(ex)
+
+# Start with DM
+adsl <- dm %>% select(USUBJID, STUDYID, AGE, SEX, ARM) %>%
+  # Your derivations here
+```
+
+**5.5 ADLB Build and Analysis**
+
+Using pharmaversesdtm VS domain:
+1. Filter to VSTESTCD == "SYSBP" (systolic blood pressure)
+2. Create ADLB with VISITNUM, AVAL, and derived ABLFL
+3. Add baseline values (BASE) by merging baseline records
+4. Derive CHG and PCHG
+5. Calculate mean change from baseline by treatment arm and visit
+
+Bonus: Identify subjects with baseline SBP > 150 (hypertension).
+
+---
+
+## Key Takeaways
+
+- **CDISC standards** are FDA-required frameworks for clinical data in regulatory submissions
+- **SDTM** organizes raw data; **ADaM** organizes analysis data
+- **Traceability** is essential: every number must trace back to SDTM source
+- **R packages** (pharmaversesdtm, admiral) streamline SDTM-to-ADaM workflows
+- **Metadata documentation** is compliance; don't skip it

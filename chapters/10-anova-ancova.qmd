@@ -1,0 +1,486 @@
+---
+title: "Chapter 10: ANOVA and ANCOVA"
+---
+
+# Chapter 10: ANOVA and ANCOVA
+
+## Introduction
+
+When clinical trials or observational studies compare more than two groups, the two-sample t-test becomes inadequate. **Analysis of Variance (ANOVA)** extends hypothesis testing to multiple groups, partitioning total variability into components attributable to treatment effects versus random error. ANOVA is followed by **post-hoc tests** to identify which specific groups differ.
+
+**Analysis of Covariance (ANCOVA)** augments ANOVA by adjusting for baseline covariates—a key requirement in clinical trials where patients begin with different baseline characteristics. This chapter develops both methods, with emphasis on proper assumption checking and clinical interpretation.
+
+## Part I: One-Way ANOVA
+
+### Motivation and Setup
+
+Consider a clinical trial comparing three chemotherapy regimens (Standard, Novel-A, Novel-B) in terms of mean survival time (months). We recruit 60 patients: 20 per arm.
+
+**Research Question:** Do the three regimens differ in mean survival?
+
+**Hypotheses:**
+$$H_0: \mu_1 = \mu_2 = \mu_3$$
+$$H_1: \text{At least one } \mu_i \text{ differs}$$
+
+The t-test cannot address this directly (multiple pairwise comparisons inflate Type I error). ANOVA solves this by testing all groups simultaneously.
+
+### Partitioning Variability
+
+ANOVA decomposes total variability into two sources:
+
+$$SS_{\text{Total}} = SS_{\text{Between}} + SS_{\text{Within}}$$
+
+where:
+
+- **$SS_{\text{Total}}$**: Total sum of squared deviations from the grand mean
+$$SS_{\text{Total}} = \sum_{i=1}^{k} \sum_{j=1}^{n_i} (Y_{ij} - \bar{Y}_{\cdot\cdot})^2$$
+
+- **$SS_{\text{Between}}$**: Variability due to differences in group means
+$$SS_{\text{Between}} = \sum_{i=1}^{k} n_i (\bar{Y}_{i\cdot} - \bar{Y}_{\cdot\cdot})^2$$
+
+- **$SS_{\text{Within}}$**: Variability within groups (residual error)
+$$SS_{\text{Within}} = \sum_{i=1}^{k} \sum_{j=1}^{n_i} (Y_{ij} - \bar{Y}_{i\cdot})^2$$
+
+Here, $k$ is the number of groups, $n_i$ is the sample size in group $i$, $\bar{Y}_{i\cdot}$ is the mean of group $i$, and $\bar{Y}_{\cdot\cdot}$ is the grand mean.
+
+### The F-Statistic
+
+Sums of squares are converted to **mean squares** by dividing by degrees of freedom:
+
+$$MS_{\text{Between}} = \frac{SS_{\text{Between}}}{k - 1}$$
+
+$$MS_{\text{Within}} = \frac{SS_{\text{Within}}}{N - k}$$
+
+where $N = \sum_{i=1}^{k} n_i$ is the total sample size.
+
+The **F-statistic** is:
+
+$$F = \frac{MS_{\text{Between}}}{MS_{\text{Within}}}$$
+
+Under $H_0$ (all group means equal), $F$ follows an F-distribution with $k-1$ and $N-k$ degrees of freedom.
+
+**Intuition:** If groups differ substantially (large $MS_{\text{Between}}$) relative to within-group variability (small $MS_{\text{Within}}$), then $F$ is large, and we reject $H_0$.
+
+### ANOVA Table
+
+Results are typically summarized in an ANOVA table:
+
+| Source | Sum of Squares | df | Mean Square | F | p-value |
+|--------|----------------|-----|-------------|--------|---------|
+| Between | $SS_{\text{Between}}$ | $k-1$ | $MS_B$ | $F$ | p |
+| Within (Residual) | $SS_{\text{Within}}$ | $N-k$ | $MS_W$ | | |
+| **Total** | $SS_{\text{Total}}$ | $N-1$ | | | |
+
+### Assumptions
+
+1. **Independence:** Observations are independent within and between groups.
+2. **Normality:** Response variable is normally distributed within each group.
+3. **Homogeneity of Variance:** Variances are equal across groups, $\sigma_1^2 = \sigma_2^2 = \cdots = \sigma_k^2$.
+
+**Checking Assumptions:**
+
+- **Normality:** Q-Q plots or Shapiro-Wilk test within each group
+- **Homogeneity of Variance:** Levene's test: $H_0: \sigma_1^2 = \sigma_2^2 = \cdots = \sigma_k^2$
+- **Independence:** Study design ensures this; plot residuals vs. order
+
+ANOVA is relatively robust to modest departures from normality if sample sizes are large and balanced. The Kruskal-Wallis test (Chapter 9 extension) is a non-parametric alternative for severely non-normal data.
+
+### Clinical Example
+
+Suppose we analyze plant growth (proxy for patient response) across three treatment groups in `PlantGrowth`:
+
+```
+Group    N    Mean Weight (g)    SD
+ctrl     10   5.03              0.58
+trt1     10   4.81              0.40
+trt2     10   5.53              0.29
+```
+
+**ANOVA calculation (abbreviated):**
+
+Grand mean: $\bar{Y}_{\cdot\cdot} = 5.12$ g
+
+$SS_{\text{Between}} = 10(5.03 - 5.12)^2 + 10(4.81 - 5.12)^2 + 10(5.53 - 5.12)^2 = 3.77$
+
+$df_B = 3 - 1 = 2$, so $MS_B = 3.77 / 2 = 1.89$
+
+$SS_{\text{Within}} = 9(0.58)^2 + 9(0.40)^2 + 9(0.29)^2 = 4.36$
+
+$df_W = 30 - 3 = 27$, so $MS_W = 4.36 / 27 = 0.162$
+
+$$F = \frac{1.89}{0.162} = 11.7$$
+
+With $F(2, 27) = 11.7$, the p-value $\approx 0.0003$. We reject $H_0$; at least one group mean differs significantly.
+
+## Part II: Post-Hoc Tests
+
+When the overall ANOVA is significant, we perform **post-hoc tests** to identify which specific pairs of groups differ. Multiple t-tests would inflate Type I error; post-hoc tests control this.
+
+### Tukey's Honest Significant Difference (HSD)
+
+Tukey HSD is widely used, controlling family-wise error rate at $\alpha$ for all pairwise comparisons.
+
+**Test Procedure:**
+
+For each pairwise comparison, compute:
+
+$$q = \frac{|\bar{Y}_{i\cdot} - \bar{Y}_{j\cdot}|}{\sqrt{MS_{\text{Within}} (1/n_i + 1/n_j)/2}}$$
+
+Compare $q$ to the critical value from the studentized range distribution with parameters $k$ (number of groups) and $df_W = N - k$. If $q > q_{\text{crit}}$, the difference is significant at level $\alpha$.
+
+Alternatively, compute confidence intervals for all pairwise differences; if an interval excludes zero, the comparison is significant.
+
+**Clinical Advantage:** Accounts for multiple comparisons while maintaining adequate power.
+
+### Bonferroni Correction
+
+Divide $\alpha$ by the number of pairwise comparisons: $\alpha_{\text{adj}} = \alpha / \binom{k}{2}$. More conservative than Tukey.
+
+### Least Significant Difference (LSD)
+
+Uses the critical value from the t-distribution (not the studentized range). Controls $\alpha$ only for pairwise comparisons (not family-wise error rate). Less conservative than Tukey but less protective against Type I error.
+
+### Clinical Recommendation
+
+Use Tukey HSD by default. It balances power and Type I error control for pairwise comparisons in balanced designs.
+
+## Part III: Two-Way ANOVA
+
+When observations are classified by **two categorical factors**, two-way ANOVA tests main effects and interactions.
+
+**Example:** A clinical trial of three antihypertensive drugs (Drug A, Drug B, Drug C) across two age groups (Young, Old). We measure mean blood pressure reduction.
+
+**Model:**
+$$Y_{ijk} = \mu + \alpha_i + \beta_j + (\alpha\beta)_{ij} + \epsilon_{ijk}$$
+
+where:
+- $\alpha_i$ is the main effect of drug $i$
+- $\beta_j$ is the main effect of age group $j$
+- $(\alpha\beta)_{ij}$ is the **interaction** (does drug effect differ by age?)
+- $\epsilon_{ijk}$ is random error
+
+**Interpretation:**
+
+- **Main Effect of Drug:** Average drug effect across age groups
+- **Main Effect of Age:** Average age effect across drugs
+- **Interaction:** Does the drug effect depend on age? (e.g., Drug A works better in young patients, Drug B in older patients)
+
+The ANOVA table includes rows for each main effect, the interaction, and residual error. An interaction is significant if the p-value for the interaction term is small (typically $p < 0.05$).
+
+**Clinical Example:** Suppose Drug A reduces BP by 10 mmHg in young and 5 mmHg in old; Drug B reduces BP by 5 mmHg in young and 12 mmHg in old. This indicates a significant drug-by-age interaction: the "best" drug depends on age.
+
+## Part IV: Analysis of Covariance (ANCOVA)
+
+### Motivation
+
+In clinical trials, patients often begin with different baseline characteristics despite randomization (due to random imbalance in finite samples). ANCOVA adjusts treatment effect estimates for these **baseline covariates**, reducing residual variability and increasing power.
+
+**ICH E9 Guidance:** ANCOVA is recommended in clinical trials for adjustment of baseline imbalances and baseline values of the response variable.
+
+### ANCOVA Model
+
+The model includes the grouping factor (treatment) and continuous covariates:
+
+$$Y_{ij} = \mu + \tau_i + \beta(X_{ij} - \bar{X}_{\cdot\cdot}) + \epsilon_{ij}$$
+
+where:
+- $Y_{ij}$ is the outcome (e.g., end-of-study blood pressure)
+- $\tau_i$ is the treatment effect for group $i$
+- $X_{ij}$ is the covariate value (e.g., baseline blood pressure) for observation $j$ in group $i$
+- $\bar{X}_{\cdot\cdot}$ is the grand mean of the covariate
+- $\beta$ is the regression coefficient relating the covariate to the outcome
+- $\epsilon_{ij}$ is random error
+
+**Interpretation of $\tau_i$:** The treatment effect adjusted for the covariate, holding the covariate at the grand mean.
+
+### Key Assumptions (Beyond ANOVA)
+
+1. **Homogeneity of Regression Slopes:** The relationship between covariate and outcome is the same across groups. Test by checking if the interaction between treatment and covariate is significant ($p > 0.05$).
+2. **Linearity:** The covariate-outcome relationship is linear.
+3. **Measurement Without Error:** The covariate is measured reliably.
+
+### Clinical Example
+
+A hypertension trial compares SBP reduction between Drug A and placebo over 12 weeks. Baseline SBP differs slightly between groups due to random chance:
+
+- Drug A: Mean baseline SBP = 158 mmHg
+- Placebo: Mean baseline SBP = 154 mmHg
+
+**Unadjusted comparison:** Drug A mean reduction = 20 mmHg; Placebo mean reduction = 8 mmHg; difference = 12 mmHg.
+
+**ANCOVA adjustment:** Account for baseline difference. Because Drug A started higher (158 vs. 154), we'd expect a larger absolute reduction even if the drug were ineffective. ANCOVA adjusts for this, yielding a more accurate treatment effect estimate. Suppose the adjusted difference is 9 mmHg—the true net benefit of Drug A after accounting for baseline imbalance.
+
+### Least Squares Means (Estimated Marginal Means)
+
+After fitting ANCOVA, we report **least squares means (LSM)** or **estimated marginal means (EMM)**—the predicted mean outcome for each group, evaluated at the average covariate value.
+
+For example:
+
+| Treatment | LSM | 95% CI |
+|-----------|-----|--------|
+| Drug A | 138.2 | [135.0, 141.4] |
+| Placebo | 147.1 | [143.9, 150.3] |
+
+**Interpretation:** After adjusting for baseline SBP, the predicted end-of-study SBP is 138.2 mmHg in the Drug A group and 147.1 mmHg in placebo, corresponding to a 8.9 mmHg adjusted difference.
+
+## Part V: Practical Implementation in R
+
+### One-Way ANOVA with PlantGrowth
+
+```r
+# Load data
+data(PlantGrowth)
+
+# Fit one-way ANOVA
+fit_anova <- aov(weight ~ group, data = PlantGrowth)
+summary(fit_anova)
+
+# Output interpretation:
+#             Df Sum Sq Mean Sq F value Pr(>F)
+# group        2   3.77  1.883   11.72  0.0003 ***
+# Residuals   27   4.36  0.162
+
+# Check assumptions
+# 1. Normality: Q-Q plot
+qqnorm(residuals(fit_anova))
+qqline(residuals(fit_anova))
+
+# Shapiro-Wilk test
+shapiro.test(residuals(fit_anova))
+
+# 2. Homogeneity of variance: Levene's test
+library(car)
+leveneTest(weight ~ group, data = PlantGrowth)
+
+# 3. Independence: residual plot
+plot(fit_anova$fitted.values, fit_anova$residuals)
+abline(h = 0)
+```
+
+### Post-Hoc Tests: Tukey HSD
+
+```r
+# Tukey HSD test
+tukey_result <- TukeyHSD(fit_anova)
+print(tukey_result)
+
+# Output:
+#   Tukey multiple comparisons of means
+#     95% family-wise confidence level
+#
+# $group
+#           diff        lwr       upr     p adj
+# trt1-ctrl -0.22 -0.7607 0.3207 0.6479
+# trt2-ctrl  0.50 -0.0407 1.0407 0.0829
+# trt2-trt1  0.72  0.1793 1.2607 0.0086 *
+
+# Visualize
+plot(tukey_result)
+```
+
+### Two-Way ANOVA
+
+```r
+# Create a simulated dataset with two factors
+set.seed(123)
+drug_data <- expand.grid(
+  Drug = c("A", "B", "C"),
+  AgeGroup = c("Young", "Old"),
+  Rep = 1:10
+) %>%
+  mutate(
+    BP_Reduction = case_when(
+      Drug == "A" & AgeGroup == "Young" ~ rnorm(n(), 18, 3),
+      Drug == "A" & AgeGroup == "Old" ~ rnorm(n(), 8, 3),
+      Drug == "B" & AgeGroup == "Young" ~ rnorm(n(), 10, 3),
+      Drug == "B" & AgeGroup == "Old" ~ rnorm(n(), 16, 3),
+      Drug == "C" & AgeGroup == "Young" ~ rnorm(n(), 12, 3),
+      Drug == "C" & AgeGroup == "Old" ~ rnorm(n(), 12, 3)
+    )
+  )
+
+# Fit two-way ANOVA with interaction
+fit_2way <- aov(BP_Reduction ~ Drug + AgeGroup + Drug:AgeGroup,
+                data = drug_data)
+summary(fit_2way)
+
+# Output interpretation:
+#                  Df Sum Sq Mean Sq F value Pr(>F)
+# Drug              2  296.5  148.24  17.77 <0.001 ***
+# AgeGroup          1  179.8  179.78  21.58 <0.001 ***
+# Drug:AgeGroup     2  221.8  110.89  13.30 <0.001 ***
+# Residuals        54  450.1    8.33
+
+# Interpretation: Main effects of Drug and AgeGroup, plus a significant
+# interaction (drug effect depends on age).
+
+# Visualize interaction
+library(ggplot2)
+drug_data %>%
+  group_by(Drug, AgeGroup) %>%
+  summarise(Mean_Reduction = mean(BP_Reduction), .groups = "drop") %>%
+  ggplot(aes(x = AgeGroup, y = Mean_Reduction, color = Drug, group = Drug)) +
+  geom_line() +
+  geom_point(size = 3) +
+  labs(title = "BP Reduction by Drug and Age Group",
+       y = "Mean BP Reduction (mmHg)") +
+  theme_minimal()
+```
+
+### ANCOVA Example: Adjustment for Baseline
+
+```r
+library(pharmaversesdtm)
+library(dplyr)
+library(emmeans)
+
+data(dm)
+data(vs)
+
+# Prepare data: Week 4 SBP as outcome, baseline SBP as covariate
+sbp_analysis <- vs %>%
+  filter(VSTESTCD == "SYSBP") %>%
+  select(USUBJID, VISIT, VSSTRESN) %>%
+  pivot_wider(
+    id_cols = USUBJID,
+    names_from = VISIT,
+    values_from = VSSTRESN,
+    names_prefix = "SBP_"
+  ) %>%
+  left_join(
+    dm %>% select(USUBJID, ARM),
+    by = "USUBJID"
+  ) %>%
+  rename(
+    Baseline = SBP_BASELINE,
+    Week4 = SBP_WEEK4
+  ) %>%
+  na.omit()
+
+head(sbp_analysis)
+
+# 1. Check homogeneity of regression slopes (interaction test)
+fit_interaction <- lm(Week4 ~ ARM + Baseline + ARM:Baseline,
+                      data = sbp_analysis)
+anova(fit_interaction)
+
+# If interaction p > 0.05, ANCOVA is appropriate
+
+# 2. Fit ANCOVA: adjust Week 4 SBP for baseline and treatment
+fit_ancova <- lm(Week4 ~ ARM + Baseline, data = sbp_analysis)
+summary(fit_ancova)
+
+# 3. Extract least squares means using emmeans
+library(emmeans)
+lsm <- emmeans(fit_ancova, ~ ARM)
+print(lsm)
+
+# Pairwise comparisons
+pairs(lsm)
+
+# 4. Plot adjusted means
+sbp_analysis %>%
+  group_by(ARM) %>%
+  summarise(
+    N = n(),
+    Mean_Baseline = mean(Baseline),
+    Mean_Week4 = mean(Week4),
+    .groups = "drop"
+  ) %>%
+  ggplot(aes(x = ARM, y = Mean_Week4, fill = ARM)) +
+  geom_bar(stat = "identity", alpha = 0.7) +
+  geom_errorbar(aes(ymin = Mean_Week4 - 5, ymax = Mean_Week4 + 5),
+                width = 0.2) +
+  labs(title = "Week 4 SBP by Treatment Arm (Adjusted)",
+       y = "Mean SBP (mmHg)") +
+  theme_minimal()
+
+# Compare unadjusted and adjusted models
+fit_unadjusted <- lm(Week4 ~ ARM, data = sbp_analysis)
+anova(fit_unadjusted, fit_ancova)
+
+# If p < 0.05, the covariate contributes significantly
+```
+
+### Checking ANCOVA Assumptions: Homogeneity of Slopes
+
+```r
+# Test interaction between treatment and covariate
+fit_int <- lm(Week4 ~ ARM * Baseline, data = sbp_analysis)
+summary(fit_int)
+
+# Look at the p-value for ARM:Baseline interaction
+# p > 0.05 suggests equal slopes (homogeneous regression assumption met)
+
+# Visualize slopes by group
+ggplot(sbp_analysis, aes(x = Baseline, y = Week4, color = ARM)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Homogeneity of Regression Slopes",
+       x = "Baseline SBP (mmHg)",
+       y = "Week 4 SBP (mmHg)") +
+  theme_minimal()
+
+# Parallel lines indicate homogeneity; diverging lines suggest violation
+```
+
+## Summary: When to Use Each Method
+
+| Scenario | Method |
+|----------|--------|
+| Compare 3+ groups, no baseline covariate | **One-way ANOVA** |
+| ANOVA significant, identify differing pairs | **Tukey HSD post-hoc** |
+| Two grouping factors | **Two-way ANOVA** |
+| Compare groups, adjust for baseline or covariate | **ANCOVA** |
+| Non-normal data, 3+ groups | **Kruskal-Wallis** |
+
+## Exercises
+
+### Beginner Exercises
+
+**Exercise 10.1: Interpret ANOVA Output**
+
+A study compares systolic blood pressure across four treatment arms (n=25 per arm). The ANOVA table is:
+
+| Source | SS | df | MS | F |
+|--------|-------|-----|--------|--------|
+| Treatment | 1200 | 3 | 400 | 8.0 |
+| Residual | 4800 | 96 | 50 | |
+
+(a) What are the critical steps to interpret this ANOVA?
+(b) At $\alpha = 0.05$, is the treatment effect significant?
+(c) What assumption violations would concern you?
+
+**Exercise 10.2: One-Way ANOVA with PlantGrowth**
+
+Using the `PlantGrowth` dataset:
+
+(a) Perform a one-way ANOVA comparing plant weight across groups.
+(b) Check normality and homogeneity of variance.
+(c) Perform Tukey HSD post-hoc tests.
+(d) Report which groups differ significantly.
+
+**Exercise 10.3: Visualize Main Effects and Interaction**
+
+Create a simulated two-factor dataset (two treatments × two time points) and visualize both additive (no interaction) and interactive scenarios. Explain the difference clinically.
+
+### Advanced Exercises
+
+**Exercise 10.4: ANCOVA Interpretation**
+
+A trial compares depression severity (PHQ-9 score) between three psychotherapy modalities at Week 12, adjusting for baseline PHQ-9.
+
+(a) Why is baseline adjustment important in clinical trials?
+(b) Explain how ANCOVA adjusts for baseline imbalances.
+(c) How would you test the homogeneity of regression slopes assumption?
+(d) Report least squares means and their 95% CIs.
+
+**Exercise 10.5: Complex ANCOVA**
+
+Using pharmaversesdtm data:
+
+(a) Fit an ANCOVA model for Week 4 diastolic blood pressure (outcome), with treatment as the factor and baseline DBP as the covariate.
+(b) Test homogeneity of slopes.
+(c) Extract and plot least squares means.
+(d) Compare adjusted vs. unadjusted treatment effects.
+(e) Interpret your findings in clinical terms.

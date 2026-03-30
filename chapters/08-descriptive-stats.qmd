@@ -1,0 +1,454 @@
+---
+title: "Chapter 8: Descriptive Statistics"
+---
+
+# Chapter 8: Descriptive Statistics
+
+## Introduction
+
+Before we can test hypotheses or build predictive models, we must first understand our data. Descriptive statistics form the foundation of any clinical analysis. They summarize the essential characteristics of a dataset in ways that reveal patterns, identify outliers, and guide subsequent statistical inference. In clinical trials and observational studies, descriptive statistics answer fundamental questions: Who are the patients? What are their baseline characteristics? How variable are the measurements?
+
+This chapter covers methods for summarizing both continuous and categorical data, quantifying central location and spread, and creating publication-ready summary tables—skills essential for clinical research.
+
+## Part I: Populations, Samples, Parameters, and Statistics
+
+### Core Concepts
+
+In clinical research, we rarely have access to the entire population of interest. Instead, we work with **samples**—subsets of patients recruited into our study. A fundamental distinction underlies statistical inference:
+
+- **Population**: The complete set of all individuals to which we wish to generalize our results (e.g., all patients with type 2 diabetes worldwide).
+- **Sample**: The subset of the population actually observed in our study.
+- **Parameter**: A numerical summary of a population (e.g., the true mean blood pressure in all diabetic patients). We use Greek letters: $\mu$ (mean), $\sigma$ (standard deviation).
+- **Statistic**: A numerical summary of a sample (e.g., the average blood pressure of the 200 diabetic patients in our study). We use Roman letters: $\bar{x}$ (sample mean), $s$ (sample standard deviation).
+
+The goal of statistical inference is to use sample statistics to estimate population parameters. Because samples are subject to random variation, we must quantify uncertainty around our estimates through confidence intervals and hypothesis tests.
+
+### Clinical Example: Baseline Blood Pressure in a Hypertension Trial
+
+Imagine a randomized controlled trial enrolling 250 hypertensive patients. We randomly assign 125 to an ACE inhibitor (treatment group) and 125 to placebo. At baseline, before any medication is given, we measure systolic blood pressure (SBP) in all participants.
+
+- **Population parameter of interest**: The true mean SBP in all hypertensive patients eligible for this trial ($\mu$).
+- **Sample statistic**: The mean SBP observed in our 250 enrolled patients ($\bar{x}$).
+
+The sample mean likely differs from the true population mean due to random sampling variation. Descriptive statistics help us characterize this sample, and confidence intervals quantify our uncertainty about the true population value.
+
+## Part II: Measures of Central Tendency
+
+### The Mean
+
+The **arithmetic mean** (or average) is the most commonly used measure of central location:
+
+$$\bar{x} = \frac{\sum_{i=1}^{n} x_i}{n} = \frac{x_1 + x_2 + \cdots + x_n}{n}$$
+
+where $x_i$ represents the $i$-th observation and $n$ is the sample size.
+
+**Advantages:**
+- Uses all data points; incorporates complete information
+- Mathematically convenient for further analysis
+- Familiar to clinicians and patients
+
+**Disadvantages:**
+- Sensitive to extreme values (outliers). A single unusually high or low observation can substantially shift the mean.
+- May not represent a "typical" patient if the distribution is highly skewed
+
+**Clinical Use:** Suitable for approximately symmetric data like many laboratory measurements. Report alongside measures of spread (standard deviation or standard error).
+
+### The Median
+
+The **median** is the middle value when data are sorted in ascending order. For an even sample size, it is the average of the two middle values.
+
+**Advantages:**
+- Robust to extreme values; unaffected by outliers
+- Represents the 50th percentile; interpretable as the "typical" value
+- Appropriate for skewed data
+
+**Disadvantages:**
+- Does not use all data points; discards information about the magnitude of observations
+- Less mathematically convenient for further analysis
+
+**Clinical Use:** Preferred for skewed distributions (e.g., healthcare costs, length of hospital stay) or when outliers are present. Often reported alongside interquartile range (IQR).
+
+### The Mode
+
+The **mode** is the most frequently occurring value in a dataset.
+
+**Advantages:**
+- The only appropriate measure of central tendency for categorical data
+- Identifies the most common category
+
+**Disadvantages:**
+- For continuous data, the mode is often not unique or well-defined
+- Ignores most of the data
+
+**Clinical Use:** Primarily used for categorical variables (e.g., "the most common adverse event was nausea").
+
+### Relationship Between Mean, Median, and Mode
+
+In a **symmetric distribution** (e.g., normally distributed data):
+$$\text{Mean} \approx \text{Median} \approx \text{Mode}$$
+
+In a **right-skewed distribution** (long tail to the right, typical of cost data):
+$$\text{Mode} < \text{Median} < \text{Mean}$$
+
+In a **left-skewed distribution** (long tail to the left):
+$$\text{Mean} < \text{Median} < \text{Mode}$$
+
+## Part III: Measures of Spread
+
+Knowing only the center of a distribution is insufficient. Two populations might have the same mean but vastly different spreads, leading to different clinical implications. For example, if one antihypertensive reliably keeps blood pressure near the target (low variability) while another achieves the same mean but with high variability, the former is clinically superior.
+
+### Variance and Standard Deviation
+
+The **sample variance** quantifies the average squared deviation from the mean:
+
+$$s^2 = \frac{\sum_{i=1}^{n} (x_i - \bar{x})^2}{n - 1}$$
+
+Note the divisor is $n-1$ (not $n$); this is **Bessel's correction**, which yields an unbiased estimator of the population variance.
+
+The **sample standard deviation** is the square root:
+
+$$s = \sqrt{s^2} = \sqrt{\frac{\sum_{i=1}^{n} (x_i - \bar{x})^2}{n - 1}}$$
+
+**Interpretation:** The standard deviation has the same units as the original data, making it more interpretable than variance. In approximately normally distributed data, roughly 68% of observations fall within one standard deviation of the mean ($\bar{x} \pm 1s$), and 95% fall within two standard deviations ($\bar{x} \pm 2s$).
+
+**Clinical Use:** Report alongside the mean for continuous variables, especially when the data are approximately normally distributed.
+
+### Range and Interquartile Range
+
+The **range** is simply the difference between the maximum and minimum:
+
+$$\text{Range} = \max(x_i) - \min(x_i)$$
+
+The **interquartile range (IQR)** is the difference between the 75th percentile (Q3) and the 25th percentile (Q1):
+
+$$\text{IQR} = Q_3 - Q_1$$
+
+The IQR captures the range of the middle 50% of the data and is robust to extreme values.
+
+**Clinical Use:** Report IQR alongside the median, especially for skewed data. The range can be informative but is sensitive to outliers.
+
+## Part IV: Shape of the Distribution
+
+### Skewness
+
+**Skewness** measures asymmetry in a distribution. The sample skewness is:
+
+$$\gamma_1 = \frac{\frac{1}{n}\sum_{i=1}^{n}(x_i - \bar{x})^3}{s^3}$$
+
+- **$\gamma_1 = 0$**: Symmetric distribution
+- **$\gamma_1 > 0$**: Right-skewed (positive skew); mean > median
+- **$\gamma_1 < 0$**: Left-skewed (negative skew); mean < median
+
+**Clinical interpretation:** Positively skewed data (e.g., hospital length of stay) suggest most patients have short stays, but a few have very long stays. Analysts should consider log-transformation or non-parametric methods.
+
+### Kurtosis
+
+**Kurtosis** measures the heaviness of the tails relative to a normal distribution. The excess kurtosis (relative to a normal distribution) is:
+
+$$\gamma_2 = \frac{\frac{1}{n}\sum_{i=1}^{n}(x_i - \bar{x})^4}{s^4} - 3$$
+
+- **$\gamma_2 = 0$**: Normal distribution
+- **$\gamma_2 > 0$**: Heavy tails (leptokurtic); more extreme outliers than normal
+- **$\gamma_2 < 0$**: Light tails (platykurtic); fewer extreme outliers than normal
+
+**Clinical interpretation:** High kurtosis suggests the data contain more extreme values than expected under normality, warranting robust estimation methods or non-parametric tests.
+
+## Part V: Confidence Intervals
+
+A **confidence interval (CI)** quantifies uncertainty in a sample estimate. The standard 95% CI for a population mean, computed from a sample of size $n$ with sample mean $\bar{x}$ and sample standard deviation $s$, is:
+
+$$\bar{x} \pm t_{\alpha/2, n-1} \cdot \frac{s}{\sqrt{n}}$$
+
+where $t_{\alpha/2, n-1}$ is the critical value from the $t$-distribution with $n-1$ degrees of freedom, chosen so that the probability of the true parameter lying outside the interval is $\alpha$ (typically $\alpha = 0.05$ for a 95% CI).
+
+**Interpretation (CORRECT):** If we repeatedly sampled from the population and computed a 95% CI for each sample, approximately 95% of those intervals would contain the true population parameter.
+
+**Interpretation (INCORRECT):** "There is a 95% probability the true parameter lies in this interval." (The parameter is fixed, not random; after the interval is computed, it either contains the parameter or it doesn't.)
+
+**Clinical Use:** Always report point estimates (mean, odds ratio) with confidence intervals. CIs convey both the best estimate and the range of plausible values, guiding clinical decision-making.
+
+## Part VI: Categorical Data
+
+For categorical variables, descriptive statistics focus on counts and proportions:
+
+- **Absolute frequency**: The count of observations in each category
+- **Relative frequency (proportion)**: The count divided by the total, expressed as a decimal or percentage
+- **Contingency table**: A cross-tabulation of two or more categorical variables, showing counts (and sometimes proportions) for each combination
+
+**Clinical Example:** In a trial of a novel anticoagulant, we might report the frequency of major bleeding events:
+
+| Treatment | Major Bleed | No Major Bleed | Total |
+|-----------|-------------|----------------|-------|
+| Drug A    | 12          | 238            | 250   |
+| Placebo   | 18          | 232            | 250   |
+
+From this table, we can compute proportions: Drug A had a major bleeding rate of $12/250 = 4.8\%$; placebo had a rate of $18/250 = 7.2\%$.
+
+## Part VII: Practical Implementation in R
+
+### Loading Required Packages
+
+```r
+library(dplyr)
+library(tidyr)
+library(gtsummary)
+library(ggplot2)
+library(psych)
+```
+
+### Example 1: Descriptive Statistics for Continuous Variables
+
+We use the built-in `datasets::PlantGrowth` dataset to illustrate a clinical scenario: comparing plant height (proxy for patient response) across three treatment groups in an early-phase clinical trial.
+
+```r
+data(PlantGrowth)
+head(PlantGrowth)
+
+# Summary statistics for weight (our "clinical outcome")
+summary(PlantGrowth$weight)
+
+# More detailed summary
+library(psych)
+describe(PlantGrowth$weight)
+
+# By group
+by(PlantGrowth$weight, PlantGrowth$group, describe)
+```
+
+**Output interpretation:**
+- `n`: Sample size (30 plants total)
+- `mean`: Average plant weight
+- `sd`: Standard deviation, quantifying variability
+- `median`: The "typical" plant weight
+- `min`, `max`: Range
+- `skew`: Asymmetry (close to 0 indicates symmetry)
+- `kurtosis`: Tail heaviness
+
+### Example 2: Baseline Characteristics Table Using pharmaversesdtm
+
+For a realistic clinical trial, we construct a baseline characteristics table (Table 1) from the pharmaversesdtm datasets. This demonstrates how to combine demographic and vital sign data from a typical clinical trial database.
+
+```r
+# Install if needed:
+# remotes::install_github("pharmaverse/pharmaversesdtm")
+
+library(pharmaversesdtm)
+library(dplyr)
+library(gtsummary)
+
+# Load and inspect the datasets
+data(dm)   # Demographics
+data(vs)   # Vital Signs
+
+head(dm)
+head(vs)
+
+# Join dm and vs, keeping only baseline measurements
+trial_data <- dm %>%
+  select(USUBJID, ARM, AGE, SEX, RACE, WEIGHT) %>%
+  left_join(
+    vs %>%
+      filter(VSTESTCD %in% c("SYSBP", "DIABP", "HR")) %>%
+      filter(VISIT == "BASELINE") %>%
+      select(USUBJID, VSTESTCD, VSSTRESN),
+    by = "USUBJID"
+  ) %>%
+  pivot_wider(
+    names_from = VSTESTCD,
+    values_from = VSSTRESN
+  )
+
+head(trial_data)
+
+# Create Table 1: Baseline Characteristics by Treatment Arm
+tbl_baseline <- trial_data %>%
+  tbl_summary(
+    by = ARM,
+    include = c(AGE, SEX, RACE, WEIGHT, SYSBP, DIABP, HR),
+    type = list(
+      AGE ~ "continuous",
+      WEIGHT ~ "continuous",
+      SYSBP ~ "continuous",
+      DIABP ~ "continuous",
+      HR ~ "continuous"
+    ),
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd})",
+      all_categorical() ~ "{n} ({p}%)"
+    ),
+    label = list(
+      AGE ~ "Age (years)",
+      SEX ~ "Sex",
+      RACE ~ "Race",
+      WEIGHT ~ "Weight (kg)",
+      SYSBP ~ "Systolic BP (mmHg)",
+      DIABP ~ "Diastolic BP (mmHg)",
+      HR ~ "Heart Rate (bpm)"
+    )
+  ) %>%
+  add_n() %>%
+  add_p()  # adds p-values (see Chapter 9)
+
+tbl_baseline
+```
+
+### Example 3: Frequency Tables for Categorical Data
+
+```r
+# Example: Adverse events in a safety analysis
+set.seed(42)
+ae_data <- tibble(
+  USUBJID = rep(1:100, each = 2),
+  ARM = rep(c("Treatment", "Placebo"), times = 100),
+  AETERM = sample(
+    c("Nausea", "Headache", "Fatigue", "No AE"),
+    size = 200,
+    prob = c(0.15, 0.12, 0.08, 0.65),
+    replace = TRUE
+  )
+)
+
+# Frequency table
+ae_summary <- ae_data %>%
+  group_by(ARM, AETERM) %>%
+  summarise(
+    Count = n_distinct(USUBJID),
+    Percentage = round(100 * n_distinct(USUBJID) /
+                       n_distinct(ae_data$USUBJID[ae_data$ARM == ARM[1]]), 1),
+    .groups = "drop"
+  )
+
+print(ae_summary)
+
+# Contingency table
+ae_contingency <- ae_data %>%
+  distinct(USUBJID, ARM, AETERM) %>%
+  group_by(ARM, AETERM) %>%
+  count() %>%
+  pivot_wider(names_from = AETERM, values_from = n, values_fill = 0)
+
+print(ae_contingency)
+```
+
+### Example 4: Visualizing Distributions
+
+```r
+# Load data
+data(PlantGrowth)
+
+# Histogram with overlaid normal curve
+ggplot(PlantGrowth, aes(x = weight, fill = group)) +
+  geom_histogram(binwidth = 0.2, alpha = 0.6) +
+  facet_wrap(~group) +
+  labs(title = "Distribution of Plant Growth by Treatment",
+       x = "Dry Weight (grams)",
+       y = "Frequency") +
+  theme_minimal()
+
+# Box plot: visual display of median, quartiles, and outliers
+ggplot(PlantGrowth, aes(x = group, y = weight, fill = group)) +
+  geom_boxplot(alpha = 0.7) +
+  geom_jitter(width = 0.2, alpha = 0.4) +
+  labs(title = "Plant Weight by Treatment Group",
+       x = "Treatment",
+       y = "Dry Weight (grams)") +
+  theme_minimal()
+
+# Q-Q plot to assess normality
+qqnorm(PlantGrowth$weight)
+qqline(PlantGrowth$weight)
+```
+
+### Example 5: Confidence Intervals for the Mean
+
+```r
+# Compute 95% CI for mean plant weight overall
+weight_mean <- mean(PlantGrowth$weight)
+weight_sd <- sd(PlantGrowth$weight)
+n <- nrow(PlantGrowth)
+
+# Critical value from t-distribution (df = n-1)
+t_crit <- qt(0.975, df = n - 1)
+
+# Standard error
+se <- weight_sd / sqrt(n)
+
+# Confidence interval
+ci_lower <- weight_mean - t_crit * se
+ci_upper <- weight_mean + t_crit * se
+
+cat("Mean:", round(weight_mean, 3), "\n")
+cat("95% CI: [", round(ci_lower, 3), ", ", round(ci_upper, 3), "]\n")
+
+# Using a function for brevity
+t.test(PlantGrowth$weight)$conf.int
+```
+
+## Summary of Key Statistics by Variable Type
+
+| Variable Type | Central Tendency | Spread | Shape |
+|---------------|------------------|--------|-------|
+| **Continuous, Normal** | Mean | SD | Skewness, Kurtosis |
+| **Continuous, Skewed** | Median | IQR | Skewness, Kurtosis |
+| **Categorical** | Mode (n, %) | — | Frequency distribution |
+
+## Exercises
+
+### Beginner Exercises
+
+**Exercise 8.1: Interpret Descriptive Statistics**
+
+The following are descriptive statistics for HbA1c (glycated hemoglobin) measured in 100 diabetic patients:
+- Mean: 8.2%
+- SD: 1.5%
+- Median: 7.9%
+- IQR: 7.1% to 8.8%
+- Skewness: 0.68
+
+(a) Why is the mean higher than the median?
+(b) What does an IQR of 1.7% suggest about the spread of the data?
+(c) What is the clinical significance of knowing the SD?
+
+**Exercise 8.2: Analyze the sleep Dataset**
+
+Using the built-in `datasets::sleep` dataset:
+
+```r
+data(sleep)
+head(sleep)
+```
+
+The dataset contains extra sleep hours gained by 10 patients using two different drugs. Create separate summary statistics for each drug. Which drug appears more effective (higher mean) and more consistent (lower SD)?
+
+**Exercise 8.3: Construct a Frequency Table**
+
+Create a contingency table for hypothetical adverse events in a clinical trial:
+- Randomize 60 patients to Treatment A and 60 to Treatment B.
+- Simulate adverse events with appropriate base rates.
+- Display the resulting 2×2 table and compute proportions.
+
+### Advanced Exercises
+
+**Exercise 8.4: Confidence Interval Interpretation**
+
+A 95% confidence interval for mean creatinine levels is [1.1, 1.3] mg/dL.
+
+(a) What does this CI tell us about the uncertainty in our estimate?
+(b) If we repeated the study many times, what proportion of CIs would contain the true population mean?
+(c) How would the CI change if we increased the sample size? (Explain without computing.)
+
+**Exercise 8.5: Exploratory Data Analysis**
+
+Using the `MASS::birthwt` dataset (available in R):
+
+```r
+library(MASS)
+data(birthwt)
+```
+
+This dataset contains data on 189 births, including mother's age, weight, race, and birth weight.
+
+(a) Compute mean and SD of birth weight overall and separately by mother's race.
+(b) Create a box plot showing the distribution of birth weight by race.
+(c) Compute the 95% CI for the mean birth weight in each race group.
+(d) Write a clinical interpretation of your findings (e.g., "The data suggest that...").

@@ -1,0 +1,527 @@
+---
+title: "Chapter 20: Tables, Listings, and Figures (TLFs)"
+subtitle: "Regulatory-Standard Clinical Outputs"
+---
+
+## 20.1 Introduction to Tables, Listings, and Figures
+
+Clinical study reports (CSRs) submitted to regulatory agencies such as the FDA, EMA, and PMDA are built upon three foundational deliverables: **Tables**, **Listings**, and **Figures** (TLFs). These documents represent the core evidence of a drug's safety and efficacy in the submitted indication.
+
+A Table is a concise, summarized presentation of analysed data—for example, the primary efficacy endpoint results by treatment arm. A Listing is a detailed row-level display of individual subject data, typically used to support tables or present specific safety signals. A Figure is a visual representation of data, ranging from plots and graphs to forest plots and swimmer plots.
+
+The stakes are high: regulatory reviewers scrutinize TLFs to assess the quality, completeness, and integrity of the trial. Poorly formatted tables, missing footnotes, inconsistent numbering, or lack of traceability can trigger Requests for Additional Information (RFIs), delaying approval by months or years. This chapter equips you with practical, standards-based workflows to generate publication-quality TLFs using R.
+
+## 20.2 Regulatory Context and ICH E3 Structure
+
+The ICH E3 guideline ("Structure and Content of Clinical Study Reports") defines where TLFs appear in a CSR. Understanding this structure ensures your outputs align with regulatory expectations.
+
+### 20.2.1 The ICH E3 Framework
+
+A typical **CSR structure** follows:
+
+- **Module A.2**: Overview and quality overall summary (no TLFs)
+- **Module B.3.2**: Quality overall summary (no TLFs)
+- **Module B.3.3**: Nonclinical overview and summaries (limited TLFs)
+- **Module B.3.4**: Nonclinical study reports (TLFs from animal data)
+- **Modules B.3.5–B.3.7**: Clinical overview and summaries (key TLFs)
+  - Demographics and baseline characteristics (Table 14.1.1)
+  - Efficacy tables (Tables 14.3.x)
+  - Safety tables (Tables 14.3.x)
+  - Pharmacokinetics tables (if applicable)
+- **Module 5.3**: Clinical study reports (full TLFs and detailed analyses)
+
+Table and figure numbering typically follows the pattern **14.X.Y** (Module 5.3) or **14.3.X** (summary sections). Listings are usually presented in appendices.
+
+### 20.2.2 Population Flags in ADaM
+
+Before generating TLFs, you must define the **Analysis Populations** (populations flags in ADaM datasets):
+
+| Population | Abbreviation | Definition | Common Use |
+|-----------|--------------|-----------|-----------|
+| Intention-to-Treat | ITT | All randomized subjects | Primary efficacy analysis |
+| Per-Protocol | PP | Randomized subjects with ≥80% protocol adherence | Sensitivity analysis |
+| Safety | SAF | All dosed subjects | Safety analyses |
+| Pharmacokinetic | PK | Subjects with evaluable PK data | PK/PD analyses |
+
+In ADaM, these are typically encoded as binary flags: `ITT = "Y"`, `PP = "Y"`, `SAF = "Y"`, etc. When generating a Table 14.1.1 (Demographics), you filter to `ITT = "Y"` and group by treatment arm.
+
+## 20.3 Table Standards and Formatting Rules
+
+### 20.3.1 Core Formatting Principles
+
+Clinical tables must adhere to several formatting rules:
+
+1. **Decimal Alignment**: Numeric columns align on the decimal point (right-aligned in most cases, but decimal-aligned in publication format).
+2. **Header Rows**: Include clear header rows with treatment arm names, N values, and percentage bases.
+3. **Spanning Headers**: Group related columns under a single header (e.g., "Treatment Arm A" spanning three columns: N, Mean, SD).
+4. **Footnotes**: Include superscript footnotes explaining special values, abbreviations, and analytical definitions.
+5. **Page Numbering**: Tables spanning multiple pages must include continued headers and page numbers.
+6. **Abbreviations Table**: A legend of all abbreviations used.
+
+### 20.3.2 Example: Standard Demographics Table Format
+
+```
+Table 14.1.1: Demographics and Baseline Characteristics – Intent-to-Treat Population
+
+Characteristic              Treatment A      Treatment B      Control           Total
+                           (N = 120)        (N = 115)        (N = 118)         (N = 353)
+─────────────────────────────────────────────────────────────────────────────────
+Age (years)
+  Mean (SD)                  45.3 (12.1)      46.8 (11.5)      44.9 (12.8)       45.7 (12.2)
+  Median (Range)            45 (18–75)       46 (19–74)       44 (18–73)        45 (18–75)
+
+Sex, n (%)
+  Male                       72 (60.0)        66 (57.4)        70 (59.3)         208 (58.9)
+  Female                     48 (40.0)        49 (42.6)        48 (40.7)         145 (41.1)
+
+Race, n (%)
+  White                      96 (80.0)        92 (80.0)        95 (80.5)         283 (80.2)
+  Black                      18 (15.0)        16 (13.9)        16 (13.6)         50 (14.2)
+  Other                      6 (5.0)          7 (6.1)          7 (5.9)           20 (5.7)
+─────────────────────────────────────────────────────────────────────────────────
+footnote a: SD = standard deviation.
+footnote b: N is the number of subjects; percentages are based on N.
+```
+
+## 20.4 Key R Packages for Clinical Tables
+
+### 20.4.1 gtsummary: Quick Demographic Tables
+
+The **gtsummary** package excels at producing publication-ready demographic and baseline tables with minimal code.
+
+**Key functions**:
+- `tbl_summary()`: Creates a demographic table from a dataframe.
+- `tbl_regression()`: Produces regression tables.
+- `add_stat()`, `add_p()`: Add custom statistics and p-values.
+- `as_gt()`, `as_flextable()`: Convert to other table formats.
+
+### 20.4.2 gt: Highly Customizable Tables
+
+**gt** (grammar of tables) provides granular control over table styling, colors, fonts, and layout. It excels for complex, multi-level headers and custom cell formatting.
+
+### 20.4.3 flextable: Word/RTF-Compatible Output
+
+**flextable** is ideal when you need to export to Word (.docx) or RTF—common regulatory deliverable formats. It supports:
+- Merged cells and spanning headers
+- Conditional formatting (cell coloring)
+- Page breaks between rows
+- Native Word integration
+
+### 20.4.4 rtables: Roche's Framework (Brief Intro)
+
+**rtables** is a specialized framework developed by Roche for clinical trial reporting. It enforces a row-column structure optimized for regulatory tables. While powerful, it has a steeper learning curve; we'll focus on gtsummary, gt, and flextable in this chapter.
+
+## 20.5 Building Clinical Tables in Practice
+
+### 20.5.1 Example 1: Demographics and Baseline Characteristics (Table 14.1.1)
+
+We'll use the `pharmaversesdtm::dm` dataset from pharmaverse.
+
+```{r}
+library(dplyr)
+library(gtsummary)
+library(gt)
+library(pharmaversesdtm)
+
+# Load DM (demographics) dataset
+data("dm")
+
+# Quick exploration
+head(dm, 3)
+```
+
+The `dm` dataset contains CDISC-standard demographic variables: `SUBJID`, `AGE`, `SEX`, `RACE`, `ARMCD` (arm code), `ARM` (arm label).
+
+Now, generate a Table 14.1.1 using **gtsummary**:
+
+```{r}
+# Filter to ITT population (assuming all randomized subjects are in ITT)
+# If your data has an ITT flag, filter: dm %>% filter(ITT == "Y")
+
+demographics_table <- dm %>%
+  select(SUBJID, ARM, AGE, SEX, RACE) %>%
+  tbl_summary(
+    by = ARM,
+    label = list(
+      AGE ~ "Age (years)",
+      SEX ~ "Sex",
+      RACE ~ "Race"
+    ),
+    type = list(
+      AGE ~ "continuous",
+      SEX ~ "categorical",
+      RACE ~ "categorical"
+    ),
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd})",
+      all_categorical() ~ "{n} ({p}%)"
+    )
+  ) %>%
+  add_overall() %>%
+  modify_header(label = "Characteristic") %>%
+  modify_caption("**Table 14.1.1:** Demographics and Baseline Characteristics – Intent-to-Treat Population")
+
+# Display
+demographics_table
+```
+
+This produces a clean demographic table with mean/SD for continuous variables and n/% for categorical variables, grouped by treatment arm.
+
+### 20.5.2 Customizing with gt for Regulatory Submission
+
+To ensure the table meets regulatory standards (proper footnotes, spanning headers, alignment), convert to **gt** and customize:
+
+```{r}
+library(gt)
+
+demographics_gt <- demographics_table %>%
+  as_gt() %>%
+  gt::tab_header(
+    title = "Table 14.1.1: Demographics and Baseline Characteristics",
+    subtitle = "Intent-to-Treat Population"
+  ) %>%
+  gt::tab_footnote(
+    footnote = "N is the number of subjects in each arm.",
+    locations = cells_column_labels(columns = starts_with("stat_"))
+  ) %>%
+  gt::tab_footnote(
+    footnote = "Percentages are based on N in each arm. Age is presented as mean (SD).",
+    locations = cells_column_labels(columns = "label")
+  ) %>%
+  gt::tab_options(
+    table.font.size = "small",
+    table_body.hlines.style = "solid",
+    table_body.border.top.style = "solid"
+  ) %>%
+  fmt_number(
+    columns = contains("mean"),
+    decimals = 1
+  )
+
+demographics_gt
+```
+
+### 20.5.3 Example 2: Adverse Events Summary Table
+
+Next, we generate **Table 14.3.1: Adverse Events by System Organ Class (SOC) and Preferred Term (PT)** using `pharmaversesdtm::ae`.
+
+```{r}
+library(pharmaversesdtm)
+
+data("ae")
+
+# Quick check
+head(ae, 3)
+```
+
+The `ae` dataset contains: `SUBJID`, `AESOC` (System Organ Class), `AETERM` (Preferred Term), `AESEV` (severity: MILD, MODERATE, SEVERE), `AESER` (serious: Y/N), `ARMCD`, `ARM`.
+
+**Create the AE summary**:
+
+```{r}
+# Count AEs by SOC and PT, by treatment arm
+ae_summary <- ae %>%
+  distinct(SUBJID, AESOC, AETERM, ARM, ARMCD) %>%
+  group_by(ARM, AESOC, AETERM) %>%
+  summarise(n = n(), .groups = 'drop') %>%
+  # Get total N per arm
+  left_join(
+    dm %>%
+      select(ARM, ARMCD) %>%
+      distinct() %>%
+      group_by(ARM) %>%
+      summarise(total_n = n(), .groups = 'drop'),
+    by = "ARM"
+  ) %>%
+  mutate(pct = round(100 * n / total_n, 1)) %>%
+  arrange(AESOC, AETERM)
+
+head(ae_summary, 10)
+```
+
+**Format with flextable for Word output**:
+
+```{r}
+library(flextable)
+
+# Pivot to wide format for easier table creation
+ae_wide <- ae_summary %>%
+  select(AESOC, AETERM, ARM, n, pct) %>%
+  pivot_wider(
+    names_from = ARM,
+    values_from = c(n, pct),
+    names_glue = "{ARM}_{.value}"
+  ) %>%
+  # Rename columns for clarity
+  rename_with(~ gsub("_n$", " N", .), contains("_n")) %>%
+  rename_with(~ gsub("_pct$", " %", .), contains("_pct"))
+
+# Create flextable
+ae_table <- flextable(ae_wide) %>%
+  set_header_labels(
+    AESOC = "System Organ Class",
+    AETERM = "Preferred Term"
+  ) %>%
+  theme_vanilla() %>%
+  autofit() %>%
+  add_header_row(
+    values = c(
+      "Adverse Event",
+      "Treatment A (N = 120)",
+      "Treatment B (N = 115)",
+      "Control (N = 118)"
+    ),
+    colwidths = c(2, 2, 2, 2)
+  ) %>%
+  merge_v(j = "AESOC") %>%
+  bold(part = "header") %>%
+  add_footer_lines("Table 14.3.1: Adverse Events by System Organ Class and Preferred Term – Safety Population")
+
+ae_table
+```
+
+### 20.5.4 Example 3: Listing of Serious Adverse Events
+
+Listings are detailed, row-level presentations. Here's a listing of all Serious Adverse Events (SAEs):
+
+```{r}
+# Filter to SAEs only
+saes <- ae %>%
+  filter(AESER == "Y") %>%
+  select(SUBJID, ARM, AESOC, AETERM, AESEV, AEONSET = AESTDTC, AEOFFSET = AEENDTC, AEACN) %>%
+  arrange(ARM, SUBJID, AEONSET)
+
+# Create listing with flextable
+sae_listing <- flextable(saes) %>%
+  set_header_labels(
+    SUBJID = "Subject ID",
+    ARM = "Treatment Arm",
+    AESOC = "System Organ Class",
+    AETERM = "Preferred Term",
+    AESEV = "Severity",
+    AEONSET = "Onset Date",
+    AEOFFSET = "Offset Date",
+    AEACN = "Action Taken"
+  ) %>%
+  theme_booktabs() %>%
+  autofit() %>%
+  add_header_row(
+    values = "Listing of Serious Adverse Events – Safety Population",
+    colwidths = 8
+  ) %>%
+  bold(part = "header") %>%
+  paginate_at_bkpt()  # Insert page breaks at sensible points
+
+sae_listing
+```
+
+## 20.6 Exporting to Regulatory Formats
+
+### 20.6.1 Export to RTF
+
+RTF (Rich Text Format) is widely used for regulatory submissions because it preserves formatting across platforms and systems.
+
+```{r}
+library(flextable)
+
+# Export demographics table to RTF
+save_as_rtf(ae_table, path = "table_14_3_1_ae_summary.rtf")
+```
+
+### 20.6.2 Export to Word (.docx)
+
+```{r}
+# Export to Word
+save_as_docx(ae_table, path = "table_14_3_1_ae_summary.docx")
+```
+
+### 20.6.3 Export to PDF
+
+For PDF export, use **gt** or convert via Quarto (Chapter 21):
+
+```{r}
+# Using gt to PDF (requires webshot2 or similar)
+demographics_gt %>%
+  gtsave("table_14_1_1_demographics.pdf")
+```
+
+### 20.6.4 HTML and Interactive Tables
+
+For internal review or CSR supplementary materials:
+
+```{r}
+# Save as HTML
+demographics_gt %>%
+  as_raw_html() %>%
+  write_file("table_14_1_1_demographics.html")
+```
+
+## 20.7 Figures for Regulatory Submission
+
+### 20.7.1 Resolution and Quality Standards
+
+Regulatory figures must meet strict technical requirements:
+
+- **Resolution**: ≥300 DPI (dots per inch) for print publication.
+- **Font Size**: Minimum 10 pt (Arial or Helvetica preferred).
+- **Color**: Use colorblind-friendly palettes (e.g., viridis); provide grayscale alternatives.
+- **Labels**: All axes, legends, and footnotes must be clearly labeled.
+- **Format**: PDF is preferred for regulatory submissions (preserves formatting).
+
+### 20.7.2 Example: Kaplan-Meier Survival Curve
+
+```{r}
+library(survival)
+library(ggplot2)
+
+# Simulate survival data
+set.seed(42)
+survival_data <- data.frame(
+  SUBJID = 1:300,
+  ARM = rep(c("Treatment A", "Treatment B", "Control"), each = 100),
+  time = c(
+    rexp(100, rate = 0.03),  # Treatment A: longer survival
+    rexp(100, rate = 0.04),  # Treatment B: intermediate
+    rexp(100, rate = 0.05)   # Control: shorter survival
+  ),
+  event = rep(c(rep(1, 80), rep(0, 20)), 3)  # 80% events, 20% censored
+)
+
+# Fit survival curves
+survfit_obj <- survfit(Surv(time, event) ~ ARM, data = survival_data)
+
+# Plot with ggplot2 and ggsurvfit
+library(ggsurvfit)
+
+km_plot <- ggsurvfit(survfit_obj) +
+  labs(
+    title = "Figure 14.2.1: Kaplan-Meier Survival Curve",
+    subtitle = "Intent-to-Treat Population",
+    x = "Time (days)",
+    y = "Probability of Survival"
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(family = "sans", size = 11),
+    plot.title = element_text(face = "bold", size = 13),
+    legend.position = "bottomright"
+  )
+
+# Save with high DPI
+ggsave(
+  "figure_14_2_1_km_curve.pdf",
+  plot = km_plot,
+  width = 8,
+  height = 6,
+  dpi = 300
+)
+```
+
+### 20.7.3 Example: Forest Plot for Efficacy
+
+```{r}
+library(ggplot2)
+
+# Simulate efficacy data: odds ratios by subgroup
+subgroup_efficacy <- data.frame(
+  subgroup = c(
+    "Overall",
+    "Age ≤ 50 years",
+    "Age > 50 years",
+    "Male",
+    "Female",
+    "Baseline ECOG 0",
+    "Baseline ECOG 1"
+  ),
+  or = c(1.55, 1.48, 1.68, 1.52, 1.59, 1.62, 1.41),
+  lower_ci = c(1.22, 1.10, 1.25, 1.18, 1.15, 1.25, 0.95),
+  upper_ci = c(1.97, 2.00, 2.25, 1.96, 2.20, 2.10, 2.10)
+)
+
+forest_plot <- ggplot(
+  subgroup_efficacy,
+  aes(x = reorder(subgroup, or), y = or, ymin = lower_ci, ymax = upper_ci)
+) +
+  geom_pointrange(size = 0.8, color = "darkblue") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "red", alpha = 0.5) +
+  coord_flip() +
+  labs(
+    title = "Figure 14.3.5: Forest Plot – Efficacy by Subgroup",
+    subtitle = "Odds Ratio for Response (Treatment A vs Control)",
+    x = "Subgroup",
+    y = "Odds Ratio (95% CI)"
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(family = "sans", size = 11),
+    plot.title = element_text(face = "bold", size = 13)
+  )
+
+ggsave(
+  "figure_14_3_5_forest_plot.pdf",
+  plot = forest_plot,
+  width = 8,
+  height = 6,
+  dpi = 300
+)
+```
+
+## 20.8 CDISC-Compliant Labelling
+
+All TLF outputs should reference standard CDISC labels. For example:
+
+- **Variable**: `AGE` → **Label**: "Age (years)"
+- **Variable**: `SEX` → **Label**: "Sex"
+- **Variable**: `AETERM` → **Label**: "Adverse Event Preferred Term"
+
+Ensure your code extracts these labels from ADaM attributes:
+
+```{r}
+# Get label from variable
+get_label <- function(df, var) {
+  attr(df[[var]], "label") %||% var
+}
+
+# Example
+label_age <- get_label(dm, "AGE")  # Returns "Age (years)" if set
+```
+
+## 20.9 Troubleshooting Common TLF Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Spanning headers not aligned | Incorrect `colwidths` in `add_header_row()` | Ensure `colwidths` sum equals number of columns |
+| Footnotes don't display | Missing `locations` argument | Specify `locations = cells_body()` or `cells_column_labels()` |
+| Page breaks mid-table | No pagination set | Use `paginate_at_bkpt()` in flextable |
+| Percentages don't sum to 100% | Rounding of individual percentages | Use raw counts for auditing; round only for display |
+| Decimal alignment wrong | Text alignment instead of numeric | Ensure column is numeric; use `fmt_number()` in gt |
+
+## 20.10 Summary
+
+- **Tables** summarize analysed data and are central to regulatory submissions.
+- **Listings** provide detailed, row-level subject data for traceability.
+- **Figures** visualize trends and support primary conclusions.
+- Population flags (ITT, PP, SAF) are defined in ADaM and determine table populations.
+- **gtsummary** is ideal for quick demographic tables; **gt** for highly customizable publication tables; **flextable** for Word/RTF exports.
+- All TLFs must be formatted to regulatory standards (decimal alignment, footnotes, spanning headers, high-resolution figures).
+
+## 20.11 Exercises
+
+**Exercise 20.1**: Using `pharmaversesdtm::dm`, create a demographics table (Table 14.1.1) for the ITT population. Include mean age, age SD, and percentages for sex and race. Export to PDF and Word.
+
+**Exercise 20.2**: Using `pharmaversesdtm::ae`, generate an AE summary table (Table 14.3.1) with counts and percentages by treatment arm. Include only AEs with incidence ≥5% in any arm.
+
+**Exercise 20.3**: Create a listing of all subjects with serious adverse events (SAEs), sorted by treatment arm and onset date. Export to Word with page breaks after every 50 rows.
+
+**Exercise 20.4**: Create a forest plot showing efficacy (e.g., response rate) by subgroup (age, sex, disease stage). Ensure the plot meets regulatory standards (300 DPI, clear labels, colorblind-friendly palette). Save as PDF.
+
+**Exercise 20.5**: Write a function `create_demographic_table(data, by_var)` that accepts a dataset and a grouping variable (e.g., "ARM"), and returns a gtsummary table with demographics. Test with `pharmaversesdtm::dm`.
+
+---
+
+**Key References**:
+- ICH E3 Guideline: Structure and Content of Clinical Study Reports (https://www.ich.org/)
+- FDA Guidance on Clinical Trial Reporting (FDA.gov)
+- gtsummary Package Documentation (https://www.danieldsjoberg.com/gtsummary/)
+- gt Package Documentation (https://gt.rstudio.com/)
+- flextable Package Documentation (https://ardata-fr.github.io/flextable-book/)

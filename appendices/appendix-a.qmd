@@ -1,0 +1,269 @@
+---
+title: "Appendix A: R and SAS Equivalence Guide"
+---
+
+# Appendix A: R and SAS Equivalence Guide
+
+## Introduction
+
+For SAS programmers transitioning to R, the concepts are remarkably similar—both are designed for data manipulation, statistical analysis, and reporting. However, the syntax differs significantly. This appendix serves as a quick reference guide to bridge the gap between SAS and R, helping you leverage your existing knowledge while adopting R's more modern, functional programming approach.
+
+**Key philosophical differences:**
+
+- **SAS is imperative**: "Do this, then that" (data step, PROC step)
+- **R is functional**: Chain operations together or nest functions
+- **SAS uses datasets as memory-resident tables**; R uses data frames/tibbles
+- **SAS indexing is 1-based**; R indexing is 1-based too, but subsets work differently
+- **SAS missing values are `.`**; R uses `NA`
+- **SAS has implicit loops** over BY variables; R requires explicit grouping with `group_by()`
+
+The good news: if you understand PROC SORT, PROC MEANS, and PROC REG in SAS, you already understand what `arrange()`, `summarise()`, and `lm()` do in R. It's just syntax.
+
+---
+
+## Complete SAS-to-R Comparison Table
+
+| Task | SAS Code | R Code | Notes |
+|------|----------|--------|-------|
+| **Reading CSV file** | `PROC IMPORT datafile="file.csv" out=mydata dbms=csv; RUN;` | `library(readr); mydata <- read_csv("file.csv")` or `read.csv("file.csv")` | `read_csv()` is faster; handles column types better |
+| **Reading SAS dataset** | `libname mylib '/path/'; data work.temp; set mylib.dataset; run;` | `library(haven); mydata <- read_sas("/path/file.sas7bdat")` | `haven` package reads SAS, SPSS, Stata formats |
+| **Reading XPT (transport) file** | `PROC XCOPY in="/path/" infile=file imemtype=data outfile=file; RUN;` | `library(haven); mydata <- read_xpt("file.xpt")` | For regulatory submissions (CDISC) |
+| **Writing XPT file** | `PROC XCOPY in=work infile=dataset outfile="/path/" outtype=xpt; RUN;` | `library(haven); write_xpt(mydata, "output.xpt", version=5)` | Required for FDA submissions |
+| **Data manipulation / subsetting** | `data work.new; set work.old; where age > 30; keep subjid age sex; run;` | `library(dplyr); new <- old %>% filter(age > 30) %>% select(subjid, age, sex)` | Pipe `%>%` chains operations; `filter()` = WHERE, `select()` = KEEP |
+| **Sorting** | `PROC SORT data=work.in out=work.out; by arm visitnum; run;` | `library(dplyr); out <- in %>% arrange(arm, visitnum)` | `arrange()` is `PROC SORT`; ascending default |
+| **Sorting descending** | `PROC SORT data=work.in out=work.out; by arm descending visitnum; run;` | `library(dplyr); out <- in %>% arrange(arm, desc(visitnum))` | Use `desc()` for descending order |
+| **Descriptive statistics** | `PROC MEANS data=work.in; var age weight; by arm; run;` | `library(dplyr); in %>% group_by(arm) %>% summarise(mean_age=mean(age), mean_weight=mean(weight))` | `summarise()` = `PROC MEANS`; `group_by()` = BY statement |
+| **Descriptive statistics (publication table)** | `PROC MEANS data=work.in; var age weight; class arm; run;` | `library(gtsummary); in %>% tbl_summary(by=arm, include=c(age, weight))` | `gtsummary` creates publication-ready tables |
+| **Frequency table** | `PROC FREQ data=work.in; tables arm*sex; run;` | `table(in$arm, in$sex)` or `library(gtsummary); in %>% tbl_cross(row=arm, col=sex)` | `table()` basic; `tbl_cross()` prettier |
+| **Univariate statistics** | `PROC UNIVARIATE data=work.in; var age; histogram; qqplot; run;` | `summary(in$age)` and `shapiro.test(in$age)` | Check normality with Shapiro-Wilk test; `hist()` and `qqnorm()` for plots |
+| **T-test (unpaired)** | `PROC TTEST data=work.in; class arm; var sbp; run;` | `t.test(sbp ~ arm, data=in, var.equal=TRUE)` | `~` is formula notation (variable ~ grouping); `var.equal=TRUE` for Student's t |
+| **T-test (paired)** | `PROC TTEST data=work.in; paired visit1*visit2; run;` | `t.test(in$visit1, in$visit2, paired=TRUE)` | Specify `paired=TRUE` |
+| **Wilcoxon rank-sum test** | `PROC NPAR1WAY data=work.in wilcoxon; class arm; var response; run;` | `wilcox.test(response ~ arm, data=in)` | Non-parametric equivalent of t-test |
+| **One-way ANOVA** | `PROC GLM data=work.in; class arm; model sbp=arm; run;` | `aov(sbp ~ arm, data=in)` or `lm(sbp ~ arm, data=in)` and `anova()` | `aov()` simpler; `lm()` more flexible |
+| **Two-way ANOVA** | `PROC GLM data=work.in; class arm visit; model sbp=arm visit arm*visit; run;` | `aov(sbp ~ arm * visit, data=in)` or `lm(sbp ~ arm * visit, data=in)` | Use `*` for interaction terms |
+| **Linear regression** | `PROC REG data=work.in; model sbp=age weight bmi / clb; run;` | `lm(sbp ~ age + weight + bmi, data=in)` or `lm(sbp ~ ., data=in)` | `lm()` = `PROC REG`; `summary(model)` for results |
+| **Logistic regression** | `PROC LOGISTIC data=work.in; model response(event='1')=age weight bmi; run;` | `glm(response ~ age + weight + bmi, family=binomial(link="logit"), data=in)` | `family=binomial()` for binary outcomes; odds ratios via `exp(coef())` |
+| **Mixed-effects model (random intercept)** | `PROC MIXED data=work.in; class arm subjid; model sbp=arm / solution; random intercept / subject=subjid; run;` | `library(lme4); lmer(sbp ~ arm + (1 \| subjid), data=in)` | `lme4::lmer()` for random effects; `(1 \| subjid)` = random intercept by subject |
+| **Mixed-effects model (random slope)** | `PROC MIXED data=work.in; class arm subjid visit; model sbp=arm visit arm*visit / solution; random intercept slope_visit / subject=subjid; run;` | `library(lme4); lmer(sbp ~ arm * visit + (visit \| subjid), data=in)` | `(visit \| subjid)` = random slope for visit within subject |
+| **GEE (Generalized Estimating Equations)** | `PROC GENMOD data=work.in; class arm subjid; model sbp=arm visit / dist=normal link=identity; repeated subject=subjid / type=ar(1); run;` | `library(geepack); geeglm(sbp ~ arm + visit, id=subjid, family=gaussian(), corstr="ar1", data=in)` | Marginal models for repeated measures |
+| **Cox proportional hazards** | `PROC PHREG data=work.in; class arm; model time*event(0)=arm age; run;` | `library(survival); coxph(Surv(time, event) ~ arm + age, data=in)` | `Surv()` creates survival object; event=1 for event, 0 for censored |
+| **Kaplan-Meier survival curve** | `PROC LIFETEST data=work.in plots=survival; time time*event(0); strata arm; run;` | `library(survival); survfit(Surv(time, event) ~ arm, data=in)` then `plot()` or `library(ggsurvfit)` | `survfit()` estimates; `ggsurvfit()` creates ggplot2 plots |
+| **Multiple imputation (MI)** | `PROC MI data=work.in out=work.mids nimpute=5; var age sbp weight; run;` | `library(mice); mids <- mice(in, m=5, method="pmm", seed=123)` | `m=5` creates 5 imputed datasets; `method="pmm"` = predictive mean matching |
+| **Pool MI results (Rubin's rules)** | `PROC MIANALYZE data=work.mids; modeleffects age weight; run;` | `library(mice); fit <- with(mids, lm(sbp ~ age + weight)); pool(fit)` | `with()` fits model to each imputed dataset; `pool()` combines estimates |
+| **Output to RTF** | `ODS RTF file="output.rtf"; PROC PRINT data=work.in; RUN; ODS RTF close;` | `library(flextable); ft <- flextable(in); save_as_rtf(ft, path="output.rtf")` | `flextable` creates formatted Word-compatible tables |
+| **Output to PDF** | `ODS PDF file="output.pdf"; PROC PRINT data=work.in; RUN; ODS PDF close;` | Render Quarto/RMarkdown: `quarto::quarto_render("report.qmd")` | Quarto produces professional PDFs with code + results |
+| **Macro variable** | `%let arm_list = Placebo Drug_A_Low Drug_A_High;` | `arm_list <- c("Placebo", "Drug_A_Low", "Drug_A_High")` | Store values in vectors; use in functions |
+| **Macro variable substitution** | `data work.&dsname; set work.input; run;` | Use R functions: `f <- function(dsname) { data <- read_csv(paste0(dsname, ".csv")) }` | Functions replace macros for dynamic programming |
+| **Array** | `array weight_visits{6} weight_v1-weight_v6;` | `weight_visits <- c(weight_v1, weight_v2, ..., weight_v6)` or `weight_visits <- in[, c("weight_v1", "weight_v2", ...)]` | Use vectors or data frame column selection |
+| **PROC FORMAT (custom formats)** | `PROC FORMAT; value armfmt 1='Placebo' 2='Drug_A'; RUN; PROC PRINT; format arm armfmt.; RUN;` | `in$arm <- factor(in$arm, levels=c(1,2), labels=c("Placebo", "Drug_A"))` | `factor()` with labels; use `forcats::fct_recode()` for advanced re-coding |
+| **IF/THEN/ELSE** | `if age > 30 then agegroup='30+'; else agegroup='<30';` | `ifelse(age > 30, "30+", "<30")` | `ifelse()` is vectorized (works row-wise) |
+| **Multiple conditions (CASE WHEN)** | `select (arm) when (1) arm_name='Placebo'; when (2) arm_name='Drug_A'; otherwise arm_name='Other'; end;` | `library(dplyr); mutate(arm_name = case_when(arm==1 ~ "Placebo", arm==2 ~ "Drug_A", TRUE ~ "Other"))` | `case_when()` is cleaner for multiple conditions |
+| **DO loop (for)** | `DO i = 1 TO 10; x = i**2; output; end;` | `for (i in 1:10) { x <- i^2; print(x) }` or `sapply(1:10, function(i) i^2)` | Use `for()` loops or functional `sapply()`/`purrr::map()` |
+| **DO WHILE loop** | `DO WHILE (age > 30); age = age - 1; end;` | `while (age > 30) { age <- age - 1 }` | Less common in data analysis; use `for()` over vectors |
+| **Purrr::map for vectorized operations** | Similar to arrays + do loops | `library(purrr); map_df(c("arm1", "arm2"), ~read_csv(paste0(., ".csv")))` | Functional programming replaces many loops |
+| **LEFT JOIN (merge)** | `PROC SQL; select a.*, b.sbp from dm a left join vs b on a.subjid=b.subjid; quit;` | `library(dplyr); dm %>% left_join(vs, by="subjid")` | `left_join()`, `right_join()`, `inner_join()`, `full_join()` |
+| **Multiple joins** | Multiple PROC SQL steps | `library(dplyr); dm %>% left_join(vs) %>% left_join(ae)` | Chain joins with `%>%` |
+| **BY variable processing (group-by)** | `PROC SORT; by arm; PROC PRINT; by arm; RUN;` | `library(dplyr); in %>% group_by(arm) %>% summarise(...)` or use `nest()` | `group_by()` replaces BY statement for most operations |
+| **RETAIN statement (lag)** | `data work.new; set work.old; retain prev_sbp; prev_sbp_lag = lag(sbp); prev_sbp = sbp; run;` | `library(dplyr); in %>% mutate(prev_sbp = lag(sbp))` | `lag()` accesses previous row value |
+| **Cumulative sum** | `data work.new; set work.old; cumsum+ae_count; output; run;` | `library(dplyr); in %>% mutate(cumsum = cumsum(ae_count))` | `cumsum()` computes running total |
+| **LENGTH statement** | `length varname $ 50;` | `nchar(varname)` or `stringr::str_length(varname)` | Get string length; assign with `as.character()` and no explicit length needed |
+| **COMPRESS (remove spaces)** | `newvar = compress(oldvar);` | `gsub(" ", "", oldvar)` or `library(stringr); str_remove_all(oldvar, " ")` | Remove all spaces from string |
+| **SUBSTR (substring)** | `newvar = substr(oldvar, 1, 5);` | `substring(oldvar, 1, 5)` or `library(stringr); str_sub(oldvar, 1, 5)` | Extract characters 1-5 from string |
+| **SCAN (parse words)** | `word2 = scan(sentence, 2, delim=' ');` | `library(stringr); str_split(sentence, " ")[[1]][2]` | Extract nth word |
+| **UPCASE / LOWCASE** | `newvar = upcase(oldvar);` or `newvar = lowcase(oldvar);` | `toupper(oldvar)` or `tolower(oldvar)` or `library(stringr); str_to_upper()` / `str_to_lower()` | Case conversion functions |
+| **Concatenate strings** | `newvar = cat(var1, var2);` or `newvar = var1 \|\| var2;` | `paste(var1, var2)` or `library(stringr); str_c(var1, var2)` | Use `paste()` with `sep=""` for no space |
+| **PUT (numeric to character)** | `char_var = put(num_var, 8.2);` | `as.character(num_var)` or `sprintf("%.2f", num_var)` | Convert to string with formatting |
+| **INPUT (character to numeric)** | `num_var = input(char_var, 8.);` | `as.numeric(char_var)` | Convert string to number |
+| **Date conversion** | `date_var = input(char_date, MMDDYY10.);` | `library(lubridate); mdy(char_date)` or `as.Date(char_date, format="%m/%d/%Y")` | `lubridate` makes date handling cleaner |
+| **INTNX (add months/days)** | `new_date = intnx('month', date_var, 6);` | `library(lubridate); date_var %m+% months(6)` or `date_var + months(6)` | Add months; use `%m+%` to keep day-of-month |
+| **INTCK (difference between dates)** | `days_diff = intck('day', date1, date2);` | `as.numeric(difftime(date2, date1, units="days"))` or `difftime(date2, date1)` | Get days/weeks/months between dates |
+| **WHERE clause** | `PROC PRINT where=(age > 30 and arm='Drug_A'); RUN;` | `library(dplyr); in %>% filter(age > 30 & arm=="Drug_A")` | `filter()` = WHERE statement |
+| **KEEP statement** | `PROC PRINT data=work.in(keep=subjid age sex); RUN;` | `library(dplyr); in %>% select(subjid, age, sex)` | `select()` = KEEP statement |
+| **DROP statement** | `PROC PRINT data=work.in(drop=weight height); RUN;` | `library(dplyr); in %>% select(-weight, -height)` | `select(-col)` drops columns |
+| **RENAME statement** | `PROC PRINT data=work.in(rename=(oldname=newname)); RUN;` | `library(dplyr); in %>% rename(newname = oldname)` | `rename(new = old)` |
+| **FIRSTOBS/OBS (slice rows)** | `data work.new; set work.old(firstobs=10 obs=20); run;` | `library(dplyr); in %>% slice(10:20)` | `slice(10:20)` gets rows 10-20 |
+| **SET statement (append)** | `data work.combined; set work.ds1 work.ds2; run;` | `library(dplyr); bind_rows(ds1, ds2)` | `bind_rows()` = SET statement (vertical append) |
+| **PROC APPEND (append in-place)** | `PROC APPEND base=work.ds1 data=work.ds2; RUN;` | `library(dplyr); ds1 <- bind_rows(ds1, ds2)` | Re-assign combined result |
+| **PROC TRANSPOSE (reshape wide-to-long)** | `PROC TRANSPOSE data=work.in out=work.out name=visit value=sbp; by subjid; var sbp_v1-sbp_v6; run;` | `library(tidyr); in %>% pivot_longer(starts_with("sbp_"), names_to="visit", values_to="sbp")` | `pivot_longer()` = PROC TRANSPOSE |
+| **Reshape long-to-wide** | `PROC TRANSPOSE data=work.in out=work.out prefix=sbp_; by subjid; id visit; var sbp; run;` | `library(tidyr); in %>% pivot_wider(names_from=visit, values_from=sbp, names_prefix="sbp_")` | `pivot_wider()` opposite of `pivot_longer()` |
+
+---
+
+## SAS Macro to R Function Translation
+
+SAS programmers often use macros to create reusable code blocks. In R, **functions** replace macros and are cleaner, more efficient, and easier to test.
+
+### Example: Create a summary table by arm
+
+**SAS Macro:**
+```sas
+%MACRO summary_by_arm(indsn, varlist, byvar, outdsn);
+  PROC MEANS data=&indsn NWAY ALPHA=0.05;
+    CLASS &byvar;
+    VAR &varlist;
+    OUTPUT OUT=&outdsn MEAN= MEDIAN= STDDEV= / AUTONAME;
+  RUN;
+%MEND;
+
+%summary_by_arm(work.vital, sbp dbp weight, arm, work.summary);
+```
+
+**R Function:**
+```r
+summary_by_arm <- function(data, vars, by_var) {
+  library(dplyr)
+  data %>%
+    group_by(across(all_of(by_var))) %>%
+    summarise(across(all_of(vars),
+                     list(mean = mean, median = median, sd = sd),
+                     .names = "{.col}_{.fn}"),
+              .groups = "drop")
+}
+
+result <- summary_by_arm(vital, c("sbp", "dbp", "weight"), "arm")
+```
+
+**Benefits of R functions over SAS macros:**
+- Type safety: R checks argument types
+- Easier debugging with `browser()`
+- Return data frames directly
+- No string substitution issues
+- Test-friendly (`testthat` package)
+
+---
+
+## SAS ODS Styles vs. R Table Packages
+
+SAS uses ODS (Output Delivery System) to create formatted tables. R achieves this with dedicated table packages.
+
+| Output Type | SAS ODS | R Package | Example |
+|-------------|---------|-----------|---------|
+| **Publication-ready summary table** | `PROC MEANS` + `ODS TABLE` | `gtsummary::tbl_summary()` | Demographics, baseline characteristics |
+| **Cross-tabulation** | `PROC FREQ` + ODS | `gtsummary::tbl_cross()` | Arm × Sex frequency table |
+| **Regression results** | `PROC REG` + ODS | `gtsummary::tbl_regression()` | Odds ratios, confidence intervals |
+| **Cox regression** | `PROC PHREG` + ODS | `gtsummary::tbl_regression()` with survival models | HR, 95% CI |
+| **Survival tables** | `PROC LIFETEST` + ODS | `ggsurvfit::ggsurvfit()` | Kaplan-Meier curves |
+| **Excel/RTF export** | `ODS RTF`, `ODS EXCEL` | `flextable::save_as_rtf()`, `flextable::save_as_docx()` | For regulatory submissions |
+| **CDISC ADaM listings** | Custom PROC PRINT + ODS | `rtables` or `flextable` | Subject-level data listings |
+
+**Quick example:**
+
+```r
+library(gtsummary)
+
+# SAS equivalent: PROC MEANS + PROC FREQ for baseline table
+baseline_table <- trial_data %>%
+  tbl_summary(
+    by = arm,
+    include = c(age, sex, grade),
+    label = list(age = "Age (years)", sex = "Sex", grade = "Grade"),
+    statistic = list(all_continuous() ~ "{mean} ({sd})",
+                     all_categorical() ~ "{n} ({p}%)"),
+    missing = "no"
+  ) %>%
+  add_overall() %>%
+  add_p(test = everything() ~ "t.test") %>%
+  add_q() %>%
+  modify_spanning_header(everything() ~ "**Treatment Arm**")
+
+# Save to Word/PDF via flextable integration or Quarto
+gt::gtsave(as_gt(baseline_table), "baseline.docx")
+```
+
+---
+
+## Common Pitfalls for SAS Programmers Transitioning to R
+
+### 1. **Missing Values: `.` vs. `NA`**
+
+| Situation | SAS | R | Issue |
+|-----------|-----|---|-------|
+| Check for missing | `if age = . then ...` | `if (is.na(age)) { ... }` | SAS uses `.`; R uses `NA`. Using `age = NA` will always be FALSE |
+| Count missing | `PROC MEANS NMISS;` | `sum(is.na(data$age))` | Be explicit about checking NA |
+| Remove rows with missing | `data new; set old; if cmiss(of age weight) = 0;` | `na.omit(data)` or `drop_na(data)` | Use `tidyr::drop_na()` or `dplyr::filter(!is.na(age), !is.na(weight))` |
+| Impute simple missing | `if age = . then age = 0;` | `data$age[is.na(data$age)] <- 0` or `mutate(age = replace_na(age, 0))` | Use `replace_na()` for readability |
+
+### 2. **1-Based Indexing Confusion**
+
+Both SAS and R use 1-based indexing for row/column numbers, BUT subsetting works differently:
+
+| Operation | SAS | R | Example |
+|-----------|-----|---|---------|
+| First 5 rows | `data new; set old(obs=5); run;` | `slice(1:5, data)` or `head(data, 5)` | `data[1:5, ]` also works |
+| Rows 10-20 | `data new; set old(firstobs=10 obs=20); run;` | `slice(10:20, data)` | Not intuitive: `obs=20` means "stop at row 20" |
+| Nth column | `array x{*} _numeric_; x{5}` | `data[[5]]` or `data[, 5]` | Use column names instead: `data$sbp` or `data[["sbp"]]` |
+| By condition | `where age > 30;` | `filter(age > 30)` | Don't use row indices; use logical conditions |
+
+**Common mistake:**
+```r
+# SAS thinking: "Give me columns 1, 3, 5"
+data[, c(1, 3, 5)]  # This works!
+
+# But better practice in R:
+data %>% select(col1, col3, col5)  # More readable
+```
+
+### 3. **No Implicit Data Step Loop**
+
+SAS loops through every observation automatically in the DATA step. R does not.
+
+| SAS | R | Explanation |
+|-----|---|-------------|
+| `data new; set old; newvar = oldvar * 2; run;` | `new <- old %>% mutate(newvar = oldvar * 2)` | R's `mutate()` is vectorized; apply to all rows at once |
+| `data new; set old; newvar = lag(oldvar); run;` | `new <- old %>% mutate(newvar = lag(oldvar))` | Use `lag()`, `lead()`, or `cumsum()` |
+| `DO i = 1 TO nobs; ... END;` | `for (i in 1:nrow(data)) { ... }` | Avoid loops! Use vectorized operations when possible |
+
+**Better R practice:**
+```r
+# Don't do this:
+for (i in 1:nrow(data)) {
+  data$newvar[i] <- data$oldvar[i] * 2
+}
+
+# Do this instead:
+data %>% mutate(newvar = oldvar * 2)
+```
+
+### 4. **Subsetting: Syntax Differences**
+
+| Task | SAS | R (Bad) | R (Good) | Reason |
+|------|-----|---------|----------|--------|
+| Filter rows AND columns | `PROC PRINT where=(age > 30); var subjid age;` | `data[data$age > 30, c(1, 3)]` | `data %>% filter(age > 30) %>% select(subjid, age)` | Piping is cleaner; use names not indices |
+| Keep one column as vector | `PROC MEANS var=age;` | `data[, "age"]` | `data$age` or `pull(data, age)` | `[,]` returns data frame; `$` or `pull()` returns vector |
+| Conditional assignment | `if age > 30 then agegroup=1; else agegroup=0;` | `ifelse(age > 30, 1, 0)` | `case_when(age > 30 ~ 1, TRUE ~ 0)` | `case_when()` handles multiple conditions |
+
+### 5. **Data Frame vs. Vector Confusion**
+
+SAS doesn't distinguish; R does.
+
+| Operation | SAS | R | Gotcha |
+|-----------|-----|---|--------|
+| Create variable | `varname = value;` | `data$varname <- value` | In R, `data["varname"]` returns a 1-column data frame; `data$varname` returns a vector |
+| Access variable | Reference by name in PROC | `data$varname` or `data[["varname"]]` or `pull(data, varname)` | Using `[["name"]]` is pedantic but safe |
+| Check length | `%LET nobs = &sysnobs;` | `nrow(data)` | For vector length, use `length(vector)` not `nrow()` |
+| Combine variables | Arrays + DO loop | `c(var1, var2, var3)` | `c()` combines into vector; data frame requires `data.frame()` |
+
+---
+
+## Summary: SAS to R Mindset Shift
+
+| SAS Concept | R Equivalent | Mindset Shift |
+|-------------|--------------|---------------|
+| PROC SORT + PROC MEANS | `arrange()` + `group_by()` + `summarise()` | From separate steps to chained operations |
+| Macro variables | Function arguments | From text substitution to functional programming |
+| DATA step loops | `mutate()`, `map()`, vectorized operations | From explicit loops to implicit broadcasting |
+| KEEP/DROP/RENAME | `select()`, `rename()` | From statement-based to function-based |
+| BY variables | `group_by()` | From automatic iteration to explicit grouping |
+| ODS output | `gtsummary`, `flextable`, Quarto | From monolithic ODS to modular packages |
+| PROC PHREG, PROC GLM | `survival::coxph()`, `lm()`, `glm()` | From built-in procs to function-based models |
+
+The good news: **SAS knowledge translates directly.** You already understand statistics; R is just a new way to express it.
+
+---
+
+## Additional Resources
+
+- **Base R vs. Tidyverse**: This guide emphasizes tidyverse (`dplyr`, `ggplot2`) because it's more readable. Base R equivalents exist but are often less elegant.
+- **Package documentation**: Visit `?function_name` in R for help, e.g., `?dplyr::left_join`
+- **RStudio Cheat Sheets**: https://posit.co/resources/cheatsheets/ includes dplyr, tidyr, and ggplot2 cheat sheets.
+- **Statistical methods**: ICH E9(R1) and FDA guidance documents use statistical language, not software. The concepts are identical; syntax differs.

@@ -1,0 +1,892 @@
+---
+title: "Chapter 3: Data Import and Export in Clinical Research"
+---
+
+# Data Import and Export in Clinical Research
+
+## 3.1 Understanding Clinical Data File Formats
+
+Clinical data arrives in multiple formats, each with specific advantages and requirements. Understanding these formats and how to work with them is essential for any clinical analyst.
+
+### CSV: The Universal Format
+
+CSV (Comma-Separated Values) is plain text: simple, portable, and human-readable. Most clinical data systems can export to CSV.
+
+```
+USUBJID,AGE,SEX,TREATMENT,BASELINE_HGB
+001-101,62,F,Active,13.5
+001-102,45,M,Placebo,12.8
+001-103,55,F,Active,14.2
+```
+
+Advantages:
+- Platform-independent (works on Windows, Mac, Linux)
+- Readable by any text editor
+- Easy to version control with Git
+- Small file sizes
+
+Disadvantages:
+- Loses data types (everything is text initially)
+- No support for multiple sheets
+- Comma conflicts in text fields can cause parsing issues
+
+### Excel: The Industry Standard
+
+Excel files (.xlsx, .xls) are ubiquitous in clinical research. While not ideal for reproducible analysis, they're often unavoidable.
+
+```
+├─ Sheet1: Demographics
+│  ├─ USUBJID
+│  ├─ AGE
+│  ├─ SEX
+│  ├─ TREATMENT
+│  └─ BASELINE_HGB
+├─ Sheet2: Lab Results
+└─ Sheet3: Adverse Events
+```
+
+Advantages:
+- Multiple sheets in one file
+- Preserves some formatting
+- Familiar to non-programmers
+- Can include formulas (though importing them is problematic)
+
+Disadvantages:
+- Proprietary format (XML-based, but complex)
+- Formula preservation issues
+- Formatting can create parsing problems
+- Less transparent than plain text
+
+### SAS Formats: The Regulatory Standard
+
+SAS data files (.sas7bdat) are the pharmaceutical industry standard. If submitting to the FDA, you'll likely encounter them.
+
+**SDTM domains** are typically provided in SAS format:
+- dm.sas7bdat (Demographics)
+- ae.sas7bdat (Adverse Events)
+- lb.sas7bdat (Laboratory)
+- vs.sas7bdat (Vital Signs)
+
+### SAS Transport (XPT) Format
+
+XPT files (.xpt) are the FDA-mandated format for data submissions. They're text-based and transportable across systems, but compressed.
+
+::: {.callout-important}
+**XPT Format in Regulatory Submissions**: The FDA requires clinical trial data in XPT (SAS Transport format) v5, which has specific formatting requirements:
+- Variable names limited to 8 characters
+- No special characters
+- Specific metadata structure
+- Can be read and written by R but requires care
+:::
+
+## 3.2 Reading CSV Files
+
+### Using Base R: read.csv()
+
+```{r}
+#| label: read-csv-base
+#| eval: false
+
+# Read a CSV file
+dm_data <- read.csv("dm.csv")
+
+# Display the first few rows
+head(dm_data)
+
+# Check structure
+str(dm_data)
+
+# Common parameters:
+# - sep: Field separator (default ",", can be "\t" for tab, "|" for pipe)
+# - header: TRUE if first row contains column names (default TRUE)
+# - na.strings: How missing values are represented (default "NA")
+# - stringsAsFactors: Should character columns be factors? (default FALSE in modern R)
+
+# Example: Tab-separated file with missing values as empty strings
+vs_data <- read.csv("vs.txt",
+                    sep = "\t",
+                    na.strings = "")
+
+# Example: Pipe-separated file with comments
+cm_data <- read.csv("cm.txt",
+                    sep = "|",
+                    comment.char = "#")
+```
+
+### Using readr: read_csv()
+
+The {readr} package (part of tidyverse) provides faster, more robust CSV reading.
+
+```{r}
+#| label: read-csv-readr
+#| eval: false
+
+library(readr)
+
+# Read with readr (returns a tibble)
+dm_data <- read_csv("dm.csv")
+
+# readr automatically detects column types
+# and shows a message like:
+# ── Column specification ────────────────────────────
+# cols(
+#   USUBJID = col_character(),
+#   AGE = col_double(),
+#   SEX = col_character(),
+#   TREATMENT = col_character(),
+#   BASELINE_HGB = col_double()
+# )
+
+# Explicit column specification
+ae_data <- read_csv(
+  "ae.csv",
+  col_types = cols(
+    USUBJID = col_character(),
+    AETERM = col_character(),
+    AESEV = col_factor(levels = c("Mild", "Moderate", "Severe")),
+    AEREL = col_factor(levels = c("Unrelated", "Remote", "Possible", "Probable", "Definite")),
+    AESTDTC = col_date(format = "%Y-%m-%d")
+  )
+)
+
+# Skip the first few rows if they contain metadata
+lb_data <- read_csv("lb.csv", skip = 3)
+
+# Read only specific columns
+dm_subset <- read_csv("dm.csv",
+                      col_select = c("USUBJID", "AGE", "SEX"))
+
+# Handle problematic files
+# Show problems encountered during parsing
+problems(dm_data)
+```
+
+### Practical CSV Reading Workflow
+
+```{r}
+#| label: csv-workflow
+#| eval: false
+
+library(readr)
+
+# Step 1: Read with automatic detection
+raw_data <- read_csv("clinical_data.csv")
+
+# Step 2: Check what was parsed
+str(raw_data)
+
+# Step 3: Review the first few rows
+head(raw_data, n = 10)
+
+# Step 4: Check for parsing problems
+if (nrow(problems(raw_data)) > 0) {
+  print("Parsing problems detected:")
+  print(problems(raw_data))
+  # Re-read with corrected col_types if needed
+  raw_data <- read_csv("clinical_data.csv",
+                       col_types = cols(
+                         # Specify corrections here
+                       ))
+}
+
+# Step 5: Verify structure matches expectations
+expected_cols <- c("USUBJID", "AGE", "SEX", "TREATMENT", "BASELINE_HGB")
+missing_cols <- setdiff(expected_cols, names(raw_data))
+if (length(missing_cols) > 0) {
+  warning(paste("Missing columns:", paste(missing_cols, collapse = ", ")))
+}
+```
+
+## 3.3 Reading Excel Files
+
+### Using readxl: read_excel()
+
+The {readxl} package provides robust Excel reading without external dependencies.
+
+```{r}
+#| label: read-excel
+#| eval: false
+
+library(readxl)
+
+# Read a single sheet (first sheet by default)
+dm_data <- read_excel("clinical_data.xlsx")
+
+# Read a specific sheet by name
+ae_data <- read_excel("clinical_data.xlsx", sheet = "Adverse_Events")
+
+# Read a specific sheet by number
+lb_data <- read_excel("clinical_data.xlsx", sheet = 3)
+
+# See all sheet names
+sheet_names <- excel_sheets("clinical_data.xlsx")
+print(sheet_names)
+# [1] "Demographics" "Adverse_Events" "Laboratory" "Vital_Signs"
+
+# Read with specific column types
+vs_data <- read_excel(
+  "clinical_data.xlsx",
+  sheet = "Vital_Signs",
+  col_types = c("text", "numeric", "numeric", "numeric", "date")
+)
+
+# Skip rows (e.g., if there's a title row)
+dm_data <- read_excel("clinical_data.xlsx",
+                      skip = 2)
+
+# Read only specific rows and columns
+ae_subset <- read_excel("clinical_data.xlsx",
+                        sheet = "Adverse_Events",
+                        range = "A1:D100")
+
+# Specify missing value representations
+cm_data <- read_excel("clinical_data.xlsx",
+                      sheet = "Concomitant_Meds",
+                      na = c("", "NA", "N/A", "."))
+```
+
+### Reading Multiple Sheets at Once
+
+Often clinical Excel files contain multiple domains. Reading them all into a list is efficient:
+
+```{r}
+#| label: read-excel-multiple-sheets
+#| eval: false
+
+library(readxl)
+library(purrr)
+
+# Get sheet names from Excel file
+sheets <- excel_sheets("clinical_trial.xlsx")
+
+# Read all sheets into a list
+all_data <- map(sheets, ~read_excel("clinical_trial.xlsx", sheet = .x))
+
+# Name the list elements
+names(all_data) <- sheets
+
+# Access specific domains
+dm <- all_data$Demographics
+ae <- all_data$`Adverse_Events`
+lb <- all_data$Laboratory
+
+# Or using the $ operator directly
+dm <- all_data[["Demographics"]]
+```
+
+## 3.4 Reading SAS Data Files
+
+### Using haven: read_sas()
+
+The {haven} package reads SAS, SPSS, and Stata files. It preserves SAS metadata like variable labels and formats.
+
+```{r}
+#| label: read-sas
+#| eval: false
+
+library(haven)
+
+# Read a SAS dataset
+dm_data <- read_sas("dm.sas7bdat")
+
+# SAS labels are preserved as "label" attribute
+attributes(dm_data$AGE)$label
+# [1] "Age (years)"
+
+# View labels with a helper function
+label_list <- sapply(dm_data, function(x) attr(x, "label"))
+print(label_list)
+# USUBJID: "Unique Subject ID"
+# AGE: "Age (years)"
+# SEX: "Sex"
+# ...
+
+# Use multiple SAS files from same study
+dm <- read_sas("sdtm/dm.sas7bdat")
+ae <- read_sas("sdtm/ae.sas7bdat")
+lb <- read_sas("sdtm/lb.sas7bdat")
+vs <- read_sas("sdtm/vs.sas7bdat")
+ex <- read_sas("sdtm/ex.sas7bdat")
+```
+
+### Understanding SAS Variable Formats
+
+SAS uses "formats" to control how values are displayed. Haven preserves these in attributes.
+
+```{r}
+#| label: sas-formats
+#| eval: false
+
+library(haven)
+
+# Read SAS data
+dm <- read_sas("dm.sas7bdat")
+
+# Check format information
+attr(dm$SEX, "format.sas")
+# [1] "$SEX."
+
+# SAS value labels (stored as attributes)
+attr(dm$SEX, "labels")
+# F       M
+# Female Male
+
+# When converting to R factor, use these labels
+dm$SEX <- factor(dm$SEX,
+                 labels = attr(dm$SEX, "labels"))
+
+# The as_factor() function from haven does this automatically
+dm$SEX <- as_factor(dm$SEX)
+
+# Check the result
+print(dm$SEX)
+# [1] Female Male Female Male Male ...
+# Levels: Female Male
+```
+
+### Practical SAS Import Workflow
+
+```{r}
+#| label: sas-workflow
+#| eval: false
+
+library(haven)
+library(tidyverse)
+
+# Function to import and standardize SDTM domains
+import_sdtm <- function(domain_code, folder = "sdtm") {
+  filename <- paste0(folder, "/", tolower(domain_code), ".sas7bdat")
+
+  if (!file.exists(filename)) {
+    stop(paste("File not found:", filename))
+  }
+
+  # Read the SAS file
+  data <- read_sas(filename)
+
+  # Convert SAS variable labels to a comment
+  var_labels <- sapply(data, function(x) attr(x, "label"))
+  attr(data, "variable_labels") <- var_labels
+
+  # Convert factors with SAS formats
+  data <- data %>%
+    mutate(across(where(is.character), ~as_factor(.) %||% .))
+
+  return(data)
+}
+
+# Load all SDTM domains
+dm <- import_sdtm("DM")
+ae <- import_sdtm("AE")
+lb <- import_sdtm("LB")
+vs <- import_sdtm("VS")
+ex <- import_sdtm("EX")
+
+# Verify structure
+str(dm)
+```
+
+## 3.5 Reading SAS Transport (XPT) Files
+
+### Using haven: read_xpt()
+
+XPT (SAS Transport v5) is the FDA-mandated format for data submission.
+
+```{r}
+#| label: read-xpt
+#| eval: false
+
+library(haven)
+
+# Read an XPT file
+dm <- read_xpt("dm.xpt")
+
+# XPT files follow CDISC standards strictly
+# Check column names (limited to 8 characters in SDTM)
+names(dm)
+# [1] "STUDYID" "DOMAIN" "USUBJID" "SUBJID" "RFSTDTC" ...
+
+# Read multiple XPT files
+xpt_files <- c("dm.xpt", "ae.xpt", "lb.xpt", "vs.xpt")
+
+domains <- lapply(xpt_files, read_xpt)
+names(domains) <- c("DM", "AE", "LB", "VS")
+
+# Access individual domains
+dm <- domains$DM
+ae <- domains$AE
+```
+
+::: {.callout-tip}
+**XPT File Validation**: XPT files from FDA submissions must be valid and compliant. R can read them, but when writing XPT files, use specialized tools like {xportr} from the pharmaverse for full compliance.
+:::
+
+## 3.6 Reading Data from Pharmaversesdtm Package
+
+The {pharmaversesdtm} package provides simulated clinical data in SDTM format, perfect for learning and testing.
+
+### Loading Datasets
+
+```{r}
+#| label: pharmaversesdtm-load
+#| eval: false
+
+library(pharmaversesdtm)
+library(tidyverse)
+
+# See available datasets
+data(package = "pharmaversesdtm")
+
+# Load specific domains
+data("dm")   # Demographics
+data("ae")   # Adverse Events
+data("lb")   # Laboratory
+data("vs")   # Vital Signs
+data("ex")   # Exposure
+data("cm")   # Concomitant Medications
+data("ds")   # Disposition
+
+# These are immediately available
+head(dm)
+head(ae)
+
+# Check the structure of each domain
+str(lb)
+str(vs)
+```
+
+### Understanding Pharmaversesdtm Structure
+
+```{r}
+#| label: pharmaversesdtm-structure
+#| eval: false
+
+library(pharmaversesdtm)
+library(dplyr)
+
+# Load a domain
+data("lb")
+
+# Examine structure
+glimpse(lb)
+
+# Get a summary of the LB (Laboratory) domain
+lb %>%
+  summarise(
+    n_records = n(),
+    n_subjects = n_distinct(USUBJID),
+    n_test_types = n_distinct(LBTEST),
+    n_visits = n_distinct(VISIT),
+    date_range = paste(min(LBDTC), "to", max(LBDTC))
+  )
+
+# View unique lab test types
+unique_tests <- lb %>%
+  distinct(LBTEST, LBCAT) %>%
+  arrange(LBCAT, LBTEST)
+
+print(unique_tests)
+```
+
+### Using Pharmaversesdtm for ADaM Development
+
+The pharmaversesdtm data can be used directly with the {admiral} package to create analysis datasets:
+
+```{r}
+#| label: pharmaversesdtm-adam
+#| eval: false
+
+library(pharmaversesdtm)
+library(admiral)
+library(tidyverse)
+
+# Load SDTM domains
+data("dm")
+data("lb")
+
+# Create a simple ADLB (laboratory analysis dataset)
+# using admiral functions
+
+adlb <- lb %>%
+  # Join with demographics for subject-level variables
+  left_join(dm %>% select(USUBJID, ARM, ACTARMCD),
+            by = "USUBJID") %>%
+  # Calculate change from baseline
+  group_by(USUBJID, LBTEST) %>%
+  arrange(LBDTC) %>%
+  mutate(
+    LBBLFL = if_else(row_number() == 1, "Y", "N"),
+    BASELINE = if_else(LBBLFL == "Y", LBSTRESN, NA_real_)
+  ) %>%
+  ungroup() %>%
+  fill(BASELINE, .direction = "down") %>%
+  mutate(
+    CHG = if_else(!is.na(BASELINE), LBSTRESN - BASELINE, NA_real_)
+  ) %>%
+  select(USUBJID, LBTEST, LBDTC, LBSTRESN, BASELINE, CHG, ARM, everything())
+
+head(adlb)
+```
+
+## 3.7 Writing Data Files
+
+### Exporting to CSV
+
+```{r}
+#| label: write-csv
+#| eval: false
+
+# Write to CSV with base R
+write.csv(dm_data, file = "dm_output.csv", row.names = FALSE)
+
+# Write to CSV with readr (recommended)
+library(readr)
+write_csv(dm_data, file = "dm_output.csv")
+
+# Write with custom separator
+write.table(vs_data, file = "vs_output.txt",
+            sep = "\t",
+            row.names = FALSE)
+
+# Write with custom NA representation
+write_csv(ae_data, file = "ae_output.csv", na = "")
+
+# Write specific columns
+write_csv(dm_data %>% select(USUBJID, AGE, SEX),
+          file = "dm_subset.csv")
+```
+
+### Exporting to Excel
+
+```{r}
+#| label: write-excel
+#| eval: false
+
+library(writexl)
+
+# Write a single sheet
+write_xlsx(dm_data, path = "output.xlsx")
+
+# Write multiple sheets
+write_xlsx(
+  list(
+    Demographics = dm_data,
+    `Adverse Events` = ae_data,
+    Laboratory = lb_data,
+    `Vital Signs` = vs_data
+  ),
+  path = "clinical_data.xlsx"
+)
+
+# Note: writexl does NOT support formatting or formulas
+# For complex Excel workbooks, consider openxlsx package
+```
+
+### Exporting to SAS Format
+
+```{r}
+#| label: write-sas
+#| eval: false
+
+library(haven)
+
+# Write to SAS dataset (.sas7bdat)
+write_sas(dm_data, path = "dm_output.sas7bdat")
+
+# Add variable labels before writing
+dm_data <- dm_data %>%
+  set_variable_labels(
+    USUBJID = "Unique Subject ID",
+    AGE = "Age (years)",
+    SEX = "Sex",
+    TREATMENT = "Assigned Treatment"
+  )
+
+write_sas(dm_data, path = "dm_labeled.sas7bdat")
+```
+
+### Exporting to XPT (SAS Transport)
+
+::: {.callout-important}
+**FDA XPT Compliance**: Writing XPT files for FDA submission requires strict adherence to standards. Use the {xportr} package from pharmaverse for full compliance, including:
+- 8-character variable name truncation
+- Proper variable ordering
+- Standard metadata
+- Label truncation to 40 characters
+:::
+
+```{r}
+#| label: write-xpt
+#| eval: false
+
+library(haven)
+
+# Basic XPT write (careful with CDISC compliance)
+write_xpt(dm_data, path = "dm.xpt")
+
+# For FDA submissions, use xportr from pharmaverse
+# install.packages("remotes")
+# remotes::install_github("pharmaverse/xportr")
+
+library(xportr)
+
+# Create a specification of required variables
+var_spec <- tibble(
+  Variable = c("USUBJID", "AGE", "SEX"),
+  Type = c("text", "numeric", "text"),
+  `Variable Label` = c("Unique Subject ID", "Age (years)", "Sex"),
+  Length = c(8, 8, 2)
+)
+
+# Write with full compliance checking
+dm_xpt <- dm_data %>%
+  xportr_type(var_spec) %>%
+  xportr_label(var_spec) %>%
+  xportr_order(var_spec)
+
+write_xpt(dm_xpt, path = "dm.xpt")
+```
+
+## 3.8 Handling Large Clinical Datasets
+
+### Data Size Considerations
+
+Clinical datasets can be large:
+- A single SDTM LB (laboratory) domain from a 1000-subject trial with 50 labs per subject per visit across 10 visits = 500,000 rows
+- Full text files with imaging data can be gigabytes
+
+### Using data.table for Performance
+
+For very large datasets, {data.table} is faster than {dplyr}:
+
+```{r}
+#| label: data-table-import
+#| eval: false
+
+library(data.table)
+
+# Read large CSV with data.table
+# Much faster than read.csv() or read_csv()
+lb_large <- fread("lb_large.csv")
+
+# Efficient subsetting
+# Filter to specific lab tests
+hematology <- lb_large[LBCAT == "HEMATOLOGY"]
+
+# Group by calculations
+summary_by_test <- lb_large[, .(
+  n = .N,
+  mean_value = mean(LBSTRESN, na.rm = TRUE),
+  sd_value = sd(LBSTRESN, na.rm = TRUE)
+), by = LBTEST]
+
+print(summary_by_test)
+
+# Write efficiently
+fwrite(lb_large, file = "lb_output.csv")
+```
+
+### Chunked Reading for Memory Efficiency
+
+```{r}
+#| label: chunked-reading
+#| eval: false
+
+library(readr)
+
+# Read a large file in chunks
+process_large_file <- function(filename, chunk_size = 10000) {
+  # Create a connection
+  f <- file(filename, "r")
+
+  # Read chunks
+  chunk_num <- 0
+  while (TRUE) {
+    # Read chunk_size lines
+    chunk <- read_csv(f, n_max = chunk_size, progress = FALSE)
+
+    if (nrow(chunk) == 0) break  # End of file
+
+    chunk_num <- chunk_num + 1
+    cat("Processing chunk", chunk_num, "with", nrow(chunk), "rows\n")
+
+    # Process this chunk (example: write to output)
+    # your_analysis_function(chunk)
+  }
+
+  close(f)
+}
+```
+
+## 3.9 Complete Data Import Workflow for a Clinical Trial
+
+Let's integrate everything into a realistic clinical data workflow:
+
+```{r}
+#| label: complete-import-workflow
+#| eval: false
+
+library(readr)
+library(haven)
+library(tidyverse)
+
+# Define study parameters
+study_id <- "EUSTC1"
+data_folder <- "./data/raw"
+
+# Function to load and validate SDTM domains
+load_sdtm_domains <- function(study_id, data_folder) {
+
+  # Define expected domains
+  domains <- list(
+    DM = "Demographics",
+    AE = "Adverse Events",
+    LB = "Laboratory",
+    VS = "Vital Signs",
+    EX = "Exposure"
+  )
+
+  # Load each domain
+  sdtm <- list()
+
+  for (domain_code in names(domains)) {
+    # Try reading as SAS first
+    sas_file <- file.path(data_folder, paste0(tolower(domain_code), ".sas7bdat"))
+
+    if (file.exists(sas_file)) {
+      cat("Loading", domain_code, "from SAS...\n")
+      sdtm[[domain_code]] <- read_sas(sas_file)
+    } else {
+      # Try CSV as fallback
+      csv_file <- file.path(data_folder, paste0(tolower(domain_code), ".csv"))
+      if (file.exists(csv_file)) {
+        cat("Loading", domain_code, "from CSV...\n")
+        sdtm[[domain_code]] <- read_csv(csv_file)
+      } else {
+        warning(paste("Could not find data for domain", domain_code))
+      }
+    }
+  }
+
+  return(sdtm)
+}
+
+# Load the data
+sdtm_data <- load_sdtm_domains(study_id, data_folder)
+
+# Extract individual domains
+dm <- sdtm_data$DM
+ae <- sdtm_data$AE
+lb <- sdtm_data$LB
+vs <- sdtm_data$VS
+ex <- sdtm_data$EX
+
+# Perform validation checks
+cat("=== Data Quality Summary ===\n")
+cat("DM (Demographics):", nrow(dm), "records for", n_distinct(dm$USUBJID), "subjects\n")
+cat("AE (Adverse Events):", nrow(ae), "records\n")
+cat("LB (Laboratory):", nrow(lb), "records\n")
+cat("VS (Vital Signs):", nrow(vs), "records\n")
+cat("EX (Exposure):", nrow(ex), "records\n")
+
+# Check for missing data
+cat("\n=== Missing Data Check ===\n")
+missing_by_domain <- list(
+  DM = colSums(is.na(dm)),
+  AE = colSums(is.na(ae)),
+  LB = colSums(is.na(lb))
+)
+
+print(missing_by_domain)
+
+# Export cleaned data in multiple formats
+output_folder <- "./data/processed"
+dir.create(output_folder, showWarnings = FALSE)
+
+# Export to CSV (for transparency)
+write_csv(dm, file.path(output_folder, "dm.csv"))
+write_csv(ae, file.path(output_folder, "ae.csv"))
+write_csv(lb, file.path(output_folder, "lb.csv"))
+
+# Export to XPT (for regulatory submission)
+write_xpt(dm, file.path(output_folder, "dm.xpt"))
+write_xpt(ae, file.path(output_folder, "ae.xpt"))
+write_xpt(lb, file.path(output_folder, "lb.xpt"))
+
+cat("\nData import and export complete.\n")
+cat("Output saved to:", output_folder, "\n")
+```
+
+## 3.10 Best Practices for Clinical Data Import/Export
+
+1. **Always validate after import**: Check dimensions, data types, missing values
+2. **Use consistent naming**: Follow CDISC conventions (8-character variable names for submission)
+3. **Preserve metadata**: Keep variable labels and formats when possible
+4. **Version your raw data**: Never overwrite original files; keep dated backups
+5. **Document transformations**: Record which files were loaded, when, and any transformations applied
+6. **Use reproducible scripts**: Write R scripts that can reload data identically
+7. **Test on sample data first**: Before processing 500,000 rows, test on a subset
+8. **Check for encoding issues**: Clinical data may come from different locales; watch for encoding problems
+9. **Validate against source systems**: Compare record counts and key statistics with the source system
+10. **Archive processed data**: Keep exported datasets for audit trails and reproducibility
+
+---
+
+## Exercises
+
+### Beginner Exercises
+
+**Exercise 3.1: Reading and Comparing File Formats**
+
+Using the {pharmaversesdtm} package:
+a) Load the `dm` (Demographics) domain
+b) Export it to three formats: CSV, Excel, and SAS (.sas7bdat)
+c) Read each file back into R
+d) Verify that the dimensions are identical for all three formats
+e) Check if any data types have changed
+
+**Exercise 3.2: Handling Missing Data During Import**
+
+Create a CSV file with intentional missing values:
+```
+USUBJID,AGE,SEX,TREATMENT,BASELINE_HGB
+001-101,62,F,Active,13.5
+001-102,,M,Placebo,12.8
+001-103,55,F,,14.2
+001-104,56,,Active,
+```
+
+a) Read this file using `read_csv()` with default settings
+b) Identify which cells have missing values
+c) Re-read the file specifying that missing values should also be represented as "."
+d) Check how the data has changed
+
+**Exercise 3.3: Multi-Sheet Excel Import**
+
+Create an Excel file with three sheets (DM, AE, LB) containing sample clinical data:
+a) Read all three sheets into a single list
+b) Access each sheet individually from the list
+c) Verify that column names are identical across sheets where expected
+d) Export the list to three separate CSV files
+
+### Advanced Exercises
+
+**Exercise 3.4: Batch Import of SDTM Domains**
+
+Write a function `import_all_sdtm_domains()` that:
+a) Takes a folder path as input
+b) Automatically detects all SAS files in that folder
+c) Reads each file using the domain code from the filename (e.g., dm.sas7bdat → DM)
+d) Returns a named list of all domains found
+e) Provides a summary report: number of subjects per domain, record counts, date ranges
+
+**Exercise 3.5: Data Export Pipeline**
+
+Using data from pharmaversesdtm:
+a) Load the DM and LB domains
+b) Create a merged analysis dataset combining demographics with baseline lab values
+c) Export to four formats: CSV, Excel (single file, multiple sheets), SAS, and XPT
+d) Verify that all files can be read back correctly
+e) Document (in code comments) what information is preserved/lost in each format
+
+---

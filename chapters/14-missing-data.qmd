@@ -1,0 +1,627 @@
+---
+title: "Chapter 14: Missing Data in Clinical Trials"
+---
+
+# Missing Data in Clinical Trials
+
+## The Missing Data Problem
+
+Missing data is ubiquitous in clinical research. Patients drop out, skip visits, withdraw consent, or are lost to follow-up. Yet **naively ignoring missing observations introduces bias** and can invalidate trial conclusions.
+
+### Why Missing Data Threatens Trial Validity
+
+Consider a 12-week antidepressant trial where 30% of patients drop out:
+
+- **Scenario 1 (MCAR)**: Random dropouts unrelated to treatment—valid inference possible with appropriate methods
+- **Scenario 2 (MAR)**: Dropouts related to baseline depression severity, which we record—bias reducible by conditioning on baseline
+- **Scenario 3 (MNAR)**: Patients drop out because their symptoms worsened (unobserved)—no method fully addresses this
+
+Each scenario requires different statistical handling.
+
+### Regulatory Perspective (ICH E9)
+
+The ICH E9 guideline emphasizes:
+1. **Prevention**: Design trials to minimize missingness
+2. **Documentation**: Record reasons for withdrawal
+3. **Analysis**: Use methods appropriate to missing data mechanism
+4. **Sensitivity**: Conduct analyses under different assumptions
+
+## Missing Data Mechanisms
+
+### MCAR: Missing Completely At Random
+
+**Definition**: Missingness is independent of both observed and unobserved outcomes.
+
+$$P(R = 0 \mid Y_{obs}, Y_{mis}, X) = P(R = 0)$$
+
+where $R$ is the missingness indicator, $Y_{obs}$ are observed values, $Y_{mis}$ are unobserved values, and $X$ are covariates.
+
+**Example**: Patient randomly selected for lab sampling shortage; missingness unrelated to their disease state or treatment.
+
+**Statistical consequence**:
+- Complete Case Analysis (CCA) is unbiased
+- Power is reduced (smaller effective $n$)
+- Unbiased estimates but inflated standard errors
+
+**Tests for MCAR**:
+- **Little's MCAR test**: Compares likelihood of observed data under MCAR vs. MAR
+- **Pattern mixture models**: Test homogeneity of distributions across dropout patterns
+
+### MAR: Missing At Random
+
+**Definition**: Missingness depends on observed data but not on unobserved data, **conditional on covariates**.
+
+$$P(R = 0 \mid Y_{obs}, Y_{mis}, X) = P(R = 0 \mid Y_{obs}, X)$$
+
+Crucially: $Y_{mis}$ does NOT appear on the right side.
+
+**Example 1**: Patient drops out because baseline depression (observed) is severe, but we condition on baseline in the analysis.
+
+**Example 2**: Patients with side effects (observed) are more likely to withdraw; analysis includes side effect severity as covariate.
+
+**Statistical consequence**:
+- CCA is **biased** (ignored information in dropout pattern)
+- Mixed models and multiple imputation are **unbiased** if model is correct
+- Requires that all predictors of missingness are included in the model
+
+### MNAR: Missing Not At Random
+
+**Definition**: Missingness depends on the unobserved outcome itself, even after conditioning on observed data.
+
+$$P(R = 0 \mid Y_{obs}, Y_{mis}, X) \neq P(R = 0 \mid Y_{obs}, X)$$
+
+**Example 1**: Depressed patients drop out because symptoms worsened (unobserved); this is MNAR because dropout depends on the unobserved outcome.
+
+**Example 2**: Patients with severe adverse events (not recorded) discontinue; missingness depends on unreported outcomes.
+
+**Statistical consequence**:
+- **All standard methods are biased** (CCA, multiple imputation, mixed models)
+- Requires **sensitivity analyses** under different assumptions
+- "No-free-lunch" theorem: cannot determine the true model from the data alone
+
+## Visual Exploration of Missing Data
+
+### Missing Data Patterns
+
+```r
+library(tidyverse)
+library(naniar)
+library(mice)
+
+# Example: pharmaversesdtm laboratory data with artificial missingness
+data(lb)
+
+# Introduce missing data mechanisms
+set.seed(42)
+lb_missing <- lb %>%
+  mutate(
+    # MCAR: Random 10% missingness in LBSTRESN
+    LBSTRESN = if_else(runif(n()) < 0.10, NA_real_, LBSTRESN),
+    # MAR: Hemoglobin missing more if baseline LBSTRESN is low
+    LBSTRESN = if_else(
+      LBTESTCD == "HGB" & LBSTRESN < 10 & runif(n()) < 0.30,
+      NA_real_, LBSTRESN
+    )
+  ) %>%
+  filter(LBDY <= 28)  # Focus on first 4 weeks
+
+# Visualize missing data pattern
+vis_miss(lb_missing, warn_large_data = FALSE)
+# Shows which variables have missing data and how much
+
+# More detailed pattern analysis
+gg_miss_fct(lb_missing, fct = LBTESTCD) +
+  labs(title = "Missing Data Pattern by Lab Test Type")
+
+# Correlation of missingness
+gg_miss_upset(lb_missing, nsets = 5)
+# Shows which variables tend to be missing together
+
+# "Shadow" plot: presence/absence of data
+lb_shadow <- lb_missing %>%
+  bind_shadow()
+
+ggplot(lb_shadow, aes(x = LBSTRESN, fill = LBSTRESN_NA)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~LBTESTCD, scales = "free") +
+  labs(
+    title = "Distribution of Observed vs. Missing Lab Values",
+    fill = "Missing"
+  ) +
+  theme_minimal()
+```
+
+**Interpretation**:
+- **Uniformly random pattern**: Suggests MCAR
+- **Concentrated in low/high range**: Suggests MNAR (selection related to outcome value)
+- **Correlated with baseline**: Suggests MAR
+
+## Simple Methods (and Their Limitations)
+
+### Complete Case Analysis (CCA)
+
+**Method**: Analyze only subjects with complete data across all variables.
+
+```r
+lb_complete <- lb_missing %>%
+  drop_na(LBSTRESN)
+
+# Compare n before/after
+nrow(lb_missing)  # Total observations
+nrow(lb_complete) # After dropping missing
+```
+
+**Pros**: Simple; unbiased if MCAR
+
+**Cons**:
+- Biased if MAR or MNAR
+- Severe power loss if missing rate is high
+- Wastes information
+
+**When to use**: Only if data is truly MCAR and missing rate is negligible (<5%).
+
+### Last Observation Carried Forward (LOCF)
+
+**Method**: Replace missing value with the subject's last observed value.
+
+$$Y_{ij}^{LOCF} = Y_{i,\text{last observed}}$$
+
+**Example**: Patient measured at baseline (10), Week 2 (8), then drops out. Week 4 and 8 values imputed as 8.
+
+```r
+# Implement LOCF
+locf_impute <- function(x) {
+  x[is.na(x)] <- zoo::na.locf(x)[is.na(x)]
+  return(x)
+}
+
+lb_locf <- lb_missing %>%
+  group_by(USUBJID, LBTESTCD) %>%
+  arrange(LBDY) %>%
+  mutate(LBSTRESN_LOCF = locf_impute(LBSTRESN)) %>%
+  ungroup()
+```
+
+**Pros**:
+- Retains sample size
+- Conservative for safety (assumes no improvement)
+- Simple to implement
+
+**Cons**:
+- **Biased** unless missingness completely unrelated to change (unrealistic)
+- Assumes values remain constant (violates natural trajectory)
+- Understates treatment effects if dropouts are from treatment group
+- Inflates variance through duplicate values
+- **Not recommended for primary analysis in modern trials**
+
+### Mean Imputation
+
+Replace missing value with the group mean.
+
+$$Y_{ij}^{\text{Mean}} = \bar{Y}_j$$
+
+**Example**: Missing hemoglobin value replaced with the mean hemoglobin of all subjects at that timepoint.
+
+**Pros**: Retains sample size and population mean
+
+**Cons**:
+- Severely **underestimates variance**
+- Creates artificial clustering
+- Biased standard errors and confidence intervals
+- **Not recommended**
+
+### Baseline Observation Carried Forward (BOCF)
+
+Replace with baseline (pre-treatment) value.
+
+**Pros**: Conservative (assumes no change from baseline)
+
+**Cons**: Same issues as LOCF; additionally assumes no natural disease progression
+
+## Multiple Imputation: Rubin's Rules
+
+**Multiple imputation (MI)** is the gold standard for handling missing data under MAR assumption.
+
+### The MI Framework
+
+1. **Imputation step**: Create $m$ complete datasets by imputing missing values from the predictive distribution
+2. **Analysis step**: Fit the statistical model to each imputed dataset
+3. **Pooling step**: Combine estimates using Rubin's rules
+
+### Rubin's Pooling Rules
+
+Suppose we have $m$ imputed datasets, each yielding estimate $\hat{Q}^{(l)}$ and variance $U^{(l)}$.
+
+**Pooled estimate**:
+$$\bar{Q} = \frac{1}{m} \sum_{l=1}^{m} \hat{Q}^{(l)}$$
+
+**Within-imputation variance** (average variance within imputations):
+$$\bar{U} = \frac{1}{m} \sum_{l=1}^{m} U^{(l)}$$
+
+**Between-imputation variance** (variance of estimates across imputations):
+$$B = \frac{1}{m-1} \sum_{l=1}^{m} (\hat{Q}^{(l)} - \bar{Q})^2$$
+
+**Total variance** (combines uncertainty from estimation + uncertainty from imputation):
+$$T = \bar{U} + \left(1 + \frac{1}{m}\right) B$$
+
+**95% CI**:
+$$\bar{Q} \pm t_{df} \sqrt{T}$$
+
+where $df$ is adjusted for missing data (Barnard-Rubin adjustment).
+
+### Intuition
+
+- $\bar{U}$: How much variation exists **within each imputed dataset** (sampling variability)
+- $B$: How much estimates **differ across imputations** (reflects uncertainty about true missing values)
+- Total variance accounts for both sources of uncertainty
+
+## Multiple Imputation by Chained Equations (MICE)
+
+**MICE** is the flexible, practical approach. For each variable with missing data, fit a conditional regression model predicting it from all other variables, then impute.
+
+### MICE Algorithm
+
+For each imputation $l = 1, 2, \ldots, m$:
+
+1. Initialize: Set missing values to placeholder (e.g., mean)
+2. **Cycling** (iterate several times, typically 10–20):
+   - For each variable $Y_j$ with missing values:
+     - Fit regression: $Y_j \sim X_1 + X_2 + \cdots + X_k$
+     - Draw imputations from posterior: $\hat{Y}_j^{(l)} \sim P(Y_j \mid X_1, \ldots, X_k)$
+
+### Implementation in R
+
+```r
+library(mice)
+library(mitml)
+
+# Prepare data
+lb_for_mi <- lb_missing %>%
+  select(USUBJID, LBSTRESN, LBTESTCD, LBDY, TRTA) %>%
+  pivot_wider(
+    names_from = LBTESTCD,
+    values_from = LBSTRESN
+  ) %>%
+  arrange(USUBJID, LBDY)
+
+# Check missing data pattern
+md_pattern(lb_for_mi)
+
+# Impute: m=10 imputations, maxit=20 iterations per imputation
+mice_obj <- mice(
+  lb_for_mi,
+  m = 10,              # Number of imputations
+  maxit = 20,          # Iterations per imputation
+  method = "pmm",      # Predictive mean matching (preserves data distribution)
+  seed = 42,
+  print = FALSE
+)
+
+# Inspect imputations for one variable
+head(mice_obj$imp$HGB, n = 10)
+# Shows imputed values for first variable with missing data
+
+# Visualize imputations: do imputed values resemble observed?
+stripplot(mice_obj, HGB ~ .imp, pch = 20, cex = 1.5)
+# Red: observed, Blue: imputed; should overlap substantially
+```
+
+### Analysis with Imputed Data
+
+```r
+# Fit model to each imputed dataset
+fit_mi <- with(
+  mice_obj,
+  lm(HGB ~ TRTA + LBDY)
+)
+
+# Pool estimates using Rubin's rules
+pool_results <- pool(fit_mi)
+summary(pool_results, conf.int = TRUE)
+
+# Extract treatment effect (TRTA coefficient)
+# This is the pooled estimate with uncertainty accounting for missing data
+```
+
+**Output interpretation**:
+```
+                 estimate std.error statistic    df p.value
+(Intercept)        11.85     0.32      37.03 78.5   <.001
+TRTADrug A           0.85     0.21       4.01 82.1    <.001
+LBDAY                0.005    0.002      2.50 85.3    0.014
+
+Drug A effect: 0.85 g/dL (95% CI: 0.44–1.26), p < 0.001
+Interpretation: Drug A increases hemoglobin by 0.85 g/dL vs. placebo
+```
+
+### Choosing Number of Imputations
+
+Rubin (1987): $m = \frac{1}{2\gamma}$ where $\gamma$ is the fraction of missing information.
+
+**Rule of thumb**:
+- Missing rate 10%: $m = 5–10$ imputations sufficient
+- Missing rate 30%: $m = 20–30$ imputations recommended
+- Missing rate 50%: $m = 50+$ imputations needed
+
+**Check convergence**:
+```r
+plot(mice_obj)
+# Should show no trend in imputed values across iterations
+```
+
+### Imputation Methods by Variable Type
+
+```r
+# Default method selection
+mice_obj <- mice(
+  lb_for_mi,
+  m = 10,
+  method = c(
+    "USUBJID" = "",           # Complete, don't impute
+    "LBDAY" = "",             # Complete
+    "TRTA" = "polyreg",       # Polytomous (categorical)
+    "HGB" = "pmm",            # Continuous: predictive mean matching
+    "ALT" = "pmm",
+    "AST" = "pmm"
+  ),
+  seed = 42
+)
+```
+
+**Methods**:
+- `pmm` (predictive mean matching): Recommended for continuous; preserves realistic values
+- `norm` (normal linear regression): Assumes normality; faster
+- `logreg` (logistic regression): Binary outcome
+- `polyreg` (polytomous logistic): Categorical >2 categories
+- `cart` (classification and regression trees): Non-parametric; flexible
+
+## Sensitivity Analyses for MNAR
+
+If missingness may be MNAR, standard methods are biased. **Sensitivity analyses** explore how conclusions change under different MNAR assumptions.
+
+### Tipping Point Analysis
+
+Gradually increase the treatment effect for missing data under different MNAR scenarios, finding the point at which the conclusion "tips" (e.g., from significant to non-significant).
+
+**Logic**: If small deviations from MAR substantially change conclusions, findings are fragile.
+
+```r
+# Tipping point example: depression scale in antidepressant trial
+# Assume missing data has worse outcomes than MAR would suggest
+
+library(tidyverse)
+
+# Simulated trial: 100 patients, depression score 0-28 (low=better)
+set.seed(42)
+trial_data <- tibble(
+  ID = 1:100,
+  treatment = rep(c("Drug", "Placebo"), each = 50),
+  baseline = rnorm(100, mean = 20, sd = 3),
+  week12_observed = if_else(
+    treatment == "Drug",
+    baseline + rnorm(100, -8, 2),  # Drug group improves more
+    baseline + rnorm(100, -3, 2)   # Placebo improves less
+  )
+)
+
+# Introduce 30% missing data (assume MNAR: dropouts got worse)
+trial_data <- trial_data %>%
+  mutate(
+    missing = rbinom(100, 1, prob = 0.3),
+    week12 = if_else(
+      missing == 0,
+      week12_observed,
+      NA_real_
+    )
+  )
+
+# Tipping point analysis: impute missing with delta adjustment
+deltas <- seq(-5, 5, by = 1)  # Range of adjustments
+results <- NULL
+
+for (delta in deltas) {
+  # Impute missing values: use group mean + delta
+  trial_imputed <- trial_data %>%
+    mutate(
+      week12_imputed = if_else(
+        is.na(week12),
+        week12_observed + delta,  # Adjustment for MNAR
+        week12
+      )
+    )
+
+  # Fit model
+  model <- lm(week12_imputed ~ treatment + baseline, data = trial_imputed)
+
+  # Extract treatment effect and p-value
+  trt_coef <- coef(model)["treatmentPlacebo"]
+  trt_se <- sqrt(diag(vcov(model)))["treatmentPlacebo"]
+  trt_pval <- 2 * pnorm(-abs(trt_coef / trt_se))
+
+  results <- results %>%
+    bind_rows(tibble(
+      delta = delta,
+      treatment_effect = trt_coef,
+      pvalue = trt_pval
+    ))
+}
+
+# Plot tipping point
+ggplot(results, aes(x = delta, y = treatment_effect)) +
+  geom_line(size = 1) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  geom_vline(xintercept = results$delta[which(abs(results$pvalue - 0.05) == min(abs(results$pvalue - 0.05)))],
+             linetype = "dotted", color = "blue") +
+  labs(
+    title = "Tipping Point Analysis: Treatment Effect vs. MNAR Assumption",
+    x = "Delta (additional imputed change relative to MAR)",
+    y = "Treatment Effect Estimate",
+    caption = "Blue line: delta at which p=0.05"
+  ) +
+  theme_minimal()
+```
+
+**Interpretation**: If the tipping point is far from delta=0 (e.g., requires delta=-5 to flip conclusion), results are robust. If close, consider the MNAR assumption.
+
+### Delta-Adjusted Imputation
+
+Directly impute missing data with an assumed adjustment:
+
+$$\text{Imputed value} = \text{(MI prediction)} + \Delta$$
+
+where $\Delta$ represents the assumed difference between MNAR and MAR missing data.
+
+```r
+# Delta adjustment in mice
+mice_obj <- mice(lb_for_mi, m = 10, seed = 42)
+
+# Apply delta adjustment: assume missing HGB values are 1 g/dL lower
+for (i in 1:10) {
+  imp_data <- complete(mice_obj, action = i)
+  imp_data$HGB[is.na(lb_for_mi$HGB)] <-
+    imp_data$HGB[is.na(lb_for_mi$HGB)] - 1  # Adjust by -1
+  mice_obj$imp$HGB[, i] <- imp_data$HGB
+}
+
+# Refit and pool
+fit_delta <- with(mice_obj, lm(HGB ~ TRTA + LBDY))
+pool_delta <- pool(fit_delta)
+summary(pool_delta)
+```
+
+## Clinical Example: Hemoglobin Analysis with Missing Data
+
+```r
+library(pharmaversesdtm)
+library(mice)
+library(mitml)
+library(tidyverse)
+
+# Load lab data
+data(lb)
+
+# Filter hemoglobin, restrict to first 12 weeks
+hgb_data <- lb %>%
+  filter(LBTESTCD == "HGB", LBDY <= 84) %>%
+  select(USUBJID, TRTA, LBDY, LBSTRESN) %>%
+  arrange(USUBJID, LBDY)
+
+# Introduce realistic missingness (MAR mechanism)
+set.seed(123)
+hgb_data <- hgb_data %>%
+  group_by(USUBJID) %>%
+  mutate(
+    baseline_hgb = first(LBSTRESN),
+    # Missingness probability increases with age (simulated as LBDY in this context)
+    miss_prob = plogis(-2 + 0.03 * LBDY),
+    missing_indicator = rbinom(n(), 1, miss_prob),
+    LBSTRESN = if_else(missing_indicator == 1, NA_real_, LBSTRESN)
+  ) %>%
+  ungroup()
+
+# Reshape for analysis: baseline + change from baseline
+hgb_wide <- hgb_data %>%
+  select(USUBJID, TRTA, LBDAY = LBDY, HGB = LBSTRESN) %>%
+  distinct() %>%
+  pivot_wider(names_from = LBDAY, values_from = HGB,
+              names_prefix = "HGB_Day")
+
+# Complete case analysis (biased)
+hgb_cca <- hgb_wide %>%
+  drop_na(contains("HGB")) %>%
+  mutate(change = HGB_Day84 - HGB_Day1)
+
+cca_model <- lm(change ~ TRTA, data = hgb_cca)
+summary(cca_model)
+
+cat("CCA: N =", nrow(hgb_cca), "patients\n")
+
+# LOCF imputation
+hgb_locf <- hgb_data %>%
+  group_by(USUBJID) %>%
+  arrange(LBDAY) %>%
+  mutate(HGB_LOCF = zoo::na.locf(LBSTRESN, na.rm = FALSE)) %>%
+  ungroup()
+
+# MICE imputation
+hgb_for_mice <- hgb_wide %>%
+  select(USUBJID, TRTA, starts_with("HGB"))
+
+mice_hgb <- mice(
+  hgb_for_mice,
+  m = 20,
+  method = "pmm",
+  seed = 123,
+  print = FALSE
+)
+
+# Fit model to imputed data
+fit_mice <- with(
+  mice_hgb,
+  {
+    hgb_change <- HGB_Day84 - HGB_Day1
+    lm(hgb_change ~ TRTA)
+  }
+)
+
+pool_mice <- pool(fit_mice)
+
+# Compare results
+results_comparison <- tibble(
+  Method = c("Complete Case", "LOCF", "MICE"),
+  N = c(nrow(hgb_cca), nrow(hgb_locf), nrow(hgb_wide)),
+  Treatment_Effect = c(
+    coef(cca_model)["TRTADrug A"],
+    NA,  # Would compute LOCF model similarly
+    summary(pool_mice)[2, "estimate"]
+  ),
+  SE = c(
+    sqrt(diag(vcov(cca_model)))["TRTADrug A"],
+    NA,
+    summary(pool_mice)[2, "std.error"]
+  )
+)
+
+print(results_comparison)
+
+cat("\nInterpretation:\n")
+cat("- CCA includes only", nrow(hgb_cca), "patients (likely biased if MAR)\n")
+cat("- MICE includes all", nrow(hgb_wide), "patients, accounting for missingness\n")
+cat("- MICE SE larger than CCA (uncertainty from imputation)\n")
+```
+
+## Summary: Method Selection
+
+| Mechanism | Method | Assumption | Validity |
+|-----------|--------|-----------|----------|
+| MCAR | CCA | Missing independent | Valid but loses power |
+| MCAR | LOCF | No change from dropout | Valid (but unrealistic) |
+| MCAR/MAR | Mixed models (MMRM) | MAR, correct model spec | Valid for MAR |
+| MCAR/MAR | Multiple imputation | MAR, correct model spec | Valid for MAR |
+| MNAR | Sensitivity analysis | Assumed mechanism | Explores robustness |
+
+## Exercises
+
+### Beginner Exercises
+
+**Exercise 14.1**: Load pharmaversesdtm lab data, introduce 20% MCAR missing data randomly in hemoglobin values, and compare CCA vs. MICE results. Report the treatment difference estimate and SE under each method.
+
+**Exercise 14.2**: Visualize the missing data pattern using `naniar::vis_miss()` and `mice::md_pattern()`. Identify which variables are missing together; does the pattern suggest MCAR or MAR?
+
+**Exercise 14.3**: Implement LOCF imputation for baseline-adjusted lab values. Compare the mean lab value change from baseline under MICE vs. LOCF. Explain why LOCF is conservative but potentially biased.
+
+### Advanced Exercises
+
+**Exercise 14.4**: Conduct a **tipping point analysis** for the hemoglobin trial. Assume missing data mechanism is MNAR, with dropouts having worse outcomes. For what range of delta (additional negative change) does the treatment conclusion remain significant at p < 0.05?
+
+**Exercise 14.5**: Fit a **pattern-mixture model** (alternative to MI) that allows the treatment effect to differ between completers and those with missing data. Compare conclusions to MICE under MAR. Discuss when pattern-mixture models are preferred.
+
+---
+
+## References
+
+- Rubin, D. B. (1987). *Multiple Imputation for Nonresponse in Surveys*. Wiley.
+- Little, R. J. A., & Rubin, D. B. (2002). *Statistical Analysis with Missing Data* (2nd ed.). Wiley.
+- van Buuren, S. (2018). *Flexible Imputation of Missing Data* (2nd ed.). Chapman & Hall.
+- ICH (2019). E9(R1): Estimands and Sensitivity Analysis in Clinical Trials.
+- Packages: `mice` (van Buuren & Groothuis-Oudshoorn), `mitml` (Grund et al.), `naniar` (Tierney et al.)

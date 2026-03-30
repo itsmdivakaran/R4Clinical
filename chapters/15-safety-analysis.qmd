@@ -1,0 +1,728 @@
+---
+title: "Chapter 15: Safety Analysis in Clinical Trials"
+---
+
+# Safety Analysis in Clinical Trials
+
+## Introduction: Why Safety Analysis Matters
+
+While efficacy demonstrates that a treatment **works**, safety analysis documents how well patients **tolerate** it. Regulatory agencies (FDA, EMA) require comprehensive safety assessments before drug approval. Safety findings can limit patient populations, require monitoring strategies, or prevent approval entirely.
+
+### Key Safety Endpoints
+
+- **Adverse Events (AEs)**: Any undesired medical occurrence (rash, nausea, elevated liver enzymes)
+- **Serious Adverse Events (SAEs)**: Life-threatening, result in hospitalization, disability, or death
+- **Adverse Events of Special Interest (AESIs)**: Clinically important events predetermined as requiring careful monitoring (e.g., myocardial infarction in cardiovascular trials)
+- **Dose Limiting Toxicity (DLT)**: Event requiring dose reduction or discontinuation
+- **Discontinuation**: Patient stops treatment due to adverse event
+
+## MedDRA Coding and Hierarchy
+
+**Medical Dictionary for Regulatory Activities (MedDRA)** is the standard for coding clinical safety terms globally.
+
+### MedDRA Structure
+
+The hierarchy from general to specific:
+
+1. **System Organ Class (SOC)**: Highest level (e.g., "Nervous System Disorders", "Gastrointestinal Disorders")
+2. **High Level Group Term (HLGT)**: Groups related preferred terms
+3. **High Level Term (HLT)**: Intermediate grouping
+4. **Preferred Term (PT)**: Standardized term used in reporting (e.g., "Headache", "Nausea")
+5. **Lowest Level Term (LLT)**: Actual patient-reported symptom (e.g., "Bad headache", "Feeling sick")
+
+### Example Hierarchy
+
+```
+SOC: Nervous System Disorders
+  HLGT: Headaches
+    HLT: Headaches (excl migraine)
+      PT: Headache
+        LLT: Bad headache, Severe headache, Headache worse
+```
+
+**Clinical Practice**:
+- Data collection typically uses LLTs (patient language)
+- Analysis reports use PTs (standardized terms)
+- Safety summaries organized by SOC for clarity
+
+## Basic Safety Metrics
+
+### Incidence Rate
+
+The **incidence** is the proportion of subjects experiencing an AE at least once.
+
+$$\text{Incidence Rate} = \frac{\text{Number of subjects with } \geq 1 \text{ AE}}{\text{Total number of subjects}} \times 100\%$$
+
+**Example**: In a 100-patient trial, 45 patients experience nausea.
+$$\text{Incidence of nausea} = \frac{45}{100} = 45\%$$
+
+**Important**: Counts each subject only once, regardless of how many times they experience the event.
+
+### Exposure-Adjusted Incidence Rate (EAIR)
+
+Accounts for different treatment durations (critical when some patients stop treatment early).
+
+$$\text{EAIR} = \frac{\text{Total number of AE events}}{\text{Total exposure time (subject-months)}} \times 100$$
+
+**Example**:
+- Trial: 100 patients, 200 adverse events total
+- Average exposure: 0.8 years per subject
+- Total person-years: $100 \times 0.8 = 80$ person-years
+$$\text{EAIR} = \frac{200}{80} = 2.5 \text{ events per person-year}$$
+
+**Clinical interpretation**: On average, each patient experiences 2.5 adverse events per year of treatment. Allows fair comparison between treatment arms with different exposure patterns.
+
+### Event Rate (by Visit)
+
+Tracks incidence across time periods to identify peak risk windows.
+
+$$\text{Event rate at visit } j = \frac{\text{Subjects with AE at visit } j}{\text{Subjects at risk at visit } j} \times 100\%$$
+
+## Safety Summary Tables
+
+A comprehensive AE summary table is the foundation of any safety report.
+
+### Structure: AE Count by SOC and PT
+
+```
+Preferred Term              Drug (N=100)    Placebo (N=100)
+                              n (%)           n (%)
+─────────────────────────────────────────────────────────
+Nervous System Disorders      35 (35%)        20 (20%)
+  Headache                    15 (15%)        8 (8%)
+  Dizziness                   12 (12%)        7 (7%)
+  Tremor                      8 (8%)          5 (5%)
+
+Gastrointestinal Disorders   42 (42%)        15 (15%)
+  Nausea                      28 (28%)        8 (8%)
+  Vomiting                    10 (10%)        5 (5%)
+  Diarrhea                    4 (4%)          2 (2%)
+```
+
+### Grade (Severity) Classification
+
+Most trials use **CTCAE (Common Terminology Criteria for Adverse Events)** grades:
+
+- **Grade 1 (Mild)**: Asymptomatic or mild symptoms; no intervention needed
+- **Grade 2 (Moderate)**: Minimal, local or non-invasive intervention indicated
+- **Grade 3 (Severe)**: Severe or medically significant but not life-threatening
+- **Grade 4 (Life-threatening)**: Life-threatening; urgent intervention needed
+- **Grade 5 (Fatal)**: Death related to AE
+
+**Example**:
+- Grade 1 nausea: "Occasional nausea, managed with antacids"
+- Grade 2 nausea: "Frequent nausea affecting daily activities, requires medication"
+- Grade 3 nausea: "Severe; parenteral nutrition required"
+
+### Maximum Grade per Subject
+
+Report the **worst grade** experienced by each subject, not total count.
+
+**Logic**: If a patient experienced Grade 1 nausea on Day 5 and Grade 3 nausea on Day 12, report Grade 3 as their maximum grade.
+
+```r
+# Compute maximum grade per subject per PT
+ae_max_grade <- ae_data %>%
+  group_by(USUBJID, TRTA, AEPT) %>%
+  summarise(
+    max_grade = max(AESEV, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  group_by(AEPT, TRTA, max_grade) %>%
+  summarise(
+    n = n_distinct(USUBJID),
+    .groups = "drop"
+  ) %>%
+  pivot_wider(
+    names_from = max_grade,
+    values_from = n,
+    values_fill = 0
+  )
+```
+
+### Relationship to Study Drug
+
+Classify each AE by investigator assessment:
+
+- **Related**: Reasonable possibility of causal relationship to drug
+- **Possibly related**: Temporal association but other causes possible
+- **Not related**: Clear alternative etiology (e.g., viral infection)
+
+**Clinical use**: Safety signals typically focus on related/possibly related AEs.
+
+### Action Taken
+
+Track whether AE led to:
+
+- **No action**: Continue treatment at same dose
+- **Dose reduction**: Lower dose due to tolerability
+- **Dose interruption**: Temporary pause, then resume
+- **Discontinuation**: Permanent cessation of treatment
+- **Other**: Hospitalization, emergency visit, etc.
+
+## Publication-Ready Safety Tables
+
+### Using gtsummary
+
+```r
+library(pharmaversesdtm)
+library(gtsummary)
+library(tidyverse)
+
+data(ae)
+
+# Prepare AE data
+ae_summary <- ae %>%
+  filter(AESER == "N") %>%  # Non-serious AEs
+  select(USUBJID, TRTA, AESOC, AEPT, AEGRAD = AEGRADE) %>%
+  distinct() %>%  # One row per subject per PT
+  group_by(AEPT, AESOC, TRTA) %>%
+  summarise(
+    n = n_distinct(USUBJID),
+    .groups = "drop"
+  ) %>%
+  arrange(AESOC, AEPT)
+
+# Count total subjects by treatment
+n_subjects <- ae %>%
+  group_by(TRTA) %>%
+  summarise(N = n_distinct(USUBJID), .groups = "drop")
+
+# Create summary table
+ae_table <- ae_summary %>%
+  left_join(n_subjects, by = "TRTA") %>%
+  mutate(
+    Pct = 100 * n / N,
+    `n (%)` = sprintf("%d (%.1f%%)", n, Pct)
+  ) %>%
+  select(AESOC, AEPT, TRTA, `n (%)`) %>%
+  pivot_wider(
+    names_from = TRTA,
+    values_from = `n (%)`
+  ) %>%
+  arrange(AESOC, AEPT)
+
+print(ae_table)
+
+# Using gtsummary for formatted output
+ae_gt <- ae_summary %>%
+  tbl_summary(
+    by = TRTA,
+    type = list(AEPT ~ "categorical"),
+    label = list(AEPT ~ "Adverse Event")
+  ) %>%
+  add_overall() %>%
+  bold_labels() %>%
+  modify_header(label ~ "System Organ Class / Preferred Term")
+
+ae_gt
+```
+
+### Using gt for Publication Quality
+
+```r
+library(gt)
+
+ae_gt_table <- ae_summary %>%
+  pivot_wider(
+    names_from = TRTA,
+    values_from = n,
+    values_fill = 0
+  ) %>%
+  gt(groupname_col = "AESOC") %>%
+  tab_header(
+    title = "Adverse Events by System Organ Class and Preferred Term",
+    subtitle = "All Grade Adverse Events (Safety Population)"
+  ) %>%
+  cols_label(
+    AEPT = "Preferred Term",
+    `Drug A` = "Drug A (N=100)",
+    Placebo = "Placebo (N=100)"
+  ) %>%
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  ) %>%
+  fmt_number(columns = c(`Drug A`, Placebo), decimals = 0) %>%
+  tab_footnote(
+    footnote = "Safety population includes all subjects with ≥1 dose of study drug"
+  )
+
+ae_gt_table
+```
+
+## Time-to-Onset Analysis
+
+Understanding when AEs typically occur guides monitoring strategies.
+
+### Kaplan-Meier Curves for AE Onset
+
+```r
+library(survival)
+library(ggsurvfit)
+
+# Prepare data: time to first occurrence of specific AE
+ae_first <- ae %>%
+  filter(AEPT == "Headache") %>%
+  group_by(USUBJID, TRTA) %>%
+  slice(1) %>%  # First occurrence only
+  ungroup() %>%
+  select(USUBJID, TRTA, AESTDY) %>%
+  distinct()
+
+# Add censoring for subjects without the AE
+ae_censored <- ae %>%
+  select(USUBJID, TRTA) %>%
+  distinct() %>%
+  anti_join(ae_first, by = "USUBJID") %>%
+  mutate(
+    AESTDY = 365,  # Study duration (days)
+    event = 0
+  )
+
+ae_first <- ae_first %>%
+  mutate(event = 1) %>%
+  bind_rows(ae_censored)
+
+# Fit Kaplan-Meier for AE onset
+km_ae <- survfit(
+  Surv(AESTDY, event) ~ TRTA,
+  data = ae_first
+)
+
+# Plot
+gg_ae <- ggsurvfit(km_ae) +
+  labs(
+    title = "Time to Onset of Headache",
+    x = "Days from Treatment Start",
+    y = "Probability of Remaining Free from Headache",
+    caption = "Kaplan-Meier curve for first occurrence"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "inside",
+    legend.position.inside = c(0.75, 0.25)
+  )
+
+print(gg_ae)
+
+# Median time to onset
+summary(km_ae, times = c(30, 60, 90))
+# Shows probability of remaining AE-free at key time points
+```
+
+## Laboratory Shift Tables
+
+Shift tables track changes in lab values from baseline to post-treatment (Normal → Abnormal).
+
+### Structure
+
+```
+                           Post-Treatment Status
+                    Normal      Low       High      Total
+Baseline Status   ───────────────────────────────────────
+Normal              45         5         2         52
+Low                  3        10         2         15
+High                 1         1        30         32
+────────────────────────────────────────────────────────
+Total               49        16        34         99
+```
+
+**Interpretation**:
+- Diagonal (Normal → Normal, High → High): No change
+- Off-diagonal: Shifts toward abnormality require investigation
+- Example: 5 subjects with normal baseline shifted to low (e.g., hemoglobin decline)
+
+### Implementation
+
+```r
+# Prepare baseline and final visit lab values
+lb_shift <- lb %>%
+  filter(LBTESTCD == "HGB") %>%
+  select(USUBJID, TRTA, LBDY, LBSTRESN, LBNRIND) %>%
+  arrange(USUBJID, LBDY) %>%
+  group_by(USUBJID) %>%
+  mutate(
+    visit = if_else(LBDY <= 7, "Baseline", "Final"),
+    LBNRIND = factor(LBNRIND, levels = c("N", "L", "H"),
+                     labels = c("Normal", "Low", "High"))
+  ) %>%
+  filter(visit %in% c("Baseline", "Final")) %>%
+  select(USUBJID, visit, LBNRIND) %>%
+  pivot_wider(names_from = visit, values_from = LBNRIND)
+
+# Count transitions
+shift_table <- lb_shift %>%
+  group_by(Baseline, Final) %>%
+  summarise(n = n_distinct(USUBJID), .groups = "drop") %>%
+  pivot_wider(names_from = Final, values_from = n, values_fill = 0)
+
+print(shift_table)
+
+# Create shift plot with ggplot
+shift_plot <- lb_shift %>%
+  count(Baseline, Final) %>%
+  ggplot(aes(x = Baseline, y = Final, fill = n)) +
+  geom_tile() +
+  geom_text(aes(label = n), color = "white", size = 5) +
+  scale_fill_viridis_c() +
+  labs(
+    title = "Laboratory Value Shift Table: Hemoglobin",
+    x = "Baseline Status",
+    y = "Final Visit Status",
+    fill = "Number of Subjects"
+  ) +
+  theme_minimal()
+
+print(shift_plot)
+```
+
+## Maximum Grade Analysis
+
+Summarize AE severity distribution per PT and treatment.
+
+```r
+# Compute maximum grade per subject per PT
+ae_max <- ae %>%
+  group_by(USUBJID, TRTA, AEPT) %>%
+  summarise(
+    max_grade = max(AEGRADE, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Create table: PT x Grade distribution
+grade_table <- ae_max %>%
+  count(AEPT, TRTA, max_grade) %>%
+  pivot_wider(
+    names_from = max_grade,
+    values_from = n,
+    names_prefix = "Grade_",
+    values_fill = 0
+  ) %>%
+  arrange(desc(Grade_3 + Grade_4))  # Sort by severe AEs
+
+print(grade_table)
+
+# Visualization: Stacked bar chart
+ae_grade_plot <- ae_max %>%
+  count(TRTA, AEPT, max_grade) %>%
+  filter(n > 0) %>%
+  arrange(AEPT, max_grade) %>%
+  ggplot(aes(x = reorder(AEPT, -n), y = n, fill = factor(max_grade))) +
+  geom_col(position = "stack") +
+  facet_wrap(~TRTA) +
+  scale_fill_brewer(palette = "RdYlGn_r", name = "Grade") +
+  labs(
+    title = "Distribution of Adverse Event Severity",
+    x = "Preferred Term",
+    y = "Number of Subjects"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(ae_grade_plot)
+```
+
+## Serious Adverse Events (SAEs) and Discontinuations
+
+Critical safety analyses focus on high-impact events.
+
+### SAE Summary
+
+```r
+# SAE incidence by treatment
+sae_summary <- ae %>%
+  filter(AESER == "Y") %>%  # Serious AEs only
+  group_by(TRTA) %>%
+  summarise(
+    n_subjects = n_distinct(USUBJID),
+    n_events = n(),
+    .groups = "drop"
+  ) %>%
+  left_join(
+    ae %>% select(USUBJID, TRTA) %>% distinct() %>%
+      group_by(TRTA) %>%
+      summarise(N_total = n_distinct(USUBJID), .groups = "drop"),
+    by = "TRTA"
+  ) %>%
+  mutate(
+    pct_subjects = 100 * n_subjects / N_total,
+    event_rate = n_events / N_total
+  )
+
+print(sae_summary)
+
+# List all SAEs with details
+sae_list <- ae %>%
+  filter(AESER == "Y") %>%
+  select(USUBJID, TRTA, AEPT, AEGRAD, AEACN, AEREL) %>%
+  arrange(USUBJID)
+
+print(sae_list)
+```
+
+### Discontinuation Due to AE
+
+```r
+# Count discontinuations by treatment
+disc_summary <- ae %>%
+  filter(AEACN %in% c("DRUG DISCONTINUED", "DOSE REDUCED")) %>%
+  group_by(USUBJID, TRTA) %>%
+  slice(1) %>%  # First such event per subject
+  ungroup() %>%
+  group_by(TRTA) %>%
+  summarise(
+    n_discontinued = n_distinct(USUBJID),
+    .groups = "drop"
+  ) %>%
+  left_join(
+    ae %>% select(USUBJID, TRTA) %>% distinct() %>%
+      group_by(TRTA) %>%
+      summarise(N_total = n_distinct(USUBJID), .groups = "drop"),
+    by = "TRTA"
+  ) %>%
+  mutate(
+    pct_discontinued = 100 * n_discontinued / N_total,
+    `n (%)` = sprintf("%d (%.1f%%)", n_discontinued, pct_discontinued)
+  )
+
+print(disc_summary %>% select(TRTA, `n (%)`))
+```
+
+## Adverse Event Dot Plots
+
+Visualize AE incidence patterns across many PTs simultaneously.
+
+```r
+library(ggplot2)
+
+# Compute AE incidence by PT and treatment
+ae_incidence <- ae %>%
+  select(USUBJID, TRTA, AEPT) %>%
+  distinct() %>%
+  group_by(AEPT, TRTA) %>%
+  summarise(
+    n = n_distinct(USUBJID),
+    .groups = "drop"
+  ) %>%
+  left_join(
+    ae %>% select(USUBJID, TRTA) %>% distinct() %>%
+      group_by(TRTA) %>%
+      summarise(N_total = n_distinct(USUBJID), .groups = "drop"),
+    by = "TRTA"
+  ) %>%
+  mutate(pct = 100 * n / N_total) %>%
+  filter(n > 0)  # Only AEs that occurred
+
+# Forest plot style
+ae_forest <- ae_incidence %>%
+  filter(pct >= 3) %>%  # Focus on more common AEs
+  arrange(AEPT) %>%
+  ggplot(aes(x = AEPT, y = pct, color = TRTA, shape = TRTA)) +
+  geom_point(size = 3) +
+  coord_flip() +
+  facet_wrap(~TRTA) +
+  labs(
+    title = "Incidence of Adverse Events (≥3% in Either Arm)",
+    x = "Preferred Term",
+    y = "Incidence (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "inside",
+    legend.position.inside = c(0.75, 0.1)
+  )
+
+print(ae_forest)
+
+# Alternative: Lollipop chart comparing arms
+ae_comparison <- ae_incidence %>%
+  filter(pct >= 2) %>%
+  pivot_wider(
+    names_from = TRTA,
+    values_from = pct,
+    values_fill = 0
+  ) %>%
+  mutate(
+    diff = abs(`Drug A` - Placebo),
+    higher_arm = if_else(`Drug A` > Placebo, "Drug A", "Placebo")
+  ) %>%
+  arrange(diff) %>%
+  ggplot(aes(x = reorder(AEPT, diff), y = diff, fill = higher_arm)) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Absolute Difference in AE Incidence (Drug A vs. Placebo)",
+    x = "Preferred Term",
+    y = "Absolute Difference in Incidence (%)",
+    fill = "Higher in Arm"
+  ) +
+  theme_minimal()
+
+print(ae_comparison)
+```
+
+## Clinical Example: Comprehensive Safety Analysis
+
+```r
+library(pharmaversesdtm)
+library(admiral)
+library(gtsummary)
+library(tidyverse)
+
+# Load datasets
+data(ae)
+data(ex)  # Exposure for calculating EAIR
+
+# 1. Basic AE incidence
+ae_summary <- ae %>%
+  filter(AESER == "N") %>%
+  select(USUBJID, TRTA, AEPT, AEGRADE) %>%
+  distinct() %>%
+  group_by(AEPT, TRTA) %>%
+  summarise(
+    n = n_distinct(USUBJID),
+    .groups = "drop"
+  ) %>%
+  left_join(
+    ae %>% select(USUBJID, TRTA) %>% distinct() %>%
+      group_by(TRTA) %>%
+      summarise(N = n_distinct(USUBJID), .groups = "drop"),
+    by = "TRTA"
+  ) %>%
+  mutate(`n (%)` = sprintf("%d (%.1f%%)", n, 100 * n / N)) %>%
+  select(AEPT, TRTA, `n (%)`) %>%
+  pivot_wider(names_from = TRTA, values_from = `n (%)`) %>%
+  arrange(desc(AEPT))
+
+print(ae_summary)
+
+# 2. Calculate EAIR
+exposure <- ex %>%
+  group_by(USUBJID, TRTA) %>%
+  summarise(
+    exposure_days = max(EXENDY, na.rm = TRUE),
+    exposure_years = exposure_days / 365.25,
+    .groups = "drop"
+  )
+
+ae_events <- ae %>%
+  group_by(TRTA) %>%
+  summarise(total_ae_events = n(), .groups = "drop")
+
+eair_calc <- exposure %>%
+  group_by(TRTA) %>%
+  summarise(
+    total_exposure_years = sum(exposure_years, na.rm = TRUE),
+    n_subjects = n_distinct(USUBJID),
+    .groups = "drop"
+  ) %>%
+  left_join(ae_events, by = "TRTA") %>%
+  mutate(
+    EAIR = (total_ae_events / total_exposure_years) * 100,
+    EAIR_text = sprintf("%.2f per 100 person-years", EAIR)
+  )
+
+print(eair_calc %>% select(TRTA, EAIR_text))
+
+# 3. SAE summary
+sae_summary <- ae %>%
+  filter(AESER == "Y") %>%
+  group_by(TRTA) %>%
+  summarise(
+    n_sae_subjects = n_distinct(USUBJID),
+    n_sae_events = n(),
+    .groups = "drop"
+  ) %>%
+  left_join(
+    ae %>% select(USUBJID, TRTA) %>% distinct() %>%
+      group_by(TRTA) %>%
+      summarise(N_total = n_distinct(USUBJID), .groups = "drop"),
+    by = "TRTA"
+  ) %>%
+  mutate(
+    `SAE subjects n (%)` = sprintf("%d (%.1f%%)", n_sae_subjects,
+                                     100 * n_sae_subjects / N_total),
+    `SAE rate` = sprintf("%.2f per 100 subjects", 100 * n_sae_events / N_total)
+  ) %>%
+  select(TRTA, `SAE subjects n (%)`, `SAE rate`)
+
+print(sae_summary)
+
+# 4. Discontinuation due to AE
+disc_ae <- ae %>%
+  filter(AEACN == "DRUG DISCONTINUED") %>%
+  group_by(USUBJID, TRTA) %>%
+  slice(1) %>%
+  ungroup()
+
+disc_summary <- ae %>%
+  select(USUBJID, TRTA) %>%
+  distinct() %>%
+  group_by(TRTA) %>%
+  summarise(N = n_distinct(USUBJID), .groups = "drop") %>%
+  left_join(
+    disc_ae %>%
+      group_by(TRTA) %>%
+      summarise(n_disc = n_distinct(USUBJID), .groups = "drop"),
+    by = "TRTA"
+  ) %>%
+  mutate(
+    n_disc = coalesce(n_disc, 0),
+    `Discontinued n (%)` = sprintf("%d (%.1f%%)", n_disc, 100 * n_disc / N)
+  ) %>%
+  select(TRTA, `Discontinued n (%)`)
+
+print(disc_summary)
+
+cat("\nSafety Summary Complete:\n")
+cat("- AE incidence by PT\n")
+cat("- Exposure-adjusted event rates (EAIR)\n")
+cat("- Serious adverse events\n")
+cat("- Treatment discontinuations\n")
+```
+
+## Regulatory Expectations
+
+### FDA Guidance
+
+- Report all AEs; highlight causality assessment
+- Use MedDRA coding for standardization
+- Stratify by severity grade and relationship
+- Show cumulative AE curves over time
+- Highlight clinically significant patterns
+- Address known drug class effects
+
+### ICH Guidelines
+
+- Quantify AE frequency and relationship
+- Provide time-to-onset analysis
+- Assess dose-response relationship
+- Compare safety profile to benchmark (historical controls, competitors)
+- Conduct subset analyses (age, gender, baseline risk factors)
+
+## Exercises
+
+### Beginner Exercises
+
+**Exercise 15.1**: Load pharmaversesdtm::ae data. Create a publication-ready AE summary table showing the incidence of all AEs by SOC and PT, stratified by treatment arm. Format using `gt` or `gtsummary`.
+
+**Exercise 15.2**: Calculate and report the Exposure-Adjusted Incidence Rate (EAIR) for AEs in each treatment arm using exposure data from `pharmaversesdtm::ex`. Interpret the EAIR values clinically.
+
+**Exercise 15.3**: Create a shift table for laboratory values (e.g., hemoglobin: Normal → Low → High) from baseline to final visit. Discuss which shifts warrant clinical concern.
+
+### Advanced Exercises
+
+**Exercise 15.4**: Implement a **time-to-onset analysis** for a specific AE (e.g., headache). Use Kaplan-Meier curves to compare onset timing between treatment arms. Estimate median time to onset and create a publication-quality plot.
+
+**Exercise 15.5**: Conduct a **safety signal detection** analysis. Using the AE data, identify AEs where the incidence difference between treatment arms exceeds 5 percentage points. For each signal, stratify by patient subgroup (age, baseline risk) to assess consistency. Discuss which signals require further investigation or potential labeling.
+
+---
+
+## References
+
+- FDA (2019). Guidance for Industry: Adverse Reactions Associated with Vaccines. CBER/FDA.
+- EMA (2016). Guideline on the reporting of adverse drug reactions.
+- ICH (2016). E2A: Definitions and Terminology.
+- MedDRA (2024). Medical Dictionary for Regulatory Activities. MSSO.
+- Package documentation: `pharmaversesdtm`, `admiral`, `gtsummary`, `gt`

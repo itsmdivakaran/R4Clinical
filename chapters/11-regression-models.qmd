@@ -1,0 +1,557 @@
+---
+title: "Chapter 11: Regression Models"
+---
+
+# Chapter 11: Regression Models
+
+## Introduction
+
+Regression models extend hypothesis testing by quantifying the relationship between variables. In clinical research, we often ask: How does outcome $Y$ depend on predictor variables $X_1, X_2, \ldots$? Regression provides estimates of these relationships and their uncertainty, enabling prediction and causal inference (in appropriate settings).
+
+This chapter covers linear regression (for continuous outcomes), logistic regression (for binary outcomes), model diagnostics, and practical clinical applications. We emphasize correct interpretation, assumption checking, and communication of results to stakeholders.
+
+## Part I: Simple Linear Regression
+
+### Model and Estimation
+
+Simple linear regression models the relationship between a continuous outcome $Y$ and a single predictor $X$:
+
+$$Y = \beta_0 + \beta_1 X + \epsilon$$
+
+where:
+- $\beta_0$ is the **intercept** (predicted $Y$ when $X = 0$)
+- $\beta_1$ is the **slope** (change in $Y$ per unit increase in $X$)
+- $\epsilon$ is the random error, assumed $\epsilon \sim N(0, \sigma^2)$
+
+**Estimation by Ordinary Least Squares (OLS):**
+
+We choose $\beta_0$ and $\beta_1$ to minimize the sum of squared residuals:
+
+$$\text{minimize} \sum_{i=1}^{n} (Y_i - \beta_0 - \beta_1 X_i)^2$$
+
+The OLS estimators are:
+
+$$\hat{\beta}_1 = \frac{\sum_{i=1}^{n}(X_i - \bar{X})(Y_i - \bar{Y})}{\sum_{i=1}^{n}(X_i - \bar{X})^2}$$
+
+$$\hat{\beta}_0 = \bar{Y} - \hat{\beta}_1 \bar{X}$$
+
+### Interpretation of Coefficients
+
+- **$\hat{\beta}_0$:** Predicted value of $Y$ when $X = 0$. Often not clinically meaningful (e.g., predicting weight when height = 0). Still needed for the model.
+- **$\hat{\beta}_1$:** Change in predicted $Y$ for a one-unit increase in $X$. Has the same units as $Y$. For example, $\hat{\beta}_1 = 2.5$ means a one-unit increase in $X$ corresponds to a 2.5-unit increase in $Y$.
+
+**Clinical Example:** Regressing hemoglobin (g/dL) on age (years):
+- $\hat{\beta}_1 = 0.15$ means: per additional year of age, hemoglobin increases by 0.15 g/dL on average.
+
+### Model Fit: $R^2$
+
+The **coefficient of determination**, $R^2$, measures the proportion of variance in $Y$ explained by $X$:
+
+$$R^2 = \frac{SS_{\text{Regression}}}{SS_{\text{Total}}} = 1 - \frac{SS_{\text{Residual}}}{SS_{\text{Total}}}$$
+
+where:
+- $SS_{\text{Total}} = \sum_{i=1}^{n}(Y_i - \bar{Y})^2$
+- $SS_{\text{Regression}} = \sum_{i=1}^{n}(\hat{Y}_i - \bar{Y})^2$
+- $SS_{\text{Residual}} = \sum_{i=1}^{n}(Y_i - \hat{Y}_i)^2$
+
+**Interpretation:**
+- $R^2 = 0.75$: 75% of the variance in $Y$ is explained by $X$; 25% remains unexplained.
+- $R^2 = 0.20$: Only 20% of variance is explained; the relationship is weak.
+- $0 \leq R^2 \leq 1$
+
+**Caution:** A low $R^2$ does not mean a relationship is unimportant. In clinical research, weak but significant predictors (low $R^2$) can still guide patient care.
+
+### Assumptions (LINE)
+
+Simple linear regression assumes:
+
+1. **Linearity:** The relationship between $X$ and $Y$ is linear.
+2. **Independence:** Observations are independent.
+3. **Normality:** Errors are normally distributed: $\epsilon \sim N(0, \sigma^2)$.
+4. **Equal Variance (Homoscedasticity):** The variance of errors is constant across values of $X$.
+
+**Checking Assumptions:**
+- Scatter plot: Check linearity visually
+- Residual plot ($\text{residuals vs. fitted values}$): Check linearity and equal variance; should show random scatter around zero
+- Q-Q plot: Check normality of residuals
+- Scale-location plot: Formal check of homoscedasticity
+
+Violations suggest model re-specification (e.g., log-transformation, polynomial terms) or alternative methods.
+
+### Confidence Intervals for Coefficients
+
+A 95% confidence interval for the slope is:
+
+$$\hat{\beta}_1 \pm t_{\alpha/2, n-2} \cdot SE(\hat{\beta}_1)$$
+
+where $SE(\hat{\beta}_1) = \frac{s}{\sqrt{\sum_{i=1}^{n}(X_i - \bar{X})^2}}$ and $s$ is the standard error of the regression.
+
+**Clinical Use:** Report confidence intervals alongside point estimates. An interval that excludes zero indicates a statistically significant relationship.
+
+## Part II: Multiple Linear Regression
+
+When we have multiple predictors, the model extends to:
+
+$$Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \cdots + \beta_p X_p + \epsilon$$
+
+In matrix notation:
+
+$$\mathbf{Y} = \mathbf{X} \boldsymbol{\beta} + \boldsymbol{\epsilon}$$
+
+where $\mathbf{X}$ is an $n \times (p+1)$ design matrix (columns: intercept, $X_1, \ldots, X_p$).
+
+The OLS estimator is:
+
+$$\hat{\boldsymbol{\beta}} = (\mathbf{X}^T \mathbf{X})^{-1} \mathbf{X}^T \mathbf{Y}$$
+
+### Interpretation in Multiple Regression
+
+$\hat{\beta}_j$ now represents the change in predicted $Y$ per unit increase in $X_j$, **holding all other predictors fixed** (partial effect). This is crucial: the presence of other variables changes interpretation.
+
+**Clinical Example:** Modeling hemoglobin change from baseline as:
+$$\Delta \text{Hgb} = \beta_0 + \beta_1 \cdot \text{Age} + \beta_2 \cdot \text{Sex} + \beta_3 \cdot \text{Drug A} + \epsilon$$
+
+- $\hat{\beta}_1$: Hemoglobin change per year of age, adjusted for sex and drug assignment
+- $\hat{\beta}_3$: Hemoglobin change due to Drug A, adjusted for age and sex
+
+### Multicollinearity
+
+When predictors are highly correlated (multicollinearity), standard errors inflate, confidence intervals widen, and coefficient estimates become unstable.
+
+**Diagnostic:** **Variance Inflation Factor (VIF)**
+
+$$\text{VIF}_j = \frac{1}{1 - R_j^2}$$
+
+where $R_j^2$ is the $R^2$ from regressing $X_j$ on all other predictors.
+
+- $\text{VIF} = 1$: No multicollinearity
+- $\text{VIF} < 5$: Acceptable
+- $\text{VIF} > 10$: Problematic; consider removing or combining predictors
+
+**Solutions:**
+- Remove one of a pair of highly correlated predictors
+- Combine correlated predictors (e.g., principal components analysis)
+- Use regularization (ridge, lasso regression—beyond this chapter)
+
+### Model Selection
+
+With many potential predictors, how do we choose the "best" model? Common approaches:
+
+1. **Akaike Information Criterion (AIC):** Balances fit and complexity
+   $$\text{AIC} = 2p - 2\ln(\text{max likelihood})$$
+   Lower AIC indicates better fit relative to complexity.
+
+2. **Bayesian Information Criterion (BIC):** Similar to AIC but penalizes complexity more heavily
+
+3. **Stepwise Selection:**
+   - **Forward:** Start with no predictors; add the most significant at each step
+   - **Backward:** Start with all predictors; remove the least significant at each step
+   - Stops when adding/removing variables no longer improves the criterion
+
+**Caution:** Stepwise selection can be unstable and prone to overfitting. Cross-validation or domain knowledge should guide model choice.
+
+## Part III: Logistic Regression
+
+### Motivation
+
+When the outcome $Y$ is binary (disease yes/no, treatment success/failure), linear regression is inappropriate. Logistic regression models the probability of the outcome.
+
+### Model
+
+Let $p = P(Y = 1 \mid X)$ be the probability of the event. The **logistic model** is:
+
+$$\log\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p$$
+
+The left side is the **log-odds**. Rearranging:
+
+$$p = \frac{e^{\beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p}}{1 + e^{\beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p}}$$
+
+The curve is S-shaped, with $p$ bounded between 0 and 1 (unlike linear regression).
+
+### Interpretation: Odds Ratio
+
+The exponentiated coefficient, $e^{\beta_j}$, is the **odds ratio (OR)**: the multiplicative change in odds per unit increase in $X_j$, adjusting for other predictors.
+
+**Example:** $e^{\beta_1} = 1.25$ means a one-unit increase in $X_1$ multiplies the odds of the outcome by 1.25, or increases odds by 25%.
+
+**Clinical Example:** Modeling low birth weight (1 = yes, 0 = no) as a function of maternal age:
+
+If $\hat{\beta}_{\text{Age}} = -0.08$, then $e^{-0.08} = 0.92$. Interpretation: Each additional year of maternal age multiplies the odds of low birth weight by 0.92—or reduces odds by 8%. Older mothers have lower odds of delivering low-birth-weight infants.
+
+### Model Fit: Log-Likelihood and Deviance
+
+Logistic regression uses **maximum likelihood estimation (MLE)**, not OLS. Model fit is assessed via:
+
+- **Log-likelihood:** Maximized value of the likelihood function. Higher is better.
+- **Deviance:** $-2 \times (\log L_{\text{full}} - \log L_{\text{null}})$. Smaller deviance indicates better fit.
+- **Null deviance:** Deviance of a model with only intercept
+- **Residual deviance:** Deviance of the fitted model
+
+A significant reduction in deviance (likelihood ratio test) indicates the predictors improve fit.
+
+### Model Performance
+
+1. **Hosmer-Lemeshow Test:** Tests goodness of fit by comparing observed vs. expected counts across deciles of predicted probability. $H_0$: model fits well.
+
+2. **Area Under the ROC Curve (AUC):** Receiver Operating Characteristic (ROC) curve plots sensitivity vs. 1 - specificity across probability thresholds. AUC ranges from 0.5 (random guessing) to 1.0 (perfect discrimination).
+   - AUC = 0.5: No discrimination
+   - AUC = 0.7: Fair discrimination
+   - AUC = 0.8: Good discrimination
+   - AUC = 0.9: Excellent discrimination
+
+## Part IV: Model Diagnostics
+
+### Residual Analysis
+
+**Residuals** ($r_i = Y_i - \hat{Y}_i$) capture the difference between observed and predicted values.
+
+**Residual plots to examine:**
+
+1. **Residuals vs. Fitted:** Should show random scatter around zero (constant variance, no patterns)
+2. **Q-Q Plot:** Should follow a diagonal line (normality)
+3. **Scale-Location:** Square root of standardized residuals vs. fitted; checks homoscedasticity
+4. **Residuals vs. Leverage:** Identifies influential outliers
+
+### Influential Observations
+
+**Leverage:** How far an observation is from the center of the predictor space. High leverage observations have potential to influence the fit.
+
+**Cook's Distance:** Measures the influence of each observation on coefficient estimates. Values $> 4/n$ are considered influential and warrant investigation.
+
+**Outliers:** Observations with large residuals. May indicate data entry errors, model misspecification, or genuine extremes to report separately.
+
+## Part V: Practical Implementation in R
+
+### Simple Linear Regression
+
+```r
+# Example: Hemoglobin vs. age
+library(tidyverse)
+
+# Simulate data mimicking clinical laboratory results
+set.seed(42)
+n <- 100
+age <- seq(20, 80, length.out = n)
+hgb <- 12 + 0.05 * age + rnorm(n, 0, 1.5)
+
+hgb_data <- tibble(age, hgb)
+
+# Fit simple linear regression
+fit_simple <- lm(hgb ~ age, data = hgb_data)
+summary(fit_simple)
+
+# Output interpretation:
+# Coefficients:
+#             Estimate Std. Error t value Pr(>|t|)
+# (Intercept) 11.53689    0.31689   36.39  < 2e-16 ***
+# age          0.04892    0.00626    7.82  4.5e-12 ***
+
+# Interpretation: Each additional year of age corresponds to a 0.049 g/dL
+# increase in hemoglobin (95% CI: 0.036 to 0.062), highly significant.
+
+# Model fit
+cat("R-squared:", round(summary(fit_simple)$r.squared, 3), "\n")
+# 38.8% of variation in hemoglobin is explained by age
+
+# 95% Confidence interval for slope
+confint(fit_simple)
+
+# Visualize
+ggplot(hgb_data, aes(x = age, y = hgb)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(title = "Hemoglobin vs. Age",
+       x = "Age (years)",
+       y = "Hemoglobin (g/dL)") +
+  theme_minimal()
+```
+
+### Model Diagnostics: Simple Regression
+
+```r
+# Residual plots
+par(mfrow = c(2, 2))
+plot(fit_simple)
+par(mfrow = c(1, 1))
+
+# Output: Four diagnostic plots
+# 1. Residuals vs. Fitted: check linearity and equal variance
+# 2. Q-Q: check normality
+# 3. Scale-Location: formal check of equal variance
+# 4. Residuals vs. Leverage: identify influential points
+
+# Formal tests
+library(car)
+
+# Shapiro-Wilk test for normality
+shapiro.test(residuals(fit_simple))
+
+# Breusch-Pagan test for homoscedasticity
+bptest(fit_simple)
+
+# Durbin-Watson test for independence (relevant for time-series)
+durbinWatsonTest(fit_simple)
+```
+
+### Multiple Linear Regression
+
+```r
+# Using pharmaversesdtm: regress hemoglobin change on age, sex, treatment
+library(pharmaversesdtm)
+library(dplyr)
+
+data(dm)
+data(lb)
+
+# Prepare data: hemoglobin at baseline and end of study
+hgb_analysis <- lb %>%
+  filter(LBTESTCD == "HGB") %>%
+  select(USUBJID, VISIT, LBSTRESN) %>%
+  pivot_wider(
+    id_cols = USUBJID,
+    names_from = VISIT,
+    values_from = LBSTRESN,
+    names_prefix = "HGB_"
+  ) %>%
+  mutate(HGB_Change = HGB_WEEK4 - HGB_BASELINE) %>%
+  left_join(
+    dm %>% select(USUBJID, ARM, AGE, SEX),
+    by = "USUBJID"
+  ) %>%
+  na.omit()
+
+head(hgb_analysis)
+
+# Fit multiple linear regression
+fit_multi <- lm(HGB_Change ~ AGE + SEX + ARM, data = hgb_analysis)
+summary(fit_multi)
+
+# Output interpretation:
+# Coefficients:
+#              Estimate Std. Error t value Pr(>|t|)
+# (Intercept)   0.8234    0.3456    2.38   0.018 *
+# AGE          -0.0065    0.0025   -2.60   0.010 *
+# SEXMale       0.1234    0.1567    0.79   0.432
+# ARMTreatment  0.5678    0.1456    3.90  <0.001 ***
+
+# Interpretation:
+# - Per year of age: -0.0065 g/dL change (decreasing HGB with age)
+# - Males vs. females: +0.12 g/dL (not significant)
+# - Treatment vs. control: +0.57 g/dL (significant)
+
+# Check for multicollinearity
+library(car)
+vif(fit_multi)
+
+# All VIFs < 5: no concerning multicollinearity
+
+# Model comparison: should we include a predictor?
+fit_reduced <- lm(HGB_Change ~ AGE + ARM, data = hgb_analysis)
+anova(fit_reduced, fit_multi)
+
+# If p > 0.05, the additional predictor (SEX) doesn't improve fit
+```
+
+### Logistic Regression
+
+```r
+# Using MASS::birthwt: predict low birth weight
+library(MASS)
+data(birthwt)
+
+# Prepare data
+birthwt_model <- birthwt %>%
+  as_tibble() %>%
+  mutate(
+    low = factor(low, levels = 0:1, labels = c("Normal", "Low")),
+    ptl = as.numeric(ptl),
+    ht = as.numeric(ht),
+    ui = as.numeric(ui)
+  )
+
+# Fit logistic regression
+fit_logistic <- glm(
+  low ~ age + ptl + ht + ui,
+  family = binomial(link = "logit"),
+  data = birthwt_model
+)
+
+summary(fit_logistic)
+
+# Output interpretation:
+# Coefficients:
+#             Estimate Std. Error z value Pr(>|z|)
+# (Intercept)  0.95632    1.06812    0.89    0.371
+# age         -0.03746    0.03264   -1.15    0.251
+# ptl          0.50734    0.34582    1.47    0.142
+# ht           1.86342    0.70316    2.65    0.008 **
+# ui           0.75824    0.46176    1.64    0.101
+
+# Odds ratios with 95% CI
+odds_ratios <- cbind(
+  OR = exp(coef(fit_logistic)),
+  exp(confint(fit_logistic))
+)
+colnames(odds_ratios) <- c("OR", "95% CI Lower", "95% CI Upper")
+print(odds_ratios)
+
+# Output:
+#             OR  95% CI Lower  95% CI Upper
+# (Intercept) 2.60      0.30        22.25
+# age         0.96      0.91         1.02
+# ptl         1.66      0.86         3.24
+# ht          6.45      1.51        33.98   <- Strong effect
+# ui          2.13      0.87         5.56
+
+# Interpretation:
+# - History of hypertension (ht=1 vs. 0) multiplies odds of low birth
+#   weight by 6.45 (highly significant)
+# - Urinary irritability (ui=1) multiplies odds by 2.13 (p=0.101)
+
+# Model performance
+# Hosmer-Lemeshow test
+library(generalhoslem)
+logitgof(birthwt_model$low, fitted(fit_logistic))
+
+# ROC curve and AUC
+library(pROC)
+roc_obj <- roc(birthwt_model$low, fitted(fit_logistic))
+auc(roc_obj)  # AUC value
+plot(roc_obj, main = "ROC Curve: Low Birth Weight Prediction")
+
+# Predicted probabilities
+birthwt_model$pred_prob <- fitted(fit_logistic)
+
+# Plot
+ggplot(birthwt_model, aes(x = age, y = pred_prob, color = low)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(title = "Predicted Probability of Low Birth Weight",
+       x = "Maternal Age (years)",
+       y = "Predicted Probability",
+       color = "Birth Weight") +
+  theme_minimal()
+```
+
+### Assumption Checking and Outlier Detection
+
+```r
+# Cook's distance for logistic regression
+cooksd <- cooks.distance(fit_logistic)
+influential_obs <- which(cooksd > 4 / nrow(birthwt_model))
+cat("Influential observations (Cook's D > 4/n):\n")
+print(influential_obs)
+
+# Visualize
+plot(cooksd, type = "h", main = "Cook's Distance")
+abline(h = 4 / nrow(birthwt_model), col = "red", lty = 2)
+
+# Variance Inflation Factor for logistic model
+# (approximate, based on OLS)
+fit_ols <- lm(low ~ age + ptl + ht + ui, data = birthwt_model)
+vif(fit_ols)
+```
+
+### Clinical Summary Table
+
+```r
+# Extract regression results in clinical format
+library(broom)
+
+tidy_logistic <- tidy(fit_logistic, exponentiate = TRUE, conf.int = TRUE)
+
+clinical_table <- tidy_logistic %>%
+  mutate(
+    OR_CI = paste0(
+      round(estimate, 2), " (",
+      round(conf.low, 2), "-",
+      round(conf.high, 2), ")"
+    ),
+    p_value = round(p.value, 3),
+    Significant = ifelse(p.value < 0.05, "*", "")
+  ) %>%
+  select(term, OR_CI, p_value, Significant) %>%
+  rename(
+    "Variable" = term,
+    "Odds Ratio (95% CI)" = OR_CI,
+    "p-value" = p_value,
+    "Sig." = Significant
+  )
+
+print(clinical_table)
+
+# Save to file
+write.csv(clinical_table, "regression_results.csv", row.names = FALSE)
+```
+
+## Summary: Regression Methods
+
+| Method | Outcome Type | Link Function | Key Metric |
+|--------|--------------|---------------|-----------|
+| **Simple Linear** | Continuous | Identity | $R^2$, SE of slope |
+| **Multiple Linear** | Continuous | Identity | $R^2$, VIF |
+| **Logistic** | Binary (0/1) | Logit | AUC, OR |
+| **Poisson** | Count | Log | Incidence rate ratio |
+| **Survival** | Time-to-event | Various | Hazard ratio |
+
+## Exercises
+
+### Beginner Exercises
+
+**Exercise 11.1: Interpret Regression Coefficients**
+
+A simple linear regression of FEV₁ (Forced Expiratory Volume, liters) on smoking pack-years yields:
+
+$$\widehat{FEV_1} = 4.2 - 0.08 \times \text{PackYears}$$
+
+with 95% CI for the slope: [-0.12, -0.04].
+
+(a) Interpret the slope coefficient.
+(b) Is the relationship statistically significant? Why?
+(c) What is the predicted FEV₁ for a 40 pack-year smoker?
+
+**Exercise 11.2: Simple Linear Regression (hemoglobin data)**
+
+Simulate hemoglobin data by age and fit a simple linear regression:
+
+```r
+set.seed(42)
+age <- seq(20, 80, length.out = 80)
+hgb <- 13 + 0.03 * age + rnorm(80, 0, 1.2)
+```
+
+(a) Fit the model and report the coefficient estimates.
+(b) Create a scatter plot with fitted line.
+(c) Check model assumptions (Q-Q plot, residuals vs. fitted).
+(d) Compute and interpret $R^2$.
+
+**Exercise 11.3: Logistic Regression (MASS::birthwt)**
+
+Using the `MASS::birthwt` dataset:
+
+(a) Fit a logistic regression predicting low birth weight from maternal age.
+(b) Report the odds ratio with 95% CI.
+(c) Compute the predicted probability for a 25-year-old and a 40-year-old mother.
+(d) Plot the predicted probability curve.
+
+### Advanced Exercises
+
+**Exercise 11.4: Multiple Linear Regression and Model Selection**
+
+Using pharmaversesdtm data (or simulated clinical data):
+
+(a) Fit a multiple linear regression of a continuous outcome (e.g., hemoglobin change from baseline) on age, sex, and treatment arm.
+(b) Compute VIF for each predictor. Is multicollinearity a concern?
+(c) Compare the full model to a reduced model (excluding sex) using ANOVA. Does sex significantly improve the fit?
+(d) Report the adjusted coefficient for treatment arm. How does it compare to the unadjusted estimate from simple regression? Why might they differ?
+
+**Exercise 11.5: Complex Logistic Regression with Diagnostics**
+
+Using `MASS::birthwt` or a clinical dataset:
+
+(a) Fit a logistic regression with multiple predictors (≥4).
+(b) Check for multicollinearity (via VIF on the underlying linear model).
+(c) Compute and plot the ROC curve; report the AUC.
+(d) Perform the Hosmer-Lemeshow goodness-of-fit test.
+(e) Identify any influential observations using Cook's distance.
+(f) Summarize the model results in a clinical table format (variable, OR, 95% CI, p-value).

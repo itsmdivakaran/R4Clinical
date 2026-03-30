@@ -1,0 +1,1085 @@
+---
+title: "Chapter 2: R Fundamentals and Data Structures"
+---
+
+# R Fundamentals and Data Structures
+
+## 2.1 Data Types in R: The Building Blocks
+
+Every value in R has a data type. Understanding these types is essential because R's functions behave differently depending on the type of data they receive. In clinical research, we work primarily with six data types.
+
+### Numeric (Real Numbers)
+
+Numeric values are decimal numbers used for measurements, lab values, and continuous outcomes.
+
+```{r}
+#| label: numeric-data-type
+#| eval: false
+
+# Define a numeric value (systolic blood pressure)
+systolic_bp <- 145.3
+
+# Verify it is numeric
+class(systolic_bp)
+# [1] "numeric"
+
+# R stores this as a floating-point number (double precision)
+# It can be used in arithmetic operations
+diastolic_bp <- 92.5
+mean_arterial_pressure <- (systolic_bp + 2 * diastolic_bp) / 3
+print(mean_arterial_pressure)
+# [1] 110.1
+```
+
+In clinical research, numeric data represents:
+- **Lab values**: Hemoglobin (g/dL), white blood cells (K/uL), glucose (mg/dL)
+- **Vital signs**: Blood pressure (mmHg), heart rate (bpm), temperature (°C or °F)
+- **Efficacy measures**: Tumor size (cm), FEV1 (liters), ejection fraction (%)
+- **Pharmacokinetic parameters**: AUC, Cmax, clearance
+
+::: {.callout-tip}
+**Numeric Precision**: R uses double-precision floating-point arithmetic, which can introduce small rounding errors. In clinical data, these are negligible (differences at 16 decimal places), but when comparing floating-point numbers for exact equality, use `all.equal()` instead of `==`.
+:::
+
+### Integer
+
+Integers are whole numbers without decimal places. They occupy less memory than numeric values but are less commonly needed in clinical analysis.
+
+```{r}
+#| label: integer-data-type
+#| eval: false
+
+# Define an integer explicitly using the L suffix
+subject_id <- 101L
+visit_number <- 3L
+number_of_ae <- 2L
+
+class(subject_id)
+# [1] "integer"
+
+# Count data is naturally integer:
+# - Number of adverse events per subject
+# - Number of protocol violations
+# - Number of hospitalizations
+
+# If you forget the L suffix, R treats it as numeric (not integer)
+subject_id_numeric <- 101
+class(subject_id_numeric)
+# [1] "numeric"
+```
+
+### Character (Text Strings)
+
+Character data represents text: names, identifiers, categorical values, and descriptive information.
+
+```{r}
+#| label: character-data-type
+#| eval: false
+
+# Character strings use double or single quotes
+subject_id <- "001-101"
+gender <- "Female"
+adverse_event <- "Grade 3 Rash"
+
+class(subject_id)
+# [1] "character"
+
+# In clinical data, character variables include:
+# - Subject IDs: "001-101", "001-102"
+# - Treatment groups: "Active", "Placebo"
+# - Event terms: "Nausea", "Headache", "Elevated ALT"
+# - Adverse event severity: "Mild", "Moderate", "Severe"
+# - Lab units: "g/dL", "K/uL", "%"
+
+# Character vectors can be concatenated
+patient_label <- paste("Subject", subject_id, "is", gender)
+print(patient_label)
+# [1] "Subject 001-101 is Female"
+```
+
+### Logical (Boolean)
+
+Logical values are TRUE or FALSE. They result from comparisons and conditional tests.
+
+```{r}
+#| label: logical-data-type
+#| eval: false
+
+# Logical values from comparisons
+glucose <- 165  # mg/dL
+is_hyperglycemic <- glucose > 125
+print(is_hyperglycemic)
+# [1] TRUE
+
+# In clinical research, logical flags indicate:
+# - Abnormal result: is_abnormal = TRUE/FALSE
+# - Safety flag: has_ae = TRUE/FALSE
+# - Protocol violation: violated_inclusion = TRUE/FALSE
+# - Baseline status: at_baseline = TRUE/FALSE
+
+# Logical arithmetic (TRUE = 1, FALSE = 0)
+num_adverse_events <- 3
+ae_flag <- num_adverse_events > 0
+print(ae_flag)
+# [1] TRUE
+
+# Sum of logical vector counts TRUE values
+safety_flags <- c(TRUE, FALSE, TRUE, FALSE, TRUE)
+count_flags <- sum(safety_flags)
+print(count_flags)
+# [1] 3
+```
+
+### Factor (Categorical Data with Levels)
+
+Factors are categorical variables where levels have a specific order or meaning. This is crucial for clinical data.
+
+```{r}
+#| label: factor-data-type
+#| eval: false
+
+# Define a factor: treatment group with two levels
+treatment <- factor(c("Active", "Placebo", "Active", "Placebo"),
+                    levels = c("Placebo", "Active"))
+
+class(treatment)
+# [1] "factor"
+
+# Display the factor
+print(treatment)
+# [1] Active  Placebo Active  Placebo
+# Levels: Placebo Active
+
+# Note: The levels are ordered (Placebo first, Active second)
+# This ordering matters for statistical models and visualizations
+
+# Clinical factors include:
+# - Treatment group: Levels = c("Control", "Low Dose", "High Dose")
+# - Adverse event severity: Levels = c("Mild", "Moderate", "Severe", "Life-threatening")
+# - Visit number: Levels = c("Screening", "Baseline", "Week 4", "Week 8", "Week 12")
+# - Gender: Levels = c("Male", "Female")
+
+# When you analyze factors in statistics, the reference level matters
+# Example: A logistic regression with treatment as a factor
+# will compare each level against the reference (first level)
+
+# Ordered factors (for ordinal data like severity)
+severity <- ordered(c("Mild", "Moderate", "Severe"),
+                    levels = c("Mild", "Moderate", "Severe"))
+
+print(severity)
+# [1] Mild     Moderate Severe
+# Levels: Mild < Moderate < Severe
+```
+
+::: {.callout-important}
+**Factors vs. Characters**: If a variable is categorical (e.g., treatment group, gender, adverse event grade), use `factor()`, not character. Factors enable proper statistical modeling and prevent accidental misspellings (R will warn if you try to assign a level that doesn't exist).
+:::
+
+### Date and Date-Time
+
+Dates are specialized data types that handle temporal data correctly.
+
+```{r}
+#| label: date-data-type
+#| eval: false
+
+# Create a date using as.Date() with a standard format
+screening_date <- as.Date("2024-03-15", format = "%Y-%m-%d")
+baseline_date <- as.Date("2024-03-22")
+
+class(screening_date)
+# [1] "Date"
+
+# Dates allow temporal arithmetic
+days_to_baseline <- baseline_date - screening_date
+print(days_to_baseline)
+# Time difference of 7 days
+
+# The lubridate package provides convenient date functions
+library(lubridate)
+
+# Parse dates flexibly
+enrollment_date <- ymd("2024-03-22")  # Year-Month-Day
+birth_date <- mdy("01/15/1970")        # Month-Day-Year
+lab_datetime <- dmy_hm("22/03/2024 14:30")  # Day-Month-Year Hour:Minute
+
+# Extract components
+age_at_enrollment <- year(enrollment_date) - year(birth_date)
+print(age_at_enrollment)
+# [1] 54
+```
+
+In clinical research, dates are essential for:
+- **Trial timeline**: Screening, baseline, treatment, follow-up dates
+- **Adverse event reporting**: Date of onset, resolution, reporting
+- **Medication history**: Start/stop dates for concomitant medications
+- **Lab test dates**: Comparing results across visits
+
+## 2.2 Data Structures: Vectors, Matrices, Lists, and Data Frames
+
+### Vectors: The Foundation
+
+A vector is a sequence of values of the same type. Vectors are the fundamental building block of R.
+
+```{r}
+#| label: vectors-intro
+#| eval: false
+
+# Numeric vector: hemoglobin values for 5 subjects
+hemoglobin <- c(13.5, 12.8, 14.2, 11.9, 13.1)
+print(hemoglobin)
+# [1] 13.5 12.8 14.2 11.9 13.1
+
+# Character vector: treatment groups
+treatment_groups <- c("Active", "Placebo", "Active", "Placebo", "Active")
+print(treatment_groups)
+# [1] "Active"  "Placebo" "Active"  "Placebo" "Active"
+
+# Logical vector: abnormality flags
+is_abnormal <- c(TRUE, TRUE, FALSE, TRUE, FALSE)
+print(is_abnormal)
+# [1]  TRUE  TRUE FALSE  TRUE FALSE
+
+# Access individual elements using [index]
+first_hemoglobin <- hemoglobin[1]
+print(first_hemoglobin)
+# [1] 13.5
+
+# Access multiple elements
+first_three <- hemoglobin[1:3]
+print(first_three)
+# [1] 13.5 12.8 14.2
+
+# Conditional indexing: get values > 13
+high_hemoglobin <- hemoglobin[hemoglobin > 13]
+print(high_hemoglobin)
+# [1] 13.5 14.2 13.1
+```
+
+### Named Vectors
+
+Named vectors associate each element with a meaningful label.
+
+```{r}
+#| label: named-vectors
+#| eval: false
+
+# Create a vector of baseline vital signs
+vitals <- c(
+  systolic_bp = 145,
+  diastolic_bp = 92,
+  heart_rate = 78,
+  temperature = 36.8
+)
+
+print(vitals)
+# systolic_bp diastolic_bp   heart_rate temperature
+#         145           92           78        36.8
+
+# Access by name
+hr <- vitals["heart_rate"]
+print(hr)
+# heart_rate
+#         78
+
+# In clinical data, named vectors represent:
+# - Subject-level baseline measurements
+# - Protocol-specified reference values
+# - Adverse event counts by type
+```
+
+### Matrices: Two-Dimensional Arrays
+
+A matrix is a two-dimensional collection of values (all the same type).
+
+```{r}
+#| label: matrices
+#| eval: false
+
+# Create a matrix: 5 subjects, 3 lab measurements
+lab_values <- matrix(
+  c(13.5, 12.8, 14.2, 11.9, 13.1,  # Hemoglobin (g/dL)
+    7.2, 6.1, 7.5, 5.8, 6.9,        # WBC (K/uL)
+    95, 88, 102, 85, 98),           # Glucose (mg/dL)
+  nrow = 5,
+  ncol = 3,
+  byrow = FALSE
+)
+
+# Add informative row and column names
+rownames(lab_values) <- paste0("Subject_", 1:5)
+colnames(lab_values) <- c("Hemoglobin", "WBC", "Glucose")
+
+print(lab_values)
+#         Hemoglobin WBC Glucose
+# Subject_1       13.5 7.2      95
+# Subject_2       12.8 6.1      88
+# ...
+
+# Access elements
+hgb_subject_2 <- lab_values[2, "Hemoglobin"]
+print(hgb_subject_2)
+# [1] 12.8
+
+# Extract a column
+hemoglobin_values <- lab_values[, "Hemoglobin"]
+print(hemoglobin_values)
+# Subject_1 Subject_2 Subject_3 Subject_4 Subject_5
+#      13.5      12.8      14.2      11.9      13.1
+```
+
+::: {.callout-note}
+**Matrices vs. Data Frames**: Matrices are homogeneous (all elements same type) and are useful for mathematical operations. Data frames (next section) are heterogeneous (mixed types) and are the standard for clinical datasets. In practice, you'll use data frames far more often than matrices.
+:::
+
+### Lists: Flexible Collections
+
+A list can contain elements of different types and structures. Lists are extremely flexible.
+
+```{r}
+#| label: lists
+#| eval: false
+
+# Create a list with diverse content
+subject_data <- list(
+  id = "001-101",
+  age = 62,
+  gender = "Female",
+  baseline_labs = c(hemoglobin = 13.5, wbc = 7.2, glucose = 95),
+  adverse_events = c("Nausea", "Headache"),
+  completed_trial = TRUE
+)
+
+print(subject_data)
+# $id
+# [1] "001-101"
+#
+# $age
+# [1] 62
+#
+# $gender
+# [1] "Female"
+#
+# $baseline_labs
+# hemoglobin       wbc    glucose
+#       13.5       7.2       95.0
+#
+# $adverse_events
+# [1] "Nausea"   "Headache"
+#
+# $completed_trial
+# [1] TRUE
+
+# Access list elements using $ or [[]]
+subject_id <- subject_data$id
+print(subject_id)
+# [1] "001-101"
+
+# Access by index
+age <- subject_data[[2]]
+print(age)
+# [1] 62
+
+# Lists are used for:
+# - Storing mixed-type data for a single subject
+# - Returning multiple outputs from a function
+# - Nested data structures (list of lists)
+```
+
+### Data Frames: The Standard for Tabular Data
+
+A data frame is a list of vectors (columns) of equal length. This is the standard structure for clinical datasets.
+
+```{r}
+#| label: data-frames
+#| eval: false
+
+# Create a data frame: 5 subjects with demographics and baseline labs
+clinical_data <- data.frame(
+  USUBJID = c("001-101", "001-102", "001-103", "001-104", "001-105"),
+  AGE = c(62, 32, 39, 56, 31),
+  SEX = factor(c("F", "M", "F", "F", "M"), levels = c("F", "M")),
+  TREATMENT = factor(c("Active", "Placebo", "Active", "Placebo", "Active")),
+  BASELINE_HGB = c(13.5, 12.8, 14.2, 11.9, 13.1),
+  BASELINE_GLU = c(95, 88, 102, 85, 98)
+)
+
+print(clinical_data)
+#    USUBJID AGE SEX TREATMENT BASELINE_HGB BASELINE_GLU
+# 1 001-101  62   F    Active         13.5           95
+# 2 001-102  32   M   Placebo         12.8           88
+# 3 001-103  39   F    Active         14.2          102
+# 4 001-104  56   F   Placebo         11.9           85
+# 5 001-105  31   M    Active         13.1           98
+
+# Check dimensions
+dim(clinical_data)
+# [1] 5 6
+
+# Access columns
+age_vector <- clinical_data$AGE
+print(age_vector)
+# [1] 62 32 39 56 31
+
+# Or by index
+treatment_vector <- clinical_data[, 4]
+print(treatment_vector)
+# [1] Active  Placebo Active  Placebo Active
+# Levels: Active Placebo
+
+# Access rows
+subject_102_data <- clinical_data[2, ]
+print(subject_102_data)
+#    USUBJID AGE SEX TREATMENT BASELINE_HGB BASELINE_GLU
+# 2 001-102  32   M   Placebo         12.8           88
+
+# Access a specific cell
+age_of_subject_103 <- clinical_data[3, "AGE"]
+print(age_of_subject_103)
+# [1] 39
+```
+
+### Tibbles: The Modern Data Frame
+
+Tibbles (from the {tibble} package, part of tidyverse) are enhanced data frames with better printing and behavior.
+
+```{r}
+#| label: tibbles
+#| eval: false
+
+library(tibble)
+
+# Create a tibble
+clinical_tbl <- tibble(
+  USUBJID = c("001-101", "001-102", "001-103", "001-104", "001-105"),
+  AGE = c(62, 32, 39, 56, 31),
+  SEX = factor(c("F", "M", "F", "F", "M")),
+  TREATMENT = factor(c("Active", "Placebo", "Active", "Placebo", "Active")),
+  BASELINE_HGB = c(13.5, 12.8, 14.2, 11.9, 13.1)
+)
+
+# Printing a tibble shows:
+# - Column types (e.g., <chr>, <dbl>, <fct>)
+# - Only as many rows as fit on screen
+# - Only as many columns as fit on screen
+print(clinical_tbl)
+
+# # A tibble: 5 × 5
+#   USUBJID   AGE SEX   TREATMENT BASELINE_HGB
+#   <chr>   <dbl> <fct> <fct>            <dbl>
+# 1 001-101    62 F     Active            13.5
+# 2 001-102    32 M     Placebo           12.8
+# ...
+
+# Tibbles are stricter about subsetting (which prevents accidental bugs)
+# They're the default output of many tidyverse functions
+```
+
+## 2.3 Operators: Arithmetic, Comparison, and Logical
+
+Operators allow us to perform calculations, comparisons, and logical tests on data.
+
+### Arithmetic Operators
+
+```{r}
+#| label: arithmetic-operators
+#| eval: false
+
+# Addition
+total_dose <- 100 + 50
+print(total_dose)
+# [1] 150
+
+# Subtraction
+weight_change <- 85 - 82
+print(weight_change)
+# [1] 3
+
+# Multiplication
+total_dose <- 10 * 5  # 10 subjects, 5 mg each
+print(total_dose)
+# [1] 50
+
+# Division
+average_dose <- 50 / 5
+print(average_dose)
+# [1] 10
+
+# Exponentiation
+squared <- 5 ^ 2
+print(squared)
+# [1] 25
+
+# Modulo (remainder)
+remainder <- 17 %% 5
+print(remainder)
+# [1] 2
+
+# Integer division
+quotient <- 17 %/% 5
+print(quotient)
+# [1] 3
+
+# These operators work on vectors element-wise
+weights <- c(70, 85, 92, 78, 81)
+weights_in_pounds <- weights * 2.20462
+print(weights_in_pounds)
+# [1] 154.32 187.39 202.86 171.96 178.57
+```
+
+### Comparison Operators
+
+Comparison operators return logical (TRUE/FALSE) values. They're essential for filtering clinical data.
+
+```{r}
+#| label: comparison-operators
+#| eval: false
+
+# Equal to
+glucose <- 125
+is_equal_threshold <- glucose == 125
+print(is_equal_threshold)
+# [1] TRUE
+
+# Not equal to
+is_hyperglycemic <- glucose != 100
+print(is_hyperglycemic)
+# [1] TRUE
+
+# Less than
+is_low <- glucose < 70
+print(is_low)
+# [1] FALSE
+
+# Greater than
+is_elevated <- glucose > 100
+print(is_elevated)
+# [1] TRUE
+
+# Less than or equal to
+is_acceptable <- glucose <= 140
+print(is_acceptable)
+# [1] TRUE
+
+# Greater than or equal to
+is_high_normal <- glucose >= 100
+print(is_high_normal)
+# [1] TRUE
+
+# Clinical application: flag abnormal labs
+hemoglobin_values <- c(13.5, 12.8, 14.2, 11.9, 13.1)
+is_abnormal <- hemoglobin_values < 12 | hemoglobin_values > 14
+print(is_abnormal)
+# [1] FALSE FALSE  TRUE  TRUE FALSE
+```
+
+### Logical Operators
+
+Logical operators combine logical conditions.
+
+```{r}
+#| label: logical-operators
+#| eval: false
+
+# AND (&): Both conditions must be TRUE
+age <- 45
+glucose <- 125
+is_middle_aged <- age > 40
+is_hyperglycemic <- glucose > 100
+is_target_population <- is_middle_aged & is_hyperglycemic
+print(is_target_population)
+# [1] TRUE
+
+# OR (|): At least one condition must be TRUE
+has_hypertension <- FALSE
+has_diabetes <- TRUE
+requires_medication <- has_hypertension | has_diabetes
+print(requires_medication)
+# [1] TRUE
+
+# NOT (!): Inverts the condition
+on_active_treatment <- TRUE
+on_placebo <- !on_active_treatment
+print(on_placebo)
+# [1] FALSE
+
+# Complex conditions: Clinical inclusion criteria
+age <- 35
+bmi <- 28
+glucose <- 110
+
+meets_criteria <- (age >= 18 & age <= 65) &
+                  (bmi >= 20 & bmi < 40) &
+                  (glucose >= 100 & glucose <= 200)
+
+print(meets_criteria)
+# [1] TRUE
+```
+
+## 2.4 Control Flow: Decisions and Loops
+
+### if/else Statements
+
+```{r}
+#| label: if-else-statements
+#| eval: false
+
+# Simple if statement
+hemoglobin <- 12.5
+
+if (hemoglobin < 12) {
+  status <- "Anemic"
+} else if (hemoglobin < 13.5) {
+  status <- "Low-normal"
+} else {
+  status <- "Normal"
+}
+
+print(status)
+# [1] "Low-normal"
+
+# Clinical application: Flag abnormal lab values based on CTCAE criteria
+wbc <- 2.5  # White blood cell count in K/uL
+
+if (wbc >= 3) {
+  grade <- 0
+} else if (wbc >= 2) {
+  grade <- 1
+} else if (wbc >= 1) {
+  grade <- 2
+} else if (wbc > 0.5) {
+  grade <- 3
+} else {
+  grade <- 4
+}
+
+print(paste("WBC Grade:", grade))
+# [1] "WBC Grade: 1"
+
+# Vectorized if/else: ifelse() for entire vectors
+hemoglobin_values <- c(13.5, 12.8, 14.2, 11.9, 13.1)
+abnormality <- ifelse(hemoglobin_values < 12 | hemoglobin_values > 14,
+                      "Abnormal", "Normal")
+print(abnormality)
+# [1] "Normal"  "Normal"  "Abnormal" "Abnormal" "Normal"
+```
+
+### for Loops
+
+For loops iterate a fixed number of times, processing each element.
+
+```{r}
+#| label: for-loops
+#| eval: false
+
+# Simple loop: Calculate BMI for each subject
+heights_m <- c(1.75, 1.68, 1.82, 1.70, 1.65)  # meters
+weights_kg <- c(70, 65, 82, 75, 60)
+
+bmi_values <- numeric(length = 5)  # Create empty vector
+
+for (i in 1:5) {
+  bmi_values[i] <- weights_kg[i] / (heights_m[i] ^ 2)
+}
+
+print(bmi_values)
+# [1] 22.86 23.03 24.68 25.95 22.04
+
+# Loop over a vector directly
+subject_ids <- c("001-101", "001-102", "001-103")
+
+for (id in subject_ids) {
+  cat("Processing subject", id, "\n")
+}
+# Processing subject 001-101
+# Processing subject 001-102
+# Processing subject 001-103
+
+# Clinical application: Process multiple domains
+domains <- c("DM", "AE", "LB")
+
+for (domain in domains) {
+  filename <- paste0(domain, ".csv")
+  cat("Would load:", filename, "\n")
+}
+# Would load: DM.csv
+# Would load: AE.csv
+# Would load: LB.csv
+```
+
+::: {.callout-tip}
+**Vectorization > Loops**: In R, vectorized operations are much faster than loops. When possible, use built-in functions that work on entire vectors rather than explicit loops. We'll see this in detail in later chapters with dplyr.
+:::
+
+### while Loops
+
+While loops continue as long as a condition is TRUE.
+
+```{r}
+#| label: while-loops
+#| eval: false
+
+# Simple while loop
+count <- 0
+while (count < 5) {
+  cat("Count:", count, "\n")
+  count <- count + 1
+}
+# Count: 0
+# Count: 1
+# Count: 2
+# Count: 3
+# Count: 4
+
+# Clinical application: Iterate until convergence
+# (simplified example of iterative algorithm)
+parameter <- 10
+iteration <- 0
+tolerance <- 0.01
+
+while (abs(parameter - 9.5) > tolerance & iteration < 100) {
+  parameter <- parameter - (parameter - 9.5) / 10
+  iteration <- iteration + 1
+}
+
+cat("Converged to", parameter, "after", iteration, "iterations\n")
+# Converged to 9.5 after 29 iterations
+```
+
+## 2.5 Functions: Creating Reusable Code
+
+Functions encapsulate code logic for reuse. In clinical research, functions standardize calculations across datasets.
+
+### Creating a Function
+
+```{r}
+#| label: function-creation
+#| eval: false
+
+# Function to calculate BMI
+calculate_bmi <- function(weight_kg, height_m) {
+  # Input validation
+  if (weight_kg <= 0 | height_m <= 0) {
+    stop("Weight and height must be positive values")
+  }
+
+  # Calculate BMI
+  bmi <- weight_kg / (height_m ^ 2)
+
+  # Return the result
+  return(bmi)
+}
+
+# Use the function
+subject_1_bmi <- calculate_bmi(weight_kg = 70, height_m = 1.75)
+print(subject_1_bmi)
+# [1] 22.86
+
+# Function with multiple subjects
+weights <- c(70, 65, 82, 75, 60)
+heights <- c(1.75, 1.68, 1.82, 1.70, 1.65)
+bmi_all <- mapply(calculate_bmi, weights, heights)
+print(bmi_all)
+# [1] 22.86 23.03 24.68 25.95 22.04
+```
+
+### Functions with Multiple Return Values
+
+```{r}
+#| label: function-multiple-returns
+#| eval: false
+
+# Function to classify lab abnormality by CTCAE
+classify_wbc_grade <- function(wbc_value) {
+  # WBC reference: 3.0-11.0 K/uL
+  # CTCAE grades: 0=normal, 1=mild, 2=moderate, 3=severe, 4=life-threatening
+
+  if (wbc_value >= 3.0) {
+    grade <- 0
+    severity <- "Normal"
+  } else if (wbc_value >= 2.0) {
+    grade <- 1
+    severity <- "Mild"
+  } else if (wbc_value >= 1.0) {
+    grade <- 2
+    severity <- "Moderate"
+  } else if (wbc_value > 0.5) {
+    grade <- 3
+    severity <- "Severe"
+  } else {
+    grade <- 4
+    severity <- "Life-threatening"
+  }
+
+  # Return a list with multiple values
+  return(list(
+    grade = grade,
+    severity = severity,
+    value = wbc_value
+  ))
+}
+
+# Use the function
+result <- classify_wbc_grade(2.1)
+print(result$grade)
+# [1] 1
+print(result$severity)
+# [1] "Mild"
+```
+
+### Function Scope
+
+Variables defined inside a function are local (exist only within that function). This prevents namespace pollution.
+
+```{r}
+#| label: function-scope
+#| eval: false
+
+# Define a global variable
+patient_age <- 50
+
+calculate_dose <- function(weight_kg) {
+  # Local variable: only exists within this function
+  dose <- weight_kg * 10
+
+  # Can access global variables
+  cat("Patient age:", patient_age, "\n")
+
+  return(dose)
+}
+
+dose_for_70kg <- calculate_dose(70)
+print(dose_for_70kg)
+# Patient age: 50
+# [1] 700
+
+# Local variable 'dose' doesn't exist outside the function
+print(exists("dose"))
+# [1] FALSE
+
+# But function name and global variable still exist
+print(exists("calculate_dose"))
+# [1] TRUE
+print(exists("patient_age"))
+# [1] TRUE
+```
+
+## 2.6 The apply Family: Efficient Iteration
+
+The apply family of functions offers vectorized alternatives to loops.
+
+```{r}
+#| label: apply-family
+#| eval: false
+
+# Create a sample clinical dataset (matrix form)
+lab_matrix <- matrix(
+  c(13.5, 12.8, 14.2, 11.9, 13.1,  # Hemoglobin
+    7.2, 6.1, 7.5, 5.8, 6.9,        # WBC
+    95, 88, 102, 85, 98),           # Glucose
+  nrow = 5,
+  ncol = 3,
+  byrow = FALSE,
+  dimnames = list(paste0("S", 1:5), c("HGB", "WBC", "GLU"))
+)
+
+# apply() on rows (margin = 1): Calculate mean for each subject
+mean_per_subject <- apply(lab_matrix, 1, mean)
+print(mean_per_subject)
+# S1        S2        S3        S4        S5
+# 38.57     35.30     41.23     33.93     39.33
+
+# apply() on columns (margin = 2): Calculate mean for each lab
+mean_per_lab <- apply(lab_matrix, 2, mean)
+print(mean_per_lab)
+# HGB       WBC       GLU
+# 13.10     6.70      93.60
+
+# lapply(): Apply function to list elements, returns a list
+lab_list <- list(
+  hemoglobin = c(13.5, 12.8, 14.2),
+  wbc = c(7.2, 6.1, 7.5),
+  glucose = c(95, 88, 102)
+)
+
+means_list <- lapply(lab_list, mean)
+print(means_list)
+# $hemoglobin
+# [1] 13.50
+#
+# $wbc
+# [1] 6.93
+#
+# $glucose
+# [1] 95
+
+# sapply(): Simplify results to a vector
+means_vector <- sapply(lab_list, mean)
+print(means_vector)
+# hemoglobin       wbc    glucose
+#       13.50      6.93      95.00
+```
+
+## 2.7 Creating a Complete Clinical Patient Record
+
+Let's integrate everything: data types, structures, operators, and functions.
+
+```{r}
+#| label: complete-patient-record
+#| eval: false
+
+library(lubridate)
+
+# Create a function to build a patient record
+create_patient_record <- function(subject_id, age, sex, treatment,
+                                  baseline_weight, baseline_height,
+                                  baseline_glucose) {
+
+  # Calculate baseline BMI
+  baseline_bmi <- baseline_weight / (baseline_height ^ 2)
+
+  # Determine gender code
+  sex_code <- ifelse(sex == "Female", "F", "M")
+
+  # Create a patient record (list)
+  patient <- list(
+    demographics = data.frame(
+      USUBJID = subject_id,
+      AGE = age,
+      SEX = factor(sex_code, levels = c("F", "M")),
+      TREATMENT = factor(treatment, levels = c("Placebo", "Active")),
+      stringsAsFactors = FALSE
+    ),
+    baseline_vitals = data.frame(
+      WEIGHT_KG = baseline_weight,
+      HEIGHT_M = baseline_height,
+      BMI = baseline_bmi,
+      GLUCOSE_MGDL = baseline_glucose
+    ),
+    status = list(
+      enrolled = TRUE,
+      enrollment_date = Sys.Date(),
+      completed = NA
+    )
+  )
+
+  return(patient)
+}
+
+# Create records for 3 subjects
+subjects <- list()
+
+subjects[[1]] <- create_patient_record(
+  subject_id = "001-101",
+  age = 62,
+  sex = "Female",
+  treatment = "Active",
+  baseline_weight = 70,
+  baseline_height = 1.65,
+  baseline_glucose = 95
+)
+
+subjects[[2]] <- create_patient_record(
+  subject_id = "001-102",
+  age = 45,
+  sex = "Male",
+  treatment = "Placebo",
+  baseline_weight = 85,
+  baseline_height = 1.78,
+  baseline_glucose = 102
+)
+
+subjects[[3]] <- create_patient_record(
+  subject_id = "001-103",
+  age = 55,
+  sex = "Female",
+  treatment = "Active",
+  baseline_weight = 68,
+  baseline_height = 1.62,
+  baseline_glucose = 98
+)
+
+# Access data from the first subject
+print(subjects[[1]]$demographics)
+#   USUBJID AGE SEX TREATMENT
+# 1 001-101  62   F    Active
+
+print(subjects[[1]]$baseline_vitals)
+#   WEIGHT_KG HEIGHT_M      BMI GLUCOSE_MGDL
+# 1        70     1.65 25.67761            95
+
+# Extract all treatment assignments
+treatments <- sapply(subjects, function(x) x$demographics$TREATMENT)
+print(treatments)
+# [1] Active  Placebo Active
+```
+
+## 2.8 Best Practices for Clinical R Code
+
+1. **Use meaningful variable names**: `baseline_hemoglobin`, not `x` or `hgb1`
+2. **Validate inputs**: Check that ages are positive, weights are reasonable
+3. **Use factors for categorical data**: Treatment, gender, adverse event grades
+4. **Handle missing data explicitly**: `is.na()` before calculations
+5. **Comment your code**: Especially CDISC variable names and clinical interpretations
+6. **Use functions for repeated operations**: Standardizes calculations across datasets
+7. **Test your code**: Run on known examples before production use
+
+---
+
+## Exercises
+
+### Beginner Exercises
+
+**Exercise 2.1: Working with Data Types**
+
+Create the following variables and verify their types:
+- A numeric vector of five systolic blood pressure values (e.g., 145, 152, 138, 148, 141)
+- A character vector of subject IDs (e.g., "001-101", "001-102", etc.)
+- A logical vector indicating whether each subject is on active treatment (TRUE/FALSE)
+- A factor representing adverse event severity (Mild, Moderate, Severe)
+
+Use `class()` to verify each variable's type.
+
+**Exercise 2.2: Creating and Manipulating a Clinical Data Frame**
+
+Create a data frame with 10 subjects containing:
+- USUBJID: Subject IDs from "001-101" to "001-110"
+- AGE: Ages ranging from 30 to 70
+- WEIGHT_KG: Weights from 50 to 95 kg
+- TREATMENT: Randomly assign "Active" or "Placebo" (Hint: use `sample()`)
+
+Calculate:
+a) The mean age of all subjects
+b) The mean weight of subjects on active treatment
+c) How many subjects are over 50 years old
+
+**Exercise 2.3: Using Logical Operators**
+
+Using the data frame from Exercise 2.2:
+- Create a logical vector indicating subjects who are BOTH over 50 years old AND on active treatment
+- Create a logical vector indicating subjects who are EITHER over 65 years old OR weigh more than 85 kg
+- Count how many subjects meet each criterion
+
+### Advanced Exercises
+
+**Exercise 2.4: Creating a Clinical Utility Function**
+
+Write a function `classify_bmi()` that:
+- Takes weight (kg) and height (m) as inputs
+- Calculates BMI
+- Classifies BMI as: "Underweight" (< 18.5), "Normal" (18.5–24.9), "Overweight" (25–29.9), or "Obese" (≥ 30)
+- Returns a named list with bmi value and classification
+
+Test the function with at least 5 different weight/height combinations.
+
+**Exercise 2.5: Simulating Trial Enrollment**
+
+Create a function `simulate_trial_enrollment()` that:
+- Generates a cohort of 100 subjects with random age (18–75), weight (50–110 kg), and height (1.50–1.95 m)
+- Randomly assigns treatment (Active/Placebo, 1:1 ratio)
+- Calculates BMI for all subjects
+- Returns a data frame with USUBJID, AGE, TREATMENT, WEIGHT_KG, HEIGHT_M, BMI
+- Provides summary statistics (mean age, mean BMI by treatment, etc.)
+
+---

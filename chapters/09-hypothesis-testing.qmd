@@ -1,0 +1,527 @@
+---
+title: "Chapter 9: Hypothesis Testing"
+---
+
+# Chapter 9: Hypothesis Testing
+
+## Introduction
+
+Scientific progress depends on testing whether observed differences are genuine or merely due to chance. Hypothesis testing is the formal statistical framework for this investigation. In clinical trials, we test whether a new drug is truly better than placebo; in observational studies, we test whether an exposure is associated with an outcome. This chapter develops the logic of hypothesis testing, explains key concepts, and demonstrates essential tests for continuous and categorical data.
+
+## Part I: Foundations of Hypothesis Testing
+
+### The Null and Alternative Hypotheses
+
+Every hypothesis test begins with two competing hypotheses:
+
+- **Null hypothesis ($H_0$)**: Typically, a statement of "no effect" or "no difference." For example, in a trial comparing a new antihypertensive to placebo, $H_0$ might state that the mean blood pressure reduction is the same in both groups.
+- **Alternative hypothesis ($H_1$ or $H_a$)**: The research hypothesis; states that an effect or difference exists.
+
+Hypotheses are formulated *before* analyzing data. The alternative hypothesis can be:
+- **Two-tailed**: Allows for differences in either direction (e.g., $H_1: \mu_1 \neq \mu_2$)
+- **One-tailed**: Specifies a direction (e.g., $H_1: \mu_1 > \mu_2$, predicting drug is superior)
+
+Two-tailed tests are more conservative and are generally preferred in clinical research unless there is strong prior reason to expect an effect only in one direction.
+
+### Type I and Type II Errors
+
+In hypothesis testing, we make a decision (reject or fail to reject $H_0$) based on sample data. Because samples involve random variation, our decision may be wrong:
+
+| Decision | $H_0$ is True | $H_0$ is False |
+|----------|---------------|----------------|
+| Reject $H_0$ | **Type I Error** (false positive, $\alpha$) | Correct |
+| Fail to Reject $H_0$ | Correct | **Type II Error** (false negative, $\beta$) |
+
+- **Type I error (significance level, $\alpha$)**: Rejecting $H_0$ when it is actually true. Probability is set *a priori*, usually $\alpha = 0.05$ (5% risk). A smaller $\alpha$ reduces false positives but increases false negatives.
+- **Type II error ($\beta$)**: Failing to reject $H_0$ when $H_1$ is actually true.
+- **Power ($1 - \beta$)**: The probability of correctly detecting a true effect. Typically, we design studies to achieve power of 80% or 90%.
+
+**Clinical Example:** A Type I error in a drug approval trial would mean approving an ineffective (or harmful) drug, exposing patients to unnecessary risk. A Type II error would mean rejecting a truly beneficial drug, denying patients access to effective treatment.
+
+### The p-value
+
+The **p-value** is often misinterpreted. Here is the correct definition:
+
+$$\text{p-value} = P(\text{observed data or more extreme} \mid H_0 \text{ is true})$$
+
+It is the probability of obtaining data as extreme (or more extreme) as those observed, *assuming the null hypothesis is true*.
+
+**Correct interpretation:** A p-value of 0.03 means: "If the null hypothesis were true, we would observe a test statistic as extreme as (or more extreme than) the one calculated from our data 3% of the time."
+
+**Incorrect interpretation:** "The probability that the null hypothesis is true is 0.03" or "The probability the drug works is 0.97." The p-value says nothing about the posterior probability of the null hypothesis.
+
+**Decision Rule:**
+- If p-value $< \alpha$ (e.g., $< 0.05$): Reject $H_0$; declare the result statistically significant.
+- If p-value $\geq \alpha$: Fail to reject $H_0$; insufficient evidence to reject the null.
+
+Note: A non-significant result does not prove $H_0$ is true; it merely indicates insufficient evidence to reject it.
+
+## Part II: One-Sample Tests
+
+### One-Sample t-Test
+
+The one-sample t-test determines whether the mean of a single sample differs significantly from a hypothesized value $\mu_0$.
+
+**Hypotheses:**
+$$H_0: \mu = \mu_0$$
+$$H_1: \mu \neq \mu_0 \text{ (two-tailed)}$$
+
+**Test Statistic:**
+$$t = \frac{\bar{x} - \mu_0}{s/\sqrt{n}}$$
+
+where $\bar{x}$ is the sample mean, $s$ is the sample SD, and $n$ is the sample size. Under $H_0$, $t$ follows a t-distribution with $n-1$ degrees of freedom.
+
+**Assumptions:**
+1. **Independence**: Observations are independent of one another.
+2. **Normality**: Data come from a normal distribution (or the sample is large by Central Limit Theorem, $n \geq 30$).
+
+**Clinical Example:** A clinical team measures fasting glucose in 15 patients with newly diagnosed diabetes. Previous studies indicate that untreated fasting glucose averages 150 mg/dL in this population. The team observes a sample mean of 162 mg/dL (SD = 25). Does this sample differ significantly from the historical control?
+
+$$t = \frac{162 - 150}{25/\sqrt{15}} = \frac{12}{6.45} = 1.86$$
+
+With df = 14, the two-tailed p-value is approximately 0.081, which exceeds $\alpha = 0.05$. Thus, the sample mean does not differ significantly from the historical control at the 5% level (though the result is suggestive).
+
+### One-Sample Wilcoxon Signed-Rank Test
+
+For non-normally distributed data or small samples, the **Wilcoxon signed-rank test** is a non-parametric alternative to the t-test. It tests the median rather than the mean.
+
+**Test Procedure:**
+1. Compute deviations: $d_i = x_i - \mu_0$
+2. Rank absolute deviations: $|d_i|$, ignoring zeros
+3. Assign signs based on the sign of $d_i$
+4. Compute the test statistic $W$ = sum of ranks with the less frequent sign
+
+The distribution of $W$ under $H_0$ is known, and p-values are obtained from tables or software.
+
+**Advantages:**
+- Robust to outliers and non-normality
+- Based on ranks, not raw values
+- Suitable for small samples
+
+**Clinical Use:** Ideal for skewed data (e.g., time to recovery, biomarker concentrations) or when normality is suspect.
+
+## Part III: Two-Sample Tests
+
+### Two-Sample Independent t-Test
+
+The two-sample t-test compares means between two independent groups.
+
+**Hypotheses:**
+$$H_0: \mu_1 = \mu_2$$
+$$H_1: \mu_1 \neq \mu_2$$
+
+**Test Statistic (Equal Variance Case):**
+
+Assuming equal variances (verified by Levene's test), the pooled standard error is:
+
+$$s_p^2 = \frac{(n_1 - 1)s_1^2 + (n_2 - 1)s_2^2}{n_1 + n_2 - 2}$$
+
+The t-statistic is:
+
+$$t = \frac{\bar{x}_1 - \bar{x}_2}{\sqrt{s_p^2(1/n_1 + 1/n_2)}}$$
+
+Under $H_0$, $t$ follows a t-distribution with $n_1 + n_2 - 2$ degrees of freedom.
+
+**Assumptions:**
+1. **Independence**: Observations within and between groups are independent.
+2. **Normality**: Both groups are normally distributed (or $n \geq 30$).
+3. **Homogeneity of Variance**: The variances are equal in both groups, i.e., $\sigma_1^2 = \sigma_2^2$.
+
+**Testing Homogeneity:** Levene's test is robust to departures from normality:
+$$H_0: \sigma_1^2 = \sigma_2^2$$
+
+If Levene's test rejects (p < 0.05), use **Welch's t-test** (below).
+
+**Clinical Example:** A randomized trial compares mean blood pressure reduction (mmHg) between an ACE inhibitor (Group 1) and placebo (Group 2) after 12 weeks:
+- Group 1 (ACE inhibitor): $n_1 = 50$, $\bar{x}_1 = 18.5$ mmHg, $s_1 = 8.2$ mmHg
+- Group 2 (Placebo): $n_2 = 50$, $\bar{x}_2 = 4.2$ mmHg, $s_2 = 7.9$ mmHg
+
+Pooled variance: $s_p^2 = \frac{49(8.2)^2 + 49(7.9)^2}{98} = 64.95$
+
+$$t = \frac{18.5 - 4.2}{\sqrt{64.95 \cdot (1/50 + 1/50)}} = \frac{14.3}{1.61} = 8.88$$
+
+With df = 98, the two-tailed p-value is < 0.0001. The ACE inhibitor produces significantly greater blood pressure reduction than placebo.
+
+### Welch's t-Test
+
+When variances are unequal, **Welch's t-test** provides a more reliable test statistic:
+
+$$t = \frac{\bar{x}_1 - \bar{x}_2}{\sqrt{s_1^2/n_1 + s_2^2/n_2}}$$
+
+The degrees of freedom are estimated using the Welch-Satterthwaite equation, which typically yields a non-integer value. Most statistical software handles this automatically.
+
+**Advantage:** More robust to unequal variances; recommended as a default for two-sample comparisons.
+
+### Mann-Whitney U Test
+
+The **Mann-Whitney U test** is the non-parametric alternative to the two-sample t-test. It tests whether two distributions differ in location (comparing medians).
+
+**Test Procedure:**
+1. Rank all observations from both groups together (1 to $n_1 + n_2$)
+2. Compute $U_1$ = number of times a value in group 1 precedes a value in group 2
+3. Alternatively: $U_1 = n_1 n_2 + \frac{n_1(n_1+1)}{2} - R_1$, where $R_1$ is the sum of ranks in group 1
+
+The test statistic is the smaller of $U_1$ and $U_2 = n_1 n_2 - U_1$. The p-value is obtained from the null distribution of $U$ (tabulated for small samples; approximates normal for large samples).
+
+**Advantages:**
+- Non-parametric; no distributional assumptions
+- Robust to outliers
+- More powerful than t-test for skewed data
+
+**Clinical Use:** Ideal for skewed or ordinal data (e.g., symptom severity scores, hospital length of stay).
+
+### Paired t-Test
+
+When observations are **paired** (e.g., before-and-after measurements in the same patient), use the paired t-test. This design reduces variability by eliminating between-patient differences.
+
+**Setup:** Compute differences: $d_i = x_{i,\text{before}} - x_{i,\text{after}}$ (or vice versa) for each pair.
+
+**Hypotheses:**
+$$H_0: \mu_d = 0$$
+$$H_1: \mu_d \neq 0$$
+
+**Test Statistic:**
+$$t = \frac{\bar{d}}{s_d/\sqrt{n}}$$
+
+where $\bar{d}$ is the mean difference and $s_d$ is the SD of differences. Under $H_0$, $t$ follows a t-distribution with $n-1$ degrees of freedom.
+
+**Assumptions:**
+1. **Pairing**: Observations are naturally paired or matched.
+2. **Independence**: Pairs are independent of one another.
+3. **Normality**: Differences are approximately normally distributed.
+
+**Clinical Example (sleep dataset):** The classic `datasets::sleep` dataset contains extra sleep hours gained under two soporific drugs in 10 patients (crossover design, each patient received both drugs):
+
+```
+Patient    Drug 1    Drug 2    Difference (Drug 2 - Drug 1)
+1          0.7       1.9       1.2
+2         -1.6       0.8       2.4
+...
+```
+
+We test $H_0: \mu_d = 0$ (no difference between drugs) vs. $H_1: \mu_d \neq 0$. The paired t-test accounts for the fact that some patients naturally sleep longer than others, removing this source of variability.
+
+## Part IV: Tests for Categorical Data
+
+### Chi-Square Test of Independence
+
+The chi-square test assesses whether two categorical variables are independent.
+
+**Hypotheses:**
+$$H_0: \text{Variables are independent}$$
+$$H_1: \text{Variables are associated}$$
+
+**Test Statistic:**
+$$\chi^2 = \sum_{i,j} \frac{(O_{ij} - E_{ij})^2}{E_{ij}}$$
+
+where $O_{ij}$ is the observed count in cell $(i,j)$ and $E_{ij}$ is the expected count under independence:
+
+$$E_{ij} = \frac{(\text{Row } i \text{ Total}) \times (\text{Column } j \text{ Total})}{\text{Grand Total}}$$
+
+Under $H_0$, $\chi^2$ approximately follows a chi-square distribution with $(\text{rows} - 1) \times (\text{columns} - 1)$ degrees of freedom.
+
+**Assumptions:**
+1. **Independence**: Observations are independent.
+2. **Expected Counts**: Expected counts should be $\geq 5$ in at least 80% of cells (otherwise, use Fisher's exact test).
+
+**Clinical Example:** A phase IV safety study compares the incidence of myocardial infarction (MI) in users of two NSAIDs:
+
+| Drug | MI | No MI | Total |
+|------|-------|---------|-------|
+| Drug A | 45 | 955 | 1000 |
+| Drug B | 28 | 972 | 1000 |
+| Total | 73 | 1927 | 2000 |
+
+Expected counts: $E_{11} = \frac{73 \times 1000}{2000} = 36.5$, and so on.
+
+$$\chi^2 = \frac{(45-36.5)^2}{36.5} + \frac{(955-963.5)^2}{963.5} + \cdots = 2.91$$
+
+With df = 1, the one-tailed p-value $\approx 0.088$. At $\alpha = 0.05$, we fail to reject independence; the association is not statistically significant.
+
+### Fisher's Exact Test
+
+When expected counts are small (< 5), **Fisher's exact test** provides an exact p-value without distributional assumptions. It is particularly useful for small samples or rare events.
+
+**Procedure:** Condition on the marginal totals and compute the probability of the observed table and all more extreme tables under the assumption of independence. Sum these probabilities to obtain the p-value.
+
+**Computational Note:** Modern software computes Fisher's exact test via the hypergeometric distribution. The test is more computationally intensive but more accurate than chi-square for small samples.
+
+**Clinical Use:** Ideal for comparing the incidence of rare adverse events between treatment groups in small trials.
+
+## Part V: Multiple Testing and Type I Error Control
+
+When conducting multiple hypothesis tests, the probability of at least one Type I error increases. If we perform $m$ independent tests each at $\alpha = 0.05$, the probability of at least one false positive is:
+
+$$P(\text{at least one Type I error}) = 1 - (1 - \alpha)^m$$
+
+For example, with 10 tests: $1 - (0.95)^{10} \approx 0.40$ (40% risk of at least one false positive).
+
+### Bonferroni Correction
+
+The **Bonferroni correction** divides the significance level by the number of tests:
+
+$$\alpha_{\text{Bonferroni}} = \frac{\alpha}{m}$$
+
+If conducting 10 tests at the conventional $\alpha = 0.05$, each individual test would be evaluated at $\alpha = 0.005$. This is conservative; it controls the **family-wise error rate (FWER)** at 0.05.
+
+**Advantage:** Simple and interpretable.
+**Disadvantage:** Very conservative; may lack power for detecting true effects.
+
+### Benjamini-Hochberg (BH) Correction
+
+The **Benjamini-Hochberg procedure** controls the **false discovery rate (FDR)**—the expected proportion of false positives among rejected hypotheses. This is less conservative than Bonferroni.
+
+**Procedure:**
+1. Rank p-values from smallest to largest: $p_{(1)} \leq p_{(2)} \leq \cdots \leq p_{(m)}$
+2. Find the largest $i$ such that $p_{(i)} \leq \frac{i}{m} \alpha$
+3. Reject all hypotheses $H_0^{(1)}, \ldots, H_0^{(i)}$
+
+**Advantage:** More powerful than Bonferroni while controlling FDR.
+**Disadvantage:** More complex; requires understanding of FDR.
+
+**Clinical Example:** In a genomics study, researchers test 20,000 genes for differential expression between two treatment groups. Using Bonferroni, the threshold would be $p < 0.05/20000 = 2.5 \times 10^{-6}$—extremely stringent. The BH procedure would be more powerful while still controlling false positives in expectation.
+
+## Part VI: Practical Implementation in R
+
+### One-Sample Tests
+
+```r
+# Load data
+data(sleep)
+head(sleep)
+
+# One-sample t-test: Does extra sleep differ from 0?
+t.test(sleep$extra, mu = 0)
+
+# Output interpretation:
+#   t = 4.06, df = 9, p-value = 0.002
+#   95% CI: [1.0, 2.8] hours
+#   Interpretation: Extra sleep is significantly greater than 0.
+```
+
+### Paired t-Test (sleep dataset)
+
+```r
+# Reshape data for paired analysis
+sleep_wide <- sleep %>%
+  pivot_wider(
+    id_cols = ID,
+    names_from = group,
+    values_from = extra
+  )
+
+# Compute differences
+sleep_wide$diff <- sleep_wide$`2` - sleep_wide$`1`
+
+# Paired t-test
+t.test(sleep_wide$`2`, sleep_wide$`1`, paired = TRUE)
+
+# Alternative: directly on differences
+t.test(sleep_wide$diff, mu = 0)
+
+# Output:
+#   t = 4.06, df = 9, p-value = 0.002
+#   95% CI: [0.7, 2.3] hours
+#   Interpretation: Drug 2 yields significantly more extra sleep than Drug 1.
+
+# Wilcoxon signed-rank test (non-parametric alternative)
+wilcox.test(sleep_wide$`2`, sleep_wide$`1`, paired = TRUE)
+```
+
+### Two-Sample Independent Tests
+
+```r
+# Using PlantGrowth as a clinical example
+data(PlantGrowth)
+
+# Compare "ctrl" vs "trt1" (two groups)
+group_ctrl <- PlantGrowth$weight[PlantGrowth$group == "ctrl"]
+group_trt1 <- PlantGrowth$weight[PlantGrowth$group == "trt1"]
+
+# Check equality of variances using Levene's test
+library(car)
+leveneTest(weight ~ group, data = PlantGrowth)
+
+# Two-sample t-test (assuming equal variances)
+t.test(group_ctrl, group_trt1, var.equal = TRUE)
+
+# Welch's t-test (does not assume equal variances; safer default)
+t.test(group_ctrl, group_trt1, var.equal = FALSE)
+
+# Mann-Whitney U test (non-parametric)
+wilcox.test(group_ctrl, group_trt1)
+```
+
+### Pharmaversesdtm Example: Comparing SBP Between Treatment Arms
+
+```r
+library(pharmaversesdtm)
+library(dplyr)
+
+data(dm)
+data(vs)
+
+# Prepare data: baseline SBP by treatment arm
+sbp_data <- vs %>%
+  filter(VSTESTCD == "SYSBP" & VISIT == "BASELINE") %>%
+  select(USUBJID, VSSTRESN) %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  rename(SBP = VSSTRESN) %>%
+  na.omit()
+
+# Summary by group
+sbp_data %>%
+  group_by(ARM) %>%
+  summarise(
+    N = n(),
+    Mean = mean(SBP),
+    SD = sd(SBP),
+    Median = median(SBP)
+  )
+
+# Two-sample t-test
+t_test_result <- t.test(
+  SBP ~ ARM,
+  data = sbp_data,
+  var.equal = FALSE
+)
+print(t_test_result)
+
+# Mann-Whitney U test (if non-normal)
+wilcox.test(SBP ~ ARM, data = sbp_data)
+```
+
+### Chi-Square and Fisher's Exact Tests
+
+```r
+# Simulated adverse event data
+ae_data <- data.frame(
+  Treatment = c("Drug A", "Drug A", "Drug B", "Drug B"),
+  AE = c("Yes", "No", "Yes", "No"),
+  Count = c(12, 138, 8, 142)
+)
+
+# Create contingency table
+ae_table <- xtabs(Count ~ Treatment + AE, data = ae_data)
+print(ae_table)
+
+# Chi-square test
+chisq_result <- chisq.test(ae_table)
+print(chisq_result)
+
+# Fisher's exact test (more appropriate for small expected counts)
+fisher.test(ae_table)
+
+# Adverse events from pharmaversesdtm
+library(pharmaversesdtm)
+data(ae)
+data(dm)
+
+# Incidence of any adverse event by treatment
+ae_incidence <- ae %>%
+  select(USUBJID) %>%
+  distinct() %>%
+  mutate(AE = "Yes") %>%
+  right_join(
+    dm %>% select(USUBJID, ARM),
+    by = "USUBJID"
+  ) %>%
+  mutate(AE = ifelse(is.na(AE), "No", "Yes"))
+
+# Create contingency table
+ae_table_pharm <- table(ae_incidence$ARM, ae_incidence$AE)
+print(ae_table_pharm)
+
+# Chi-square test
+chisq.test(ae_table_pharm)
+```
+
+### Multiple Testing Correction
+
+```r
+# Example: Testing 10 laboratory parameters for differences between groups
+set.seed(42)
+p_values <- c(0.001, 0.008, 0.015, 0.023, 0.045, 0.067, 0.089, 0.12, 0.34, 0.89)
+
+# Bonferroni correction
+bonferroni_threshold <- 0.05 / length(p_values)
+bonferroni_adjusted <- p_values * length(p_values)
+bonferroni_significant <- p_values < bonferroni_threshold
+
+cat("Bonferroni threshold:", bonferroni_threshold, "\n")
+cat("Number significant:", sum(bonferroni_significant), "\n")
+
+# Benjamini-Hochberg correction
+bh_result <- p.adjust(p_values, method = "BH")
+bh_significant <- bh_result < 0.05
+
+cat("\nBenjamini-Hochberg method:\n")
+print(data.frame(p_value = p_values, p_adj = bh_result, significant = bh_significant))
+
+# Comparison
+comparison <- data.frame(
+  Test = paste0("Param ", 1:10),
+  Raw_p = p_values,
+  Bonferroni = bonferroni_adjusted,
+  BH = bh_result,
+  Bonf_Sig = bonferroni_significant,
+  BH_Sig = bh_significant
+)
+print(comparison)
+```
+
+## Summary
+
+| Test | Purpose | Assumption | R Function |
+|------|---------|-----------|-----------|
+| **One-sample t-test** | Compare sample mean to constant | Normality | `t.test(x, mu = value)` |
+| **Wilcoxon signed-rank** | Non-parametric version | Symmetry | `wilcox.test(x, mu = value)` |
+| **Paired t-test** | Compare paired measurements | Normality of differences | `t.test(x, y, paired = TRUE)` |
+| **Two-sample t-test** | Compare two group means | Normality, equal variance | `t.test(x ~ group)` |
+| **Welch's t-test** | Two-sample, unequal variance | Normality | `t.test(x ~ group, var.equal = FALSE)` |
+| **Mann-Whitney U** | Non-parametric two-sample | — | `wilcox.test(x ~ group)` |
+| **Chi-square** | Test categorical association | Expected counts ≥ 5 | `chisq.test()` |
+| **Fisher's exact** | Rare events / small counts | — | `fisher.test()` |
+
+## Exercises
+
+### Beginner Exercises
+
+**Exercise 9.1: Interpret p-values**
+
+A clinical trial compares a new antihypertensive drug to placebo. The mean blood pressure reduction is 12 mmHg in the drug group and 6 mmHg in the placebo group. The reported p-value is 0.032.
+
+(a) What is the correct interpretation of this p-value?
+(b) What can we conclude about the drug's efficacy?
+(c) If the trial were repeated many times, what would happen?
+
+**Exercise 9.2: One-Sample t-Test (sleep dataset)**
+
+Using `datasets::sleep`:
+
+(a) Test whether the mean extra sleep hours is significantly different from 1 hour.
+(b) Compute the 95% confidence interval.
+(c) Write a clinical interpretation.
+
+**Exercise 9.3: Contingency Table and Chi-Square**
+
+Create a contingency table for nausea (yes/no) by treatment arm in a hypothetical trial of 100 patients per arm, with nausea rates of 20% and 15% respectively. Perform a chi-square test and interpret the result.
+
+### Advanced Exercises
+
+**Exercise 9.4: Multiple Testing**
+
+You conduct RNA-sequencing on tumor samples and test 18,000 genes for differential expression between treatment and control. You obtain 150 p-values < 0.001.
+
+(a) If you use Bonferroni correction with $\alpha = 0.05$, how many genes would remain significant?
+(b) If you use the Benjamini-Hochberg method with FDR = 0.05, how would your result change?
+(c) Why might FDR be more appropriate for genomics than FWER?
+
+**Exercise 9.5: Paired Analysis**
+
+Using `datasets::sleep`, test whether Drug 2 is significantly superior to Drug 1:
+
+(a) Perform a paired t-test.
+(b) Check the assumption of normality using a Q-Q plot.
+(c) Perform the non-parametric Wilcoxon signed-rank test as a sensitivity analysis.
+(d) Report both results and discuss any discrepancies.

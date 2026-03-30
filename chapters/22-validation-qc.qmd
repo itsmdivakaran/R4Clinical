@@ -1,0 +1,866 @@
+---
+title: "Chapter 22: Validation and Quality Control"
+subtitle: "Ensuring Data Integrity and Regulatory Compliance"
+---
+
+## 22.1 Introduction to Validation in Clinical Programming
+
+The stakes for data integrity in clinical trials are extraordinarily high. A single computational error in efficacy analysis could delay a drug approval by years; a missed safety signal could harm patients. Regulatory agencies like the FDA, EMA, and ICH recognize this, embedding validation requirements into guidance documents like **21 CFR Part 11** ("Electronic Records; Electronic Signatures"), **ICH GCP** ("Good Clinical Practice"), and **GAMP 5** ("Guidance for the Use of Prototyping in the Pharmaceutical Industry").
+
+**Validation** in clinical programming means ensuring that:
+1. Software and analytical code produce correct, reproducible results.
+2. Data transformations are accurate and traceable.
+3. Statistical analyses comply with the statistical analysis plan (SAP).
+4. Regulatory submissions contain complete, auditable records of all computational steps.
+
+This chapter presents practical workflows and R tools to validate ADaM datasets, statistical analyses, and clinical outputs. We focus on three core strategies: **double programming**, **unit testing**, and **automated dataset comparison**.
+
+## 22.2 Regulatory and Quality Frameworks
+
+### 22.2.1 21 CFR Part 11: Electronic Records
+
+**21 CFR Part 11** is the FDA rule governing electronic records and signatures in regulated industries. Key requirements include:
+
+- **Audit Trail**: Permanent, computer-generated records of all data entries, deletions, and modifications.
+- **Data Integrity**: Systems must ensure that data remain accurate and complete.
+- **User Authentication**: Only authorized users can access and modify data.
+- **Validation of Systems**: Software used to process clinical data must be validated.
+
+For R programmers, this means:
+- Version control (git) provides audit trails (who, when, what).
+- Reproducible scripts eliminate manual, untracked manipulations.
+- Unit tests provide evidence of correctness.
+- Change logs document modifications and rationale.
+
+### 22.2.2 ICH GCP
+
+**ICH GCP** (Good Clinical Practice) requires that:
+- All data be traceable to source documentation.
+- Statistical analyses are performed according to the SAP, which is finalized before database lock.
+- Any deviations from the SAP are documented and justified.
+
+### 22.2.3 GAMP 5: Software Validation Phases
+
+**GAMP 5** defines a lifecycle for software validation:
+
+| Phase | Activity | Evidence |
+|-------|----------|----------|
+| **IQ (Installation Qualification)** | Verify software is installed correctly and meets specifications | Installation logs, vendor documentation |
+| **OQ (Operational Qualification)** | Verify software operates as specified under normal conditions | Test scripts, results |
+| **PQ (Performance Qualification)** | Verify software meets user requirements in the actual operational environment | Test cases with real/realistic data |
+
+For R package validation, this translates to:
+- **IQ**: Confirm R version, package versions, and dependencies via renv.lock.
+- **OQ**: Run unit tests to verify functions work correctly.
+- **PQ**: Test with realistic clinical data (e.g., pharmaversesdtm) to verify end-to-end workflows.
+
+## 22.3 Double Programming and Reconciliation
+
+**Double programming** is the gold standard in clinical data validation: two independent programmers perform the same analysis using independent code, and results are compared cell-by-cell.
+
+### 22.3.1 Double Programming Workflow
+
+```
+Raw Data (SDTM)
+    ↓
+Programmer A writes ADaM code → ADaM_A
+Programmer B writes ADaM code → ADaM_B
+    ↓
+Compare ADaM_A vs ADaM_B using diffdf
+    ↓
+Identify discrepancies → Root cause analysis
+    ↓
+Reconciliation meeting → Agree on correct approach
+    ↓
+Final ADaM dataset
+```
+
+### 22.3.2 Example: Double Programming for Change from Baseline
+
+**Programmer A's approach** (using dplyr):
+
+```{r}
+#| eval: false
+#| echo: true
+
+# Programmer A: Calculate change from baseline
+library(dplyr)
+
+adlb_a <- lab_data %>%
+  arrange(SUBJID, LBTESTCD, VISITNUM) %>%
+  group_by(SUBJID, LBTESTCD) %>%
+  mutate(
+    AVAL = LBSTRESN,
+    ABASE = first(LBSTRESN),  # First value = baseline
+    CHG = AVAL - ABASE,
+    PCHG = (CHG / ABASE) * 100
+  ) %>%
+  ungroup()
+```
+
+**Programmer B's approach** (using data.table):
+
+```{r}
+#| eval: false
+#| echo: true
+
+# Programmer B: Calculate change from baseline
+library(data.table)
+
+lab_dt <- as.data.table(lab_data)
+
+adlb_b <- lab_dt[
+  order(SUBJID, LBTESTCD, VISITNUM),
+  c("AVAL", "ABASE", "CHG", "PCHG") := {
+    aval <- LBSTRESN
+    abase <- LBSTRESN[1]  # First value = baseline
+    chg <- aval - abase
+    pchg <- (chg / abase) * 100
+    list(AVAL = aval, ABASE = abase, CHG = chg, PCHG = pchg)
+  },
+  by = .(SUBJID, LBTESTCD)
+]
+```
+
+### 22.3.3 Comparing Outputs with diffdf
+
+The **diffdf** package (from admiral) compares two datasets and flags all differences:
+
+```{r}
+#| eval: false
+#| echo: true
+
+library(diffdf)
+
+# Compare Programmer A's and B's outputs
+comparison <- diffdf(
+  base = adlb_a,
+  compare = adlb_b,
+  keys = c("SUBJID", "LBTESTCD", "VISITNUM")
+)
+
+# View summary of differences
+summary(comparison)
+
+# Extract detailed differences
+comparison$comparison_result
+```
+
+Output might show:
+- **Structure differences**: Extra/missing columns
+- **Value differences**: Cell-level discrepancies
+- **Key differences**: Records in one dataset but not the other
+
+If differences exist, the team meets to identify the root cause:
+- Rounding rules different?
+- Baseline definition different (first visit vs. screening)?
+- Missing data handling different?
+
+Once reconciled, the agreed-upon approach is coded and validated.
+
+## 22.4 Unit Testing with testthat
+
+**Unit testing** is a software development practice in which small, isolated code units are tested in isolation. In clinical programming, unit tests verify that:
+- Data transformations work correctly.
+- Edge cases (missing data, extreme values) are handled properly.
+- Statistical calculations match known results.
+
+### 22.4.1 testthat Package Basics
+
+The **testthat** package provides a framework for writing tests:
+
+```{r}
+#| eval: false
+#| echo: true
+
+library(testthat)
+
+# Define a test file
+test_that("change from baseline calculated correctly", {
+  # Setup
+  test_data <- data.frame(
+    SUBJID = c(1, 1, 2, 2),
+    VISITNUM = c(1, 2, 1, 2),
+    VALUE = c(100, 110, 50, 55)
+  )
+
+  # Define expected behavior
+  expected <- data.frame(
+    SUBJID = c(1, 1, 2, 2),
+    VISITNUM = c(1, 2, 1, 2),
+    VALUE = c(100, 110, 50, 55),
+    CHG = c(0, 10, 0, 5),
+    PCHG = c(0, 10, 0, 10)
+  )
+
+  # Run function
+  result <- calculate_change(test_data)
+
+  # Assert correctness
+  expect_equal(result$CHG, expected$CHG)
+  expect_equal(result$PCHG, expected$PCHG)
+})
+```
+
+### 22.4.2 Common testthat Assertions
+
+| Function | Purpose | Example |
+|----------|---------|---------|
+| `expect_equal()` | Check exact equality | `expect_equal(2 + 2, 4)` |
+| `expect_identical()` | Check exact identity (stricter) | `expect_identical(x, y)` |
+| `expect_true()` | Check boolean TRUE | `expect_true(all(x > 0))` |
+| `expect_false()` | Check boolean FALSE | `expect_false(any(is.na(x)))` |
+| `expect_error()` | Verify error is thrown | `expect_error(bad_func(), "error message")` |
+| `expect_warning()` | Verify warning is issued | `expect_warning(func())` |
+| `expect_length()` | Check vector length | `expect_length(x, 10)` |
+| `expect_gt()` | Greater than | `expect_gt(mean(x), 100)` |
+| `expect_lt()` | Less than | `expect_lt(p_value, 0.05)` |
+
+### 22.4.3 Comprehensive Test Suite
+
+Create a file `tests/test-adae.R`:
+
+```{r}
+#| eval: false
+#| echo: true
+
+library(testthat)
+library(dplyr)
+library(admiral)
+
+# Test: Serious AE flag assignment
+test_that("AESRDFN flag assigned correctly", {
+  test_ae <- data.frame(
+    AESER = c("Y", "N", "Y", NA),
+    expected_aesrdfn = c("Serious", "Non-serious", "Serious", NA)
+  )
+
+  # Function to test
+  assign_aesrdfn <- function(aeser) {
+    ifelse(aeser == "Y", "Serious",
+           ifelse(aeser == "N", "Non-serious", NA))
+  }
+
+  result <- assign_aesrdfn(test_ae$AESER)
+  expect_equal(result, test_ae$expected_aesrdfn)
+})
+
+# Test: AE causality assignment
+test_that("AEACNOTH populated when AEACN is 'Other'", {
+  test_ae <- data.frame(
+    AEACN = c("DOSE INCREASED", "OTHER"),
+    AEACNOTH = c(NA, "Custom action")
+  )
+
+  adae <- test_ae %>%
+    mutate(
+      check_aeacnoth = ifelse(AEACN == "OTHER" & is.na(AEACNOTH), 1, 0)
+    )
+
+  expect_true(all(adae$check_aeacnoth == 0))
+})
+
+# Test: Missing data handling
+test_that("Missing values handled correctly in analysis", {
+  test_data <- data.frame(
+    SUBJID = c(1, 2, 3),
+    AEVAL = c(100, NA, 110)
+  )
+
+  # Filter out missing analyses
+  analyzed <- test_data %>%
+    filter(!is.na(AEVAL))
+
+  expect_equal(nrow(analyzed), 2)
+  expect_false(any(is.na(analyzed$AEVAL)))
+})
+```
+
+### 22.4.4 Running Tests and Test Coverage
+
+Run all tests in a project:
+
+```bash
+# Run tests
+Rscript -e "testthat::test_dir('tests')"
+
+# View test summary
+testthat::test_file('tests/test-adae.R')
+```
+
+Check **test coverage** (percentage of code covered by tests) with **covr**:
+
+```r
+library(covr)
+
+# Report coverage for a file
+file_coverage <- file_coverage("R/process_ae.R", "tests/test-adae.R")
+report(file_coverage)
+
+# Visualize coverage
+shine(file_coverage)
+```
+
+**Goal**: Aim for ≥90% code coverage in validation-critical functions.
+
+## 22.5 Validation Documentation
+
+### 22.5.1 Validation Plan
+
+A **Validation Plan** is a document that outlines the scope, approach, and acceptance criteria for validating a software system. For an R-based ADaM generation system, it might include:
+
+**Section 1: System Overview**
+- System name: "ADaM Dataset Generation System (R-based)"
+- Scope: SDTM → ADaM conversion for efficacy and safety variables
+- Users: Biostatisticians, statistical programmers
+
+**Section 2: Validation Approach**
+- **IQ**: Verify R environment, package versions, dependencies
+- **OQ**: Unit tests for core functions (change from baseline, AESI assignment, etc.)
+- **PQ**: End-to-end tests with realistic clinical datasets (pharmaversesdtm)
+
+**Section 3: Test Cases**
+- Change from baseline: 15 test cases (normal values, missing data, outliers)
+- AE flag assignment: 8 test cases (serious, related, action taken)
+- Baseline definitions: 5 test cases (different visit selections)
+
+**Section 4: Acceptance Criteria**
+- All test cases must pass without errors or warnings
+- Code coverage ≥90%
+- Double programming reconciliation completed (0 discrepancies)
+
+**Section 5: Evidence**
+- Test results (logs)
+- Code coverage reports
+- Signed reconciliation forms
+
+### 22.5.2 Test Script Template
+
+A **Test Script** documents individual test cases and results:
+
+```
+TEST SCRIPT: Change from Baseline Calculation
+Test ID: TC_CHFB_001
+Test Objective: Verify change from baseline is calculated correctly
+
+Input Data:
+  Subject 101: Baseline = 100, Visit 2 = 110
+  Subject 102: Baseline = 50, Visit 2 = 55
+
+Expected Output:
+  Subject 101: CHG = 10, PCHG = 10%
+  Subject 102: CHG = 5, PCHG = 10%
+
+Test Result: PASSED ✓
+Date Executed: 2024-01-15
+Executed By: John Smith (Biostatistician)
+```
+
+## 22.6 Dataset Comparison: diffdf and arsenal
+
+### 22.6.1 diffdf for Detailed Comparisons
+
+We've seen diffdf briefly; let's use it more comprehensively:
+
+```{r}
+#| eval: false
+#| echo: true
+
+library(diffdf)
+
+# Compare two ADSL datasets (expected vs. actual)
+diff_result <- diffdf(
+  base = adsl_expected,
+  compare = adsl_actual,
+  keys = c("SUBJID")
+)
+
+# Check for differences
+if (!is.null(diff_result$comparison_result)) {
+  cat("Differences found:\n")
+  print(diff_result$comparison_result)
+} else {
+  cat("No differences: datasets are identical\n")
+}
+
+# Export report
+diffdf_output <- capture.output(print(diff_result))
+writeLines(diffdf_output, "adsl_comparison_report.txt")
+```
+
+### 22.6.2 arsenal for Demographic/Safety Comparisons
+
+The **arsenal** package (from Mayo Clinic) excels at comparing datasets with categorical and continuous variables:
+
+```{r}
+#| eval: false
+#| echo: true
+
+library(arsenal)
+
+# Compare demographics between Programmer A and B
+compare_result <- comparedf(
+  adsl_a,
+  adsl_b,
+  id = c("SUBJID")
+)
+
+# View summary
+summary(compare_result)
+
+# Create a detailed report
+arsenal_report <- write.csv(compare_result, file = "adsl_comparison.csv")
+```
+
+## 22.7 R Package Validation: pharmaR Framework
+
+For organizations using custom R packages in clinical programming, **pharmaR** provides a framework for validating packages according to GAMP 5 and ICH standards.
+
+### 22.7.1 pharmaR Assessment
+
+The **pharmaR** package (from Roche/Pharmaverse) assesses package maturity:
+
+```r
+library(riskmetric)
+library(pharmaR)
+
+# Assess a package
+pkg_assessment <- assess(
+  pkg_ref = "dplyr"  # or any CRAN package
+)
+
+# View risk metrics
+summary(pkg_assessment)
+
+# Display risk ratings
+print(pkg_assessment)
+```
+
+Output includes:
+- **Download Statistics**: CRAN downloads per month (higher = more tested)
+- **Maintenance**: Time since last update
+- **Testing**: Unit test coverage, CI/CD (GitHub Actions, etc.)
+- **Documentation**: Vignettes, man pages
+
+### 22.7.2 PHUSE Guidelines
+
+The **PHUSE (Pharmaceutical Users Software Exchange)** organization publishes guidelines for validating R packages. Key recommendations:
+
+1. **Choose Well-Maintained Packages**: Prefer packages with active development and large user bases.
+2. **Document Dependencies**: Use renv to lock package versions.
+3. **Test with Clinical Data**: Run packages against realistic ADaM datasets.
+4. **Maintain Change Logs**: Track package version updates and testing results.
+
+## 22.8 Controlled R Environments with renv
+
+### 22.8.1 Why renv Matters for Validation
+
+Without renv, reproducibility is fragile:
+- A colleague's system has a different R version.
+- A new package update changes behavior.
+- Six months later, you can't re-run an analysis.
+
+**renv** solves this by "freezing" your project's R environment:
+
+```
+Project A (2024-01-15):
+  R 4.3.2
+  dplyr 1.1.0
+  ggplot2 3.4.1
+
+Project B (2023-06-20):
+  R 4.2.0
+  dplyr 1.0.10
+  ggplot2 3.3.6
+```
+
+When you open Project A, renv automatically loads the frozen environment, ensuring reproducibility.
+
+### 22.8.2 renv Workflow
+
+**Initialize renv in a project:**
+
+```r
+library(renv)
+renv::init()
+```
+
+This creates:
+- `renv.lock`: JSON file listing all packages and versions
+- `renv/`: Isolated library directory
+- `.Rprofile`: Startup script activating renv
+
+**Install/update packages:**
+
+```r
+# Install a package (recorded in renv.lock)
+install.packages("dplyr")
+
+# Update renv.lock with new snapshot
+renv::snapshot()
+```
+
+**Restore environment on another machine:**
+
+```r
+# On colleague's machine or after git clone
+renv::restore()  # Installs all packages from renv.lock
+```
+
+### 22.8.3 Example renv.lock File
+
+```json
+{
+  "R": {
+    "Version": "4.3.2",
+    "Repositories": [
+      {
+        "Name": "CRAN",
+        "URL": "https://cran.rstudio.com"
+      }
+    ]
+  },
+  "Packages": {
+    "dplyr": {
+      "Package": "dplyr",
+      "Version": "1.1.0",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "ggplot2": {
+      "Package": "ggplot2",
+      "Version": "3.4.1",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "gtsummary": {
+      "Package": "gtsummary",
+      "Version": "1.7.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requires": ["dplyr", "ggplot2"]
+    }
+  }
+}
+```
+
+## 22.9 CDISC Compliance Checks
+
+### 22.9.1 Pinnacle 21 (Conceptual Overview)
+
+**Pinnacle 21 Community** is a web-based tool (by FDA/CDISC) that validates SDTM and ADaM datasets against CDISC standards. While not an R package, understanding its checks helps us validate in R.
+
+Key Pinnacle 21 checks:
+- **SDTM**: Variable names (STUDYID, SITEID, SUBJID), domains (DM, AE, LB), controlled terminology
+- **ADaM**: Proper flags (ITT, EFFFL, SAFFL), analysis variables (AVAL, BASE, CHG)
+
+### 22.9.2 Basic CDISC Compliance Checks in R
+
+Create a function to validate ADaM variables:
+
+```{r}
+#| eval: false
+#| echo: true
+
+# Validate CDISC ADaM structure
+validate_adam <- function(df) {
+  errors <- list()
+
+  # Check required variables
+  required_vars <- c("STUDYID", "USUBJID", "AVAL", "AVISIT")
+  missing_vars <- setdiff(required_vars, names(df))
+  if (length(missing_vars) > 0) {
+    errors$missing_vars <- missing_vars
+  }
+
+  # Check no missing AVAL for analysis population
+  if (any(is.na(df$AVAL))) {
+    errors$missing_aval <- "AVAL contains missing values"
+  }
+
+  # Check AVISIT is controlled terminology
+  valid_visits <- c("Baseline", "Week 2", "Week 4", "Week 8", "Week 12")
+  invalid_visits <- setdiff(unique(df$AVISIT), valid_visits)
+  if (length(invalid_visits) > 0) {
+    errors$invalid_visits <- invalid_visits
+  }
+
+  # Return results
+  if (length(errors) == 0) {
+    cat("✓ ADaM dataset is CDISC-compliant\n")
+    return(invisible(TRUE))
+  } else {
+    cat("✗ ADaM compliance errors found:\n")
+    print(errors)
+    return(invisible(FALSE))
+  }
+}
+
+# Use the function
+validate_adam(adlb)
+```
+
+## 22.10 Audit Trails and Traceability Logging
+
+### 22.10.1 Why Audit Trails Matter
+
+21 CFR Part 11 requires a permanent record: **who** accessed/modified data, **what** changed, **when** it changed. While git handles code changes, logging handles data processing.
+
+### 22.10.2 Logging with logger Package
+
+The **logger** package provides flexible, production-ready logging:
+
+```r
+library(logger)
+
+# Configure logging
+log_appender(appender_file("analysis.log"))
+log_level(TRACE)
+
+# Log key processing steps
+log_info("Starting ADaM generation for study XYZ-201")
+log_debug(paste("Loading SDTM data from", sdtm_file))
+
+# Log data transformations
+adae <- ae %>%
+  filter(AESER == "Y")
+log_info(paste("Filtered to SAEs: N =", nrow(adae)))
+
+# Log data quality issues
+missing_count <- sum(is.na(dm$AGE))
+if (missing_count > 0) {
+  log_warn(paste("Missing AGE values:", missing_count))
+}
+
+log_info("ADaM generation completed successfully")
+```
+
+This generates a log file:
+```
+[2024-01-15 10:23:45] INFO | Starting ADaM generation for study XYZ-201
+[2024-01-15 10:23:46] DEBUG | Loading SDTM data from /data/sdtm_2024_01_15.rds
+[2024-01-15 10:23:47] INFO | Filtered to SAEs: N = 42
+[2024-01-15 10:23:48] WARN | Missing AGE values: 3
+[2024-01-15 10:23:49] INFO | ADaM generation completed successfully
+```
+
+### 22.10.3 Using futile.logger for Lightweight Logging
+
+For simpler setups, **futile.logger** is lightweight:
+
+```r
+library(futile.logger)
+
+# Set log level
+flog.threshold(INFO)
+
+# Log messages
+flog.info("Beginning efficacy analysis")
+flog.warn("Sample size smaller than planned: N = %d", n_actual)
+flog.error("Unable to load dataset: %s", filename)
+
+# Log to file
+flog.appender(appender.file("report_log.txt"))
+```
+
+## 22.11 Comprehensive Validation Workflow Example
+
+Here's a complete, realistic validation workflow:
+
+```{r}
+#| eval: false
+#| echo: true
+
+# ============================================================================
+# Validation Workflow: ADaM AE Analysis
+# ============================================================================
+
+library(dplyr)
+library(testthat)
+library(diffdf)
+library(logger)
+library(renv)
+
+# Setup logging
+log_appender(appender_file("adae_validation.log"))
+log_info("=== ADAE Validation Workflow ===")
+log_info("Date: %s", Sys.time())
+
+# ============================================================================
+# STEP 1: Load data and verify environment
+# ============================================================================
+
+log_info("Step 1: Verifying R environment...")
+log_info("R version: %s", R.version$version.string)
+log_info("renv lockfile: %s", normalizePath("renv.lock"))
+
+# Restore environment
+renv::restore(confirm = FALSE)
+
+# ============================================================================
+# STEP 2: Load source data
+# ============================================================================
+
+log_info("Step 2: Loading SDTM data...")
+ae <- read_csv("data/ae.csv")
+log_info("Loaded AE domain: %d rows", nrow(ae))
+
+# ============================================================================
+# STEP 3: Programmer A's approach
+# ============================================================================
+
+log_info("Step 3a: Programmer A deriving ADAE...")
+
+adae_prog_a <- ae %>%
+  group_by(SUBJID, AESOC, AETERM) %>%
+  mutate(
+    AESEQ = row_number(),
+    AESRDF = ifelse(AESER == "Y", "Serious", "Non-serious")
+  ) %>%
+  ungroup()
+
+log_info("Programmer A ADAE: %d rows", nrow(adae_prog_a))
+
+# ============================================================================
+# STEP 4: Programmer B's approach (independent code)
+# ============================================================================
+
+log_info("Step 3b: Programmer B deriving ADAE...")
+
+adae_prog_b <- ae %>%
+  arrange(SUBJID, AESOC, AETERM) %>%
+  group_by(SUBJID, AESOC, AETERM) %>%
+  mutate(
+    AESEQ = seq_along(SUBJID),
+    AESRDF = case_when(
+      AESER == "Y" ~ "Serious",
+      AESER == "N" ~ "Non-serious",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  ungroup()
+
+log_info("Programmer B ADAE: %d rows", nrow(adae_prog_b))
+
+# ============================================================================
+# STEP 5: Compare datasets
+# ============================================================================
+
+log_info("Step 4: Comparing ADAE outputs...")
+
+comparison <- diffdf(
+  base = adae_prog_a,
+  compare = adae_prog_b,
+  keys = c("SUBJID", "AESOC", "AETERM", "AESEQ")
+)
+
+if (is.null(comparison$comparison_result)) {
+  log_info("✓ No differences: ADAE outputs are identical")
+} else {
+  log_warn("✗ Differences detected:")
+  log_warn(paste(capture.output(print(comparison)), collapse = "\n"))
+}
+
+# ============================================================================
+# STEP 6: Unit tests
+# ============================================================================
+
+log_info("Step 5: Running unit tests...")
+
+test_that("AESRDF assigned correctly", {
+  test_df <- data.frame(
+    AESER = c("Y", "N", "Y"),
+    expected = c("Serious", "Non-serious", "Serious")
+  )
+
+  actual <- ifelse(test_df$AESER == "Y", "Serious", "Non-serious")
+  expect_equal(actual, test_df$expected)
+})
+
+log_info("✓ All unit tests passed")
+
+# ============================================================================
+# STEP 7: Finalize ADAE
+# ============================================================================
+
+log_info("Step 6: Finalizing ADAE dataset...")
+
+# Use agreed-upon approach after reconciliation
+ADAE_FINAL <- adae_prog_a %>%
+  select(STUDYID, SUBJID, AESEQ, AESOC, AETERM, AESEV, AESRDF, AEACN)
+
+# Save
+write_csv(ADAE_FINAL, "output/adae.csv")
+log_info("ADAE saved: output/adae.csv (%d rows)", nrow(ADAE_FINAL))
+
+# ============================================================================
+# STEP 8: Summary
+# ============================================================================
+
+log_info("=== Validation Workflow Complete ===")
+log_info("Status: PASSED")
+log_info("Timestamp: %s", Sys.time())
+```
+
+## 22.12 Checklist for Clinical Programming Validation
+
+Use this checklist to ensure comprehensive validation:
+
+- [ ] **Environment**: renv.lock created and tested
+- [ ] **Unit Tests**: All core functions have testthat tests (≥90% coverage)
+- [ ] **Double Programming**: Independent programmer reconciliation completed
+- [ ] **Dataset Comparison**: diffdf comparison report generated
+- [ ] **CDISC Compliance**: ADaM variables validated against standards
+- [ ] **Logging**: All processing steps logged to audit trail
+- [ ] **Documentation**: Validation plan and test scripts documented
+- [ ] **Version Control**: Code and documentation committed to git
+- [ ] **Sign-off**: Biostatistician and QA reviewer signatures on validation report
+
+## 22.13 Troubleshooting Validation Issues
+
+| Issue | Cause | Resolution |
+|-------|-------|-----------|
+| Test failures in CI/CD but pass locally | Different R or package versions | Use renv::restore() in CI |
+| diffdf shows rounding differences | Different decimal places | Use tolerance: `tolerance = 0.001` |
+| Logging generates huge files | Too much DEBUG-level logging | Lower log_level or filter by logger name |
+| Unit tests fail on missing data | Test data doesn't include all edge cases | Add tests with NA, NaN, Inf |
+| CDISC validation fails on terminology | Non-standard visit names | Use controlled terminology (CDISC library) |
+
+## 22.14 Summary
+
+- **Validation** in clinical programming ensures regulatory compliance and data integrity.
+- **21 CFR Part 11** requires audit trails; version control and logging satisfy this.
+- **Double programming** is gold standard; use diffdf to identify discrepancies.
+- **Unit testing** with testthat provides evidence of correctness; aim for ≥90% coverage.
+- **renv** freezes R environments, ensuring reproducibility across time and collaborators.
+- **CDISC compliance** checks verify that ADaM datasets meet regulatory standards.
+- **Logging** with logger or futile.logger creates permanent records of processing steps.
+- Comprehensive **validation workflows** combine all these techniques into a cohesive system.
+
+## 22.15 Exercises
+
+**Exercise 22.1**: Create a test suite using testthat for a function that calculates change from baseline. Include tests for normal cases, missing data, and zero baseline values. Run covr to measure test coverage.
+
+**Exercise 22.2**: Simulate a double programming scenario. Programmer A derives an ADSL dataset using dplyr; Programmer B uses data.table. Compare outputs using diffdf and document discrepancies.
+
+**Exercise 22.3**: Initialize renv in a clinical programming project. Specify R 4.3.0, dplyr 1.1.0, and ggplot2 3.4.1. Create renv.lock and verify it can be restored on a fresh R environment.
+
+**Exercise 22.4**: Write a `validate_adam()` function that checks:
+  - Required variables (STUDYID, USUBJID, AVAL)
+  - No missing AVAL in analysis population
+  - Valid CDISC visit codes
+  Test with pharmaversesdtm::adsl.
+
+**Exercise 22.5**: Implement logging in a complete ADaM generation script. Log key steps (data load, filtering, transformations) with appropriate log levels (INFO, WARN, ERROR). Export the log file and review for compliance.
+
+---
+
+**Key References**:
+- 21 CFR Part 11: https://www.ecfr.gov/
+- ICH GCP Guideline: https://www.ich.org/
+- GAMP 5 Guidance: https://www.ispe.org/
+- testthat Documentation: https://testthat.r-lib.org/
+- diffdf Documentation: https://pharmaverse.github.io/diffdf/
+- renv Documentation: https://rstudio.github.io/renv/
+- PHUSE Open Source Guidelines: https://www.phuse.global/
+- Pharmaverse (Roche/PHUSE): https://pharmaverse.org/

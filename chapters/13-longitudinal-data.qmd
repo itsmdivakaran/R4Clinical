@@ -1,0 +1,538 @@
+---
+title: "Chapter 13: Longitudinal Data Analysis"
+---
+
+# Longitudinal Data Analysis
+
+## What Makes Longitudinal Data Different?
+
+**Longitudinal data** are repeated measurements on the same subjects over time. This structure is fundamental in clinical trials and observational studies but violates the independence assumption of classical statistics.
+
+### The Core Challenge: Within-Subject Correlation
+
+In traditional linear regression, observations are assumed independent: $\text{Cov}(Y_i, Y_j) = 0$ for $i \neq j$. In longitudinal data, multiple measurements from the same patient are **correlated**:
+
+$$\text{Cov}(Y_{it}, Y_{is}) \neq 0 \text{ for } t \neq s$$
+
+This correlation arises because:
+- **Biology**: Patients with naturally high baseline values tend to remain high
+- **Study design**: Same person measured repeatedly (inherent dependence)
+- **Patient effects**: Individual characteristics (metabolism, age, genetics) affect all their measurements
+
+**Consequence**: Ignoring within-subject correlation:
+- **Biases standard errors** (usually underestimated)
+- Inflates test statistics and $p$-values
+- Yields overly narrow confidence intervals
+- Can lead to false positive findings
+
+### Example: Clinical Trial with Repeated Measures
+
+A 12-week antihypertensive trial measures systolic blood pressure (SBP) at baseline, weeks 4, 8, and 12 in $n=100$ patients. We have $100 \times 4 = 400$ observations, but they represent only 100 **independent units** (patients). Treating all 400 as independent would artificially inflate power.
+
+## Why Not Just Use Repeated Measures ANOVA?
+
+**Repeated Measures ANOVA** (RM-ANOVA) was the historical standard, but has critical limitations:
+
+| Aspect | RM-ANOVA | Mixed Models |
+|--------|----------|--------------|
+| Missing data | Requires complete cases; loses power | Handles missing data (MAR assumption) |
+| Unequal spacing | Assumes equal intervals | Flexible; works with any timing |
+| Continuous covariates | Limited | Full regression framework |
+| Unbalanced designs | Problematic | Naturally accommodates |
+| Correlation structures | Compound symmetry only | Exchangeable, AR(1), unstructured |
+
+**Conclusion**: Mixed models are superior for modern clinical data.
+
+## Linear Mixed-Effects Models
+
+### Model Specification
+
+The **linear mixed-effects (LME) model** partitions variability into fixed effects (population-level) and random effects (subject-specific):
+
+$$Y_{ij} = \beta_0 + \beta_1 t_{ij} + b_{0i} + b_{1i} t_{ij} + \epsilon_{ij}$$
+
+where:
+- $Y_{ij}$ = response for subject $i$ at time $j$
+- $\beta_0$ = fixed intercept (population average at $t=0$)
+- $\beta_1$ = fixed slope (population average change per time unit)
+- $b_{0i}$ = random intercept for subject $i$ (deviation from population intercept)
+- $b_{1i}$ = random slope for subject $i$ (deviation from population slope)
+- $\epsilon_{ij}$ = within-subject residual error at time $j$ for subject $i$
+
+### Assumptions
+
+**Random effects**:
+$$\begin{pmatrix} b_{0i} \\ b_{1i} \end{pmatrix} \sim N\left(\begin{pmatrix} 0 \\ 0 \end{pmatrix}, \begin{pmatrix} \sigma_b^2 & \rho \sigma_{b0} \sigma_{b1} \\ \rho \sigma_{b0} \sigma_{b1} & \sigma_{b1}^2 \end{pmatrix}\right)$$
+
+**Within-subject errors**:
+$$\epsilon_{ij} \sim N(0, \sigma_e^2)$$
+
+**Independence**: Random effects and residual errors are independent.
+
+### Interpretation of Effects
+
+- **Fixed effects ($\beta$)**: Population-level average trends; what we report in papers
+- **Random intercepts ($b_{0i}$)**: Individual baseline differences; allows "each patient has their own intercept"
+- **Random slopes ($b_{1i}$)**: Individual response trajectories; allows "treatment effect differs per patient"
+
+### Correlation Structures
+
+The **correlation structure** specifies how repeated measures within a subject relate over time.
+
+#### Compound Symmetry (Exchangeable)
+
+Correlation is constant across all time pairs: $\text{Corr}(Y_{it}, Y_{is}) = \rho$ for all $t \neq s$.
+
+$$\text{Corr matrix} = \begin{pmatrix} 1 & \rho & \rho \\ \rho & 1 & \rho \\ \rho & \rho & 1 \end{pmatrix}$$
+
+**Assumption**: Observations equally correlated regardless of time gap. Appropriate when:
+- Visit schedule is irregular
+- No temporal trend in correlation
+
+**Not appropriate** for:
+- Long-term follow-up where recent measurements are more similar
+- Data with natural decay in correlation over time
+
+#### Autoregressive AR(1)
+
+Correlation decays with time distance: $\text{Corr}(Y_{it}, Y_{is}) = \rho^{|t-s|}$.
+
+$$\text{Corr matrix} = \begin{pmatrix} 1 & \rho & \rho^2 \\ \rho & 1 & \rho \\ \rho^2 & \rho & 1 \end{pmatrix}$$
+
+**Assumption**: Measurements closer in time are more similar. Appropriate when:
+- Regular visit schedule (e.g., monthly, weekly)
+- Biological/natural decay in correlation
+- Long-term follow-up studies
+
+**Example**: In a weekly symptom diary, Week 1 vs Week 2 more correlated than Week 1 vs Week 12.
+
+#### Unstructured
+
+Allows unique correlation for each time pair. Maximum flexibility, but requires more parameters.
+
+$$\text{Corr matrix} = \begin{pmatrix} 1 & \rho_{12} & \rho_{13} \\ \rho_{12} & 1 & \rho_{23} \\ \rho_{13} & \rho_{23} & 1 \end{pmatrix}$$
+
+**Use when**: Sample size is large and structured patterns are implausible.
+
+### Estimation: REML vs ML
+
+- **REML (Restricted Maximum Likelihood)**: Accounts for uncertainty in fixed effects; preferred for **parameter estimation**. Better for inference on variance components.
+
+- **ML (Maximum Likelihood)**: Overestimates variance; preferred for **model comparison** (likelihood ratio tests). Biased variances but valid test statistics.
+
+**Practical rule**: Use REML for final inference; use ML for model selection (AIC comparison).
+
+### Model Comparison Using AIC
+
+Akaike Information Criterion balances model fit with complexity:
+
+$$\text{AIC} = -2 \log(L) + 2k$$
+
+where $L$ is the likelihood and $k$ is the number of parameters.
+
+**Interpretation**:
+- Lower AIC is better
+- $\Delta \text{AIC} > 10$: strong evidence favoring lower model
+- $\Delta \text{AIC} < 3$: models are comparable; prefer simpler
+
+**Example**: AIC comparison to decide between random intercept only vs random intercept + slope.
+
+## Generalized Linear Mixed Models (GLMM)
+
+For **non-normal outcomes** (binary, count):
+
+$$\eta_{ij} = \beta_0 + \beta_1 t_{ij} + b_{0i}$$
+
+$$g(E[Y_{ij}]) = \eta_{ij}$$
+
+where $g$ is a link function (logit for binary, log for count).
+
+Example: Model probability of adverse event occurrence over trial visits using logistic GLMM.
+
+## Handling Dropouts: Missing At Random (MAR)
+
+Mixed models rely on the **Missing At Random (MAR)** assumption:
+
+$$P(R = 1 \mid Y_{obs}, Y_{mis}) = P(R = 1 \mid Y_{obs})$$
+
+Missingness depends only on observed data, not on unobserved values.
+
+**Example**: A patient drops out because their baseline depression (observed) was severe—this is MAR. However, if they drop out because their depression improved dramatically (unobserved)—this is MNAR.
+
+**Practical implication**: Include baseline and prognostic variables in the model to approach MAR; sensitivity analyses for MNAR scenarios.
+
+## Mixed Model for Repeated Measures (MMRM)
+
+The **MMRM** is the regulatory standard (ICH E9(R1)) for clinical trials:
+
+$$Y_{ij} = \beta_0 + \beta_1 V_j + \beta_2 T_i + \beta_3 (V_j \times T_i) + b_{0i} + \epsilon_{ij}$$
+
+where:
+- $V_j$ = visit indicator
+- $T_i$ = treatment group
+- $V_j \times T_i$ = treatment-by-visit interaction (captures differential change)
+- $b_{0i}$ = random intercept only (no random slopes)
+- $\epsilon_{ij}$ = visit-level residual with unstructured correlation
+
+**Key features**:
+- Includes **baseline value as a covariate** (not as outcome)
+- **Visit as a factor** (not linear time) for flexibility
+- **Unstructured correlation** (most flexible)
+- Robust to missing data (MAR)
+
+**Clinical interpretation**: Report predicted mean values at each visit by treatment arm with CIs, and treatment difference at final visit.
+
+## Clinical Example 1: Orthodontic Growth
+
+Using the `nlme::Orthodont` dataset: mandibular distance (bone growth) in 27 children, measured at ages 8, 10, 12, 14 years.
+
+### Exploratory Analysis
+
+```r
+library(nlme)
+library(lme4)
+library(tidyverse)
+library(ggplot2)
+
+data(Orthodont)
+
+# Data structure
+head(Orthodont)
+# Subject: child ID
+# age: measurement age
+# distance: mandibular distance (mm)
+
+# Visualize individual trajectories
+plot_indiv <- ggplot(Orthodont, aes(x = age, y = distance,
+                                     group = Subject, color = Subject)) +
+  geom_line(alpha = 0.6) +
+  geom_point(size = 2) +
+  facet_wrap(~Subject) +
+  labs(
+    title = "Individual Orthodontic Growth Trajectories",
+    x = "Age (years)",
+    y = "Mandibular Distance (mm)",
+    subtitle = "27 children measured at 4 time points"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+print(plot_indiv)
+
+# Plot individual trajectories with population mean overlay
+plot_pop <- ggplot(Orthodont, aes(x = age, y = distance)) +
+  geom_line(aes(group = Subject), alpha = 0.3, color = "gray") +
+  stat_summary(fun = mean, geom = "line", size = 1.5,
+               color = "red", aes(group = 1)) +
+  stat_summary(fun = mean, geom = "point", size = 3,
+               color = "red") +
+  labs(
+    title = "Orthodontic Growth: Individual + Population Mean",
+    x = "Age (years)",
+    y = "Mandibular Distance (mm)"
+  ) +
+  theme_minimal()
+
+print(plot_pop)
+```
+
+### Fitting Linear Mixed Models
+
+```r
+# Model 1: Random intercept only (each child different baseline)
+lme1 <- lme(distance ~ age, data = Orthodont,
+            random = ~ 1 | Subject,
+            method = "REML")
+
+summary(lme1)
+
+# Model 2: Random intercept + slope (each child different trajectory)
+lme2 <- lme(distance ~ age, data = Orthodont,
+            random = ~ age | Subject,
+            method = "REML")
+
+summary(lme2)
+
+# Model 3: Using lme4 with explicit correlation structure
+library(lme4)
+lme3 <- lmer(distance ~ age + (1 | Subject), data = Orthodont, REML = TRUE)
+summary(lme3)
+
+# Extract fixed effects
+fixef(lme3)
+# Intercept: ~16 mm at age 0 (baseline mandibular distance)
+# Age slope: ~0.66 mm/year (average growth rate)
+
+# Extract random effects
+ranef(lme3)
+# Shows deviation of each child's intercept from population mean
+```
+
+### Model Comparison
+
+```r
+# Compare models using likelihood ratio test
+# First refit with ML for testing
+lme1_ml <- update(lme1, method = "ML")
+lme2_ml <- update(lme2, method = "ML")
+
+anova(lme1_ml, lme2_ml)
+
+# Extract AIC
+AIC(lme1, lme2)
+# If ΔAIC > 10, prefer the model with lower AIC
+```
+
+**Interpretation Example**:
+- **Fixed effects**: Population-level growth rate is 0.66 mm/year
+- **Random intercept variance**: $\sigma_{b0}^2 = 1.8$ suggests substantial baseline differences (~4.2 mm range between children)
+- **Random slope variance**: $\sigma_{b1}^2 = 0.08$ suggests growth rates are similar across children
+
+### Predicted Trajectories
+
+```r
+# Create new data for prediction
+new_ages <- expand.grid(
+  age = seq(8, 14, by = 1),
+  Subject = unique(Orthodont$Subject)
+)
+
+# Population-level prediction (no random effects)
+pred_pop <- new_ages %>%
+  mutate(
+    pred = predict(lme2, newdata = data.frame(age = age, Subject = NA),
+                   re.form = NA, level = 0)
+  ) %>%
+  distinct(age, pred)
+
+# Subject-specific predictions
+pred_subj <- new_ages %>%
+  mutate(
+    pred = predict(lme2, newdata = .)
+  )
+
+# Plot
+plot_pred <- ggplot(Orthodont, aes(x = age, y = distance)) +
+  geom_line(aes(group = Subject), alpha = 0.2, color = "gray") +
+  geom_line(data = pred_pop, aes(y = pred, group = 1),
+            size = 1.5, color = "red") +
+  labs(
+    title = "Observed and Predicted Growth Trajectories",
+    x = "Age (years)",
+    y = "Mandibular Distance (mm)",
+    subtitle = "Red line: population average trajectory"
+  ) +
+  theme_minimal()
+
+print(plot_pred)
+```
+
+## Clinical Example 2: MMRM for Vital Signs
+
+Using `pharmaversesdtm::vs` dataset: systolic blood pressure (SBP) measured at baseline, Week 2, Week 4, Week 8, Week 12 in a hypertension trial.
+
+```r
+library(pharmaversesdtm)
+library(admiral)
+library(gtsummary)
+
+# Load and prepare data
+data(vs)
+
+# Filter SBP measurements and prepare for analysis
+vs_sbp <- vs %>%
+  filter(VSTESTCD == "SYSBP") %>%  # Systolic BP
+  mutate(
+    VISIT = factor(VISIT,
+                   levels = c("Baseline", "Week 2", "Week 4", "Week 8", "Week 12")),
+    VISITN = as.numeric(VISIT),
+    TRTA = factor(TRTA),  # Treatment arm (e.g., Drug A, Placebo)
+  ) %>%
+  select(USUBJID, VISIT, VISITN, VSSTRESN, TRTA) %>%
+  rename(SBP = VSSTRESN) %>%
+  arrange(USUBJID, VISITN)
+
+# Get baseline SBP for each subject
+baseline_sbp <- vs_sbp %>%
+  filter(VISITN == 1) %>%
+  select(USUBJID, TRTA) %>%
+  distinct()
+
+vs_sbp <- vs_sbp %>%
+  left_join(baseline_sbp, by = "USUBJID")
+
+# Exploratory plot: treatment mean trajectories
+plot_means <- vs_sbp %>%
+  group_by(VISIT, TRTA) %>%
+  summarise(
+    mean_sbp = mean(SBP, na.rm = TRUE),
+    se_sbp = sd(SBP, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  ) %>%
+  ggplot(aes(x = VISIT, y = mean_sbp, color = TRTA, group = TRTA)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_sbp - se_sbp, ymax = mean_sbp + se_sbp),
+                width = 0.2) +
+  labs(
+    title = "SBP Response by Treatment Arm",
+    x = "Visit",
+    y = "Systolic Blood Pressure (mmHg)",
+    color = "Treatment"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(plot_means)
+```
+
+### MMRM Analysis
+
+```r
+# MMRM using lme4 (or nlme with unstructured correlation via gls)
+library(lme4)
+
+# Fit MMRM
+mmrm_model <- lmer(
+  SBP ~ VISIT * TRTA + (1 | USUBJID),
+  data = vs_sbp,
+  REML = TRUE,
+  na.action = na.omit
+)
+
+summary(mmrm_model)
+
+# Extract fixed effects (treatment comparisons)
+fixed_effects <- fixef(mmrm_model)
+
+# Interpretation example:
+# TRTADrug A:VISITWeek 12: -8.5 mmHg
+# Interpretation: Patients on Drug A had 8.5 mmHg greater reduction from baseline
+# by Week 12 compared to Placebo
+
+# Predicted means by treatment and visit
+library(emmeans)
+
+pred_means <- emmeans(mmrm_model, ~ VISIT | TRTA)
+summary(pred_means)
+
+# Contrast: Drug A vs Placebo at Week 12
+contrast_w12 <- emmeans(mmrm_model, pairwise ~ TRTA | VISIT)
+summary(contrast_w12)
+```
+
+### Publication-Ready Output
+
+```r
+# Create a summary table: mean ± SD by visit and treatment
+vs_summary <- vs_sbp %>%
+  group_by(VISIT, TRTA) %>%
+  summarise(
+    N = n(),
+    Mean = mean(SBP, na.rm = TRUE),
+    SD = sd(SBP, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    `Mean (SD)` = sprintf("%.1f (%.1f)", Mean, SD)
+  ) %>%
+  select(VISIT, TRTA, N, `Mean (SD)`) %>%
+  pivot_wider(
+    names_from = TRTA,
+    values_from = `Mean (SD)`,
+    id_cols = VISIT
+  )
+
+print(vs_summary)
+
+# Estimated treatment difference at final visit using tidy method
+library(broom.mixed)
+
+tidy(mmrm_model, effects = "fixed") %>%
+  filter(grepl("Week 12", term)) %>%
+  mutate(
+    HR = exp(estimate),
+    CI_L = exp(estimate - 1.96 * std.error),
+    CI_U = exp(estimate + 1.96 * std.error)
+  ) %>%
+  select(term, estimate, std.error, p.value)
+```
+
+## Key Assumptions and Diagnostics
+
+### Checking Normality of Random Effects
+
+```r
+# Extract random intercepts
+ranef_plot <- ranef(lme2)$Subject %>%
+  ggplot(aes(sample = `(Intercept)`)) +
+  stat_qq() +
+  stat_qq_line() +
+  labs(title = "Q-Q Plot of Random Intercepts") +
+  theme_minimal()
+
+print(ranef_plot)
+```
+
+### Checking Homogeneity of Variance
+
+```r
+# Plot residuals vs fitted
+residuals_plot <- data.frame(
+  fitted = fitted(lme2),
+  residuals = residuals(lme2)
+) %>%
+  ggplot(aes(x = fitted, y = residuals)) +
+  geom_point(alpha = 0.6) +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+  geom_smooth(se = FALSE) +
+  labs(
+    title = "Residual Plot: Homogeneity of Variance",
+    x = "Fitted Values",
+    y = "Residuals"
+  ) +
+  theme_minimal()
+
+print(residuals_plot)
+```
+
+## Clinical Interpretation Summary
+
+| Component | What It Means | How to Report |
+|-----------|---------------|---------------|
+| Fixed intercept | Population average at baseline | "Mean SBP at baseline was 145 mmHg" |
+| Fixed slope | Population average change per unit time | "SBP decreased by 8 mmHg per month on average" |
+| Treatment effect (fixed) | Differential treatment response | "Drug A reduced SBP by 12 mmHg more than placebo (95% CI: -18 to -6)" |
+| Random intercept variance | Individual baseline variation | "Individual baselines ranged ~±10 mmHg from population mean" |
+| Random slope variance | Individual response variation | "Response rates varied substantially across patients" |
+
+## Exercises
+
+### Beginner Exercises
+
+**Exercise 13.1**: Load the `nlme::phenoBarb` dataset (phenobarbital concentration in premature infants). Plot individual trajectories of drug concentration over time. Then fit a random-intercept LME model predicting concentration from age. Report the fixed effects interpretation.
+
+```r
+data(phenoBarb)
+# Your code here
+```
+
+**Exercise 13.2**: Refit the orthodontic model with a `correlation = corAR1()` argument (AR(1) correlation structure) and compare AIC to the unstructured model. Which is preferred and why?
+
+**Exercise 13.3**: For the vital signs example, create a table showing the MMRM-estimated treatment difference in SBP change from baseline for Drug A vs. Placebo at each visit, including 95% CIs.
+
+### Advanced Exercises
+
+**Exercise 13.4**: Fit a GLMM to binary outcomes. Using pharmaversesdtm data, model the probability of headache adverse events (present/absent) over trial visits. Include treatment-by-visit interaction. Interpret odds ratios.
+
+**Exercise 13.5**: Conduct a **sensitivity analysis** for missing data. For the SBP example, implement both Complete Case Analysis (CCA) and your MMRM approach. Create a comparison table showing how treatment differences differ under CCA vs. MMRM. Discuss implications for missing data assumptions (MCAR vs. MAR).
+
+---
+
+## References
+
+- Fitzmaurice, G. M., Laird, N. M., & Ware, J. H. (2011). *Applied Longitudinal Analysis* (2nd ed.). Wiley.
+- Verbeke, G., & Molenberghs, G. (2009). *Linear Mixed Models for Longitudinal Data*. Springer.
+- Pinheiro, J. C., & Bates, D. M. (2000). *Mixed-Effects Models in S and S-Plus*. Springer.
+- ICH (2024). E9(R2): Addendum on estimands and sensitivity analysis in clinical trials. EMA/CHMP.
+- Package documentation: `?nlme::lme`, `?lme4::lmer`, `?emmeans::emmeans`
