@@ -9,7 +9,7 @@ book:
     - name: Mahesh Divakaran
       affiliations:
         - name: Amity University, Lucknow Campus
-          department: Department of Statistics & Data Science
+          department: Department of Statistics 
           city: Lucknow
           state: Uttar Pradesh
           country: India
@@ -21,9 +21,16 @@ book:
     - name: Gunjan Singh
       affiliations:
         - name: Amity University, Lucknow Campus
-          department: Department of Statistics & Data Science
+          department: Department of Statistics
           city: Lucknow
           state: Uttar Pradesh
+          country: India
+    - name: Jayalekshmi S
+      affiliations:
+        - name: Cochin University of Science and Technology
+          department: Department of Statistics 
+          city: Kochi
+          state: Kerala
           country: India
   date: "2026"
   date-format: "YYYY"
