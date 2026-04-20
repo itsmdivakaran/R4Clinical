@@ -1,0 +1,430 @@
+
+# Data Wrangling with tidyr: Reshaping, Pivoting, Nesting, and Structuring Clinical Data
+
+## Introduction
+
+Data wrangling — transforming data between wide and long formats, handling nested structures, and resolving shape mismatches — is a daily task in clinical data programming. Clinical trial data is particularly challenging because:
+
+- SDTM stores lab and vital sign data in **long** format (one row per test per visit)
+- Statistical analysis often requires **wide** format (one row per subject, one column per timepoint)
+- ADaM datasets require specific structures that differ from SDTM
+- Regulatory outputs (listings, tables) demand yet another shape
+
+The `tidyr` package provides the tools to reshape data efficiently and consistently.
+
+This chapter covers:
+
+- `pivot_longer()` and `pivot_wider()` — reshaping between long and wide
+- `separate()` and `unite()` — splitting and combining columns
+- `complete()` — filling in missing combinations
+- `nest()` and `unnest()` — working with list-columns and grouped models
+- `fill()` and `replace_na()` — handling structural missing values
+- Real SDTM-to-ADaM reshaping workflows
+
+---
+
+## 1. Setup
+
+```{r}
+#| label: setup-04b
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(pharmaversesdtm)
+
+data("dm")
+data("lb")
+data("vs")
+data("ae")
+
+cat("Domains loaded.\n")
+```
+
+---
+
+## 2. Tidy Data Principles
+
+Before reshaping, it helps to understand what "tidy" means:
+
+1. Every **variable** has its own column
+2. Every **observation** has its own row
+3. Every **value** has its own cell
+
+Most clinical data issues arise from violations of these rules. For example, a lab dataset with `BASELINE`, `WEEK4`, `WEEK8`, `WEEK12` as separate columns violates rule 2 — the four columns represent four observations of the same variable.
+
+```{r}
+#| label: tidy-concept
+
+# SDTM LB is already tidy (long): one row per subject × test × visit
+lb |>
+  select(USUBJID, LBTESTCD, VISITNUM, LBSTRESN) |>
+  filter(LBTESTCD == "ALT", USUBJID == unique(USUBJID)[1]) |>
+  head(8)
+```
+
+---
+
+## 3. pivot_longer() — Wide to Long
+
+`pivot_longer()` stacks multiple columns into key–value pairs. Use it when column names represent values of a variable (e.g., `visit_1`, `visit_2`, `visit_4`).
+
+### 3.1 Clinical Example: Summary Statistics to Long Format
+
+```{r}
+#| label: pivot-longer-basic
+
+# Create a wide summary table (e.g., from a reporting tool)
+dm_wide <- dm |>
+  filter(!is.na(ARM), ARM != "Screen Failure") |>
+  group_by(ARM) |>
+  summarise(
+    N           = n(),
+    Mean_age    = round(mean(AGE, na.rm = TRUE), 1),
+    SD_age      = round(sd(AGE,  na.rm = TRUE), 1),
+    Pct_female  = round(100 * mean(SEX == "F"), 1),
+    .groups     = "drop"
+  )
+
+print(dm_wide)
+
+# Pivot to long for a reporting-friendly layout
+dm_long <- dm_wide |>
+  pivot_longer(
+    cols      = -ARM,
+    names_to  = "Statistic",
+    values_to = "Value"
+  )
+
+print(dm_long)
+```
+
+### 3.2 SDTM Vital Signs: Multiple Parameters to Long
+
+```{r}
+#| label: pivot-longer-vs
+
+# Wide vital signs (hypothetical pre-processed table)
+vs_wide_demo <- vs |>
+  filter(VSTESTCD %in% c("SYSBP", "DIABP", "PULSE"),
+         VISITNUM %in% c(1, 2, 3)) |>
+  select(USUBJID, VISITNUM, VSTESTCD, VSSTRESN) |>
+  pivot_wider(names_from = VSTESTCD, values_from = VSSTRESN) |>
+  head(20)
+
+cat("Wide VS (first 5 rows):\n")
+print(head(vs_wide_demo, 5))
+
+# Now pivot back to long (with multiple value columns)
+vs_long_back <- vs_wide_demo |>
+  pivot_longer(
+    cols      = any_of(c("SYSBP", "DIABP", "PULSE")),
+    names_to  = "Parameter",
+    values_to = "Value",
+    values_drop_na = TRUE
+  )
+
+cat("\nLong VS (first 8 rows):\n")
+print(head(vs_long_back, 8))
+```
+
+---
+
+## 4. pivot_wider() — Long to Wide
+
+`pivot_wider()` spreads key–value pairs across multiple columns. Critical for:
+
+- Creating change-from-baseline (CFB) datasets where baseline and post-baseline are side by side
+- Building subject-level datasets with one column per timepoint
+- Constructing cross-tabulations for regulatory tables
+
+### 4.1 Lab Data: One Column per Visit
+
+```{r}
+#| label: pivot-wider-lab
+
+# Create an ALT profile table: one column per visit
+alt_profile <- lb |>
+  filter(LBTESTCD == "ALT",
+         !is.na(LBSTRESN),
+         VISITNUM %in% c(1, 2, 3, 4, 5)) |>
+  select(USUBJID, VISITNUM, LBSTRESN) |>
+  pivot_wider(
+    names_from   = VISITNUM,
+    values_from  = LBSTRESN,
+    names_prefix = "Visit_"
+  )
+
+cat("ALT by visit (wide format — first 6 subjects):\n")
+print(head(alt_profile, 6))
+cat("Dimensions:", nrow(alt_profile), "×", ncol(alt_profile), "\n")
+```
+
+### 4.2 Computing Change from Baseline
+
+```{r}
+#| label: cfb-calculation
+
+# Compute change from baseline (CFB) and percent CFB for SBP
+sbp_cfb <- vs |>
+  filter(VSTESTCD == "SYSBP", !is.na(VSSTRESN)) |>
+  select(USUBJID, VISITNUM, VSSTRESN) |>
+  # Create BASELINE and POST-BASELINE columns
+  mutate(
+    timepoint = if_else(VISITNUM == 1, "Baseline", paste0("Visit_", VISITNUM))
+  ) |>
+  pivot_wider(
+    id_cols      = USUBJID,
+    names_from   = timepoint,
+    values_from  = VSSTRESN,
+    values_fn    = mean   # average if multiple baseline readings
+  ) |>
+  # Compute CFB for each post-baseline visit
+  mutate(
+    across(
+      starts_with("Visit_"),
+      list(
+        CFB    = \(x) x - Baseline,
+        PCTCFB = \(x) 100 * (x - Baseline) / Baseline
+      ),
+      .names = "{.col}_{.fn}"
+    )
+  )
+
+cat("SBP with CFB (first 3 subjects):\n")
+sbp_cfb |>
+  select(USUBJID, Baseline, starts_with("Visit_2"), starts_with("Visit_3")) |>
+  head(3) |>
+  print()
+```
+
+---
+
+## 5. separate() and unite() — Splitting and Combining Columns
+
+SDTM date-time columns (ISO 8601: `2023-04-15T09:30:00`) are stored as strings and often need splitting. Conversely, separate pieces of information sometimes need joining.
+
+### 5.1 separate() — Split a Column
+
+```{r}
+#| label: separate-dates
+
+# Split SDTM ISO date into date and time components
+lb_dates <- lb |>
+  filter(!is.na(LBDTC)) |>
+  select(USUBJID, LBTESTCD, LBDTC) |>
+  separate(
+    col  = LBDTC,
+    into = c("LBDT", "LBTM"),
+    sep  = "T",
+    fill = "right",    # fill right if no time component
+    remove = FALSE
+  ) |>
+  separate(
+    col  = LBDT,
+    into = c("LBYR", "LBMO", "LBDY"),
+    sep  = "-",
+    fill = "right"
+  )
+
+head(lb_dates |> select(USUBJID, LBDTC, LBYR, LBMO, LBDY, LBTM), 5)
+```
+
+### 5.2 unite() — Combine Columns
+
+```{r}
+#| label: unite-example
+
+# Create a unique visit-test identifier for pivot keys
+lb_key <- lb |>
+  select(USUBJID, LBTESTCD, VISITNUM, LBSTRESN) |>
+  unite(
+    col    = "visit_test",
+    VISITNUM, LBTESTCD,
+    sep    = "_V",
+    remove = FALSE
+  ) |>
+  mutate(visit_test = paste0("V", visit_test))
+
+head(lb_key |> select(USUBJID, VISITNUM, LBTESTCD, visit_test, LBSTRESN), 5)
+```
+
+---
+
+## 6. complete() — Making Implicit Missing Values Explicit
+
+`complete()` ensures that all combinations of variables are present in the dataset, inserting `NA` for missing combinations. This is essential for creating LOCF (Last Observation Carried Forward) datasets and for identifying subjects missing planned assessments.
+
+```{r}
+#| label: complete-example
+
+# Identify which subjects are missing planned VS assessments
+# Planned: all subjects should have SYSBP at visits 1, 2, 3, 4, 5
+subjects <- dm |>
+  filter(!is.na(ARM), ARM != "Screen Failure") |>
+  pull(USUBJID)
+
+planned_visits <- 1:5
+
+sbp_observed <- vs |>
+  filter(VSTESTCD == "SYSBP",
+         USUBJID %in% subjects,
+         VISITNUM %in% planned_visits) |>
+  select(USUBJID, VISITNUM, VSSTRESN)
+
+# complete() fills in missing USUBJID × VISITNUM combinations
+sbp_complete <- sbp_observed |>
+  complete(
+    USUBJID  = subjects,
+    VISITNUM = planned_visits
+  )
+
+n_missing <- sum(is.na(sbp_complete$VSSTRESN))
+cat("Missing planned SBP assessments:", n_missing, "\n")
+cat("Out of:", nrow(sbp_complete), "planned assessments\n")
+cat("Missingness rate:", round(100 * n_missing / nrow(sbp_complete), 1), "%\n")
+```
+
+---
+
+## 7. fill() — Carrying Values Forward or Backward
+
+`fill()` propagates non-missing values across rows — implementing LOCF and BOCF imputation strategies.
+
+```{r}
+#| label: fill-locf
+
+# LOCF: Last Observation Carried Forward for SBP
+sbp_locf <- sbp_complete |>
+  arrange(USUBJID, VISITNUM) |>
+  group_by(USUBJID) |>
+  fill(VSSTRESN, .direction = "down") |>   # LOCF
+  ungroup() |>
+  rename(SBP_locf = VSSTRESN)
+
+# BOCF: Baseline Observation Carried Backward
+sbp_bocf <- sbp_complete |>
+  arrange(USUBJID, VISITNUM) |>
+  group_by(USUBJID) |>
+  fill(VSSTRESN, .direction = "up") |>     # BOCF
+  ungroup() |>
+  rename(SBP_bocf = VSSTRESN)
+
+cat("Remaining missing after LOCF:", sum(is.na(sbp_locf$SBP_locf)), "\n")
+cat("Remaining missing after BOCF:", sum(is.na(sbp_bocf$SBP_bocf)), "\n")
+```
+
+::: {.callout-warning}
+**Regulatory caution**: LOCF and BOCF are simple imputation approaches that were common in older trials but are no longer considered acceptable as the primary approach for handling missing data in regulatory submissions. Modern guidance (ICH E9 R1) recommends reference-based imputation or mixed models for repeated measures (MMRM). LOCF is useful for sensitivity analyses only.
+:::
+
+---
+
+## 8. nest() and unnest() — List-Columns and Grouped Models
+
+`nest()` stores sub-datasets as list-column elements, enabling per-group modelling workflows — fitting a separate model for each lab test, subgroup, or country.
+
+### 8.1 Nested Linear Models by Lab Test
+
+```{r}
+#| label: nest-models
+
+library(broom)
+
+# Fit a linear time trend for each lab test
+lab_trends <- lb |>
+  filter(!is.na(LBSTRESN), !is.na(VISITNUM)) |>
+  group_by(LBTESTCD) |>
+  filter(n() >= 30) |>  # require at least 30 records
+  nest() |>
+  mutate(
+    model  = map(data, \(d) lm(LBSTRESN ~ VISITNUM, data = d)),
+    tidy   = map(model, broom::tidy),
+    glance = map(model, broom::glance)
+  )
+
+# Extract slope (time trend) for each test
+lab_slopes <- lab_trends |>
+  unnest(tidy) |>
+  filter(term == "VISITNUM") |>
+  select(LBTESTCD, estimate, std.error, p.value) |>
+  arrange(p.value) |>
+  head(10)
+
+cat("Lab tests with significant time trends (top 10):\n")
+print(lab_slopes)
+```
+
+### 8.2 Unnesting for Reporting
+
+```{r}
+#| label: unnest-example
+
+# Unnest model summaries for a clean R² table
+lab_fit <- lab_trends |>
+  unnest(glance) |>
+  select(LBTESTCD, r.squared, adj.r.squared, p.value) |>
+  arrange(desc(r.squared)) |>
+  head(8)
+
+cat("Model fit by lab test:\n")
+print(lab_fit)
+```
+
+---
+
+## 9. Full Workflow: SDTM Lab Data → ADaM ADLB-like Structure
+
+Combining all `tidyr` and `dplyr` tools into a single ADLB-style preparation:
+
+```{r}
+#| label: adlb-workflow
+
+# Build an ADLB-like dataset for ALT and AST
+adlb <- lb |>
+  filter(
+    LBTESTCD %in% c("ALT", "AST"),
+    !is.na(LBSTRESN),
+    VISITNUM %in% 1:6
+  ) |>
+  select(USUBJID, LBTESTCD, VISITNUM, LBSTRESN, LBSTNRHI) |>
+  # Add treatment arm from DM
+  left_join(
+    dm |> select(USUBJID, ARM) |>
+      filter(!is.na(ARM), ARM != "Screen Failure"),
+    by = "USUBJID"
+  ) |>
+  filter(!is.na(ARM)) |>
+  # Compute ULN ratio
+  mutate(
+    ULN_ratio  = round(LBSTRESN / LBSTNRHI, 3),
+    ULN_flag   = ULN_ratio > 3,   # >3× ULN is a common hepatotoxicity flag
+    visit_label = paste0("Visit ", VISITNUM)
+  ) |>
+  # Pivot: one column per visit for each test
+  arrange(USUBJID, LBTESTCD, VISITNUM)
+
+cat("ADLB-like dataset:\n")
+glimpse(adlb)
+
+cat("\nSubjects with ALT >3× ULN at any visit:\n")
+adlb |>
+  filter(LBTESTCD == "ALT", ULN_flag) |>
+  distinct(USUBJID, ARM) |>
+  count(ARM)
+```
+
+---
+
+## Summary
+
+`tidyr` and `dplyr` together form the backbone of clinical data wrangling in R:
+
+- **`pivot_longer()`** converts wide formats (e.g., one column per visit) into tidy long format required by most statistical models
+- **`pivot_wider()`** produces wide formats needed for CFB calculations, listings, and regulatory tables
+- **`separate()` / `unite()`** handle the messy ISO date strings and compound identifiers ubiquitous in SDTM
+- **`complete()`** makes implicit missingness explicit — essential for identifying protocol deviations and unplanned missing assessments
+- **`fill()`** implements LOCF/BOCF imputation (as sensitivity analysis only)
+- **`nest()` / `unnest()`** enable scalable per-group modelling — running the same analysis across all lab parameters or subgroups with a single pipeline
+
+> **Regulatory note**: Any reshaping or imputation applied to the data must be documented in the Statistical Analysis Plan and the dataset specification. The transformation logic should be captured in production-quality, version-controlled R code that can be reviewed and reproduced by statisticians, programmers, and regulators.

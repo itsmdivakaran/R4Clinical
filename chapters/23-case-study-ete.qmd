@@ -1,14 +1,6 @@
----
-title: "Chapter 23: End-to-End Clinical Trial Analysis"
-subtitle: "From Raw Data to Regulatory Submission"
-author: "Mahesh Divakaran, Jayadevan Sreedharan, Gunjan Singh"
-date: "2024"
-number-sections: true
-format:
-  html:
-    toc: true
-    toc-depth: 2
----
+
+# End-to-End Clinical Trial Analysis
+
 
 ## Introduction: The Complete Clinical Trial Pipeline
 
@@ -99,8 +91,6 @@ SDTM (Study Data Tabulation Model) is the FDA-mandated standard for clinical tri
 #| warning: false
 
 library(pharmaversesdtm)
-library(admiral)
-library(admiraldev)
 library(dplyr)
 library(tidyr)
 library(stringr)
@@ -149,7 +139,8 @@ The VS domain contains repeated blood pressure measurements — the cornerstone 
 # Focus on SBP and DBP measurements
 vs_bp <- vs %>%
   filter(VSTESTCD %in% c("SYSBP", "DIABP")) %>%
-  select(USUBJID, VISIT, VSTESTCD, VSVAL, VSDT, ARM) %>%
+  left_join(dm %>% filter(ARM != "Screen Failure") %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  select(USUBJID, VISIT, VSTESTCD, VSVAL = VSSTRESN, VSDT = VSDTC, ARM) %>%
   arrange(USUBJID, VISIT, VSTESTCD)
 
 # Check for missing values
@@ -158,6 +149,8 @@ print(summary(vs_bp))
 
 # Pivot to wide format for review
 vs_wide <- vs_bp %>%
+  group_by(USUBJID, VISIT, VSDT, ARM, VSTESTCD) %>%
+  summarise(VSVAL = mean(VSVAL, na.rm = TRUE), .groups = "drop") %>%
   pivot_wider(
     id_cols = c(USUBJID, VISIT, VSDT, ARM),
     names_from = VSTESTCD,
@@ -194,9 +187,12 @@ dm_summary <- dm %>%
 cat("Demographics by Treatment Arm:\n")
 print(dm_summary)
 
-# Baseline SBP (most subjects will have a baseline VS record at Visit 1)
+# Baseline SBP (earliest record per subject)
 baseline_sbp <- vs_bp %>%
-  filter(VISIT == "Baseline", VSTESTCD == "SYSBP") %>%
+  filter(VSTESTCD == "SYSBP", !is.na(VSVAL)) %>%
+  group_by(USUBJID, ARM) %>%
+  slice_min(VSDT, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
   group_by(ARM) %>%
   summarise(
     N = n(),
@@ -219,7 +215,7 @@ print(baseline_sbp)
 # Key safety labs: potassium, creatinine
 lb_safety <- lb %>%
   filter(LBTESTCD %in% c("POTASSIUM", "CREATININE")) %>%
-  select(USUBJID, VISIT, LBTESTCD, LBSTRESN, LBSTRESU, LBNRHI) %>%
+  select(USUBJID, VISIT, LBTESTCD, LBSTRESN, LBSTRESU, LBSTNRHI) %>%
   arrange(USUBJID, VISIT, LBTESTCD)
 
 cat("Safety Laboratory Parameters (first 15 records):\n")
@@ -236,8 +232,13 @@ print(table(lb$LBTESTCD))
 #| label: inspect-ae
 #| message: false
 
+# Join ARM from dm for AE summaries
+ae_with_arm <- ae %>%
+  left_join(dm %>% filter(ARM != "Screen Failure") %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  filter(!is.na(ARM))
+
 # AE summary
-ae_summary <- ae %>%
+ae_summary <- ae_with_arm %>%
   group_by(ARM) %>%
   summarise(
     Total_AEs = n(),
@@ -251,7 +252,7 @@ cat("Adverse Event Summary by Arm:\n")
 print(ae_summary)
 
 # Top 10 AE terms
-ae_top <- ae %>%
+ae_top <- ae_with_arm %>%
   group_by(AETERM, ARM) %>%
   summarise(Count = n(), .groups = "drop") %>%
   arrange(desc(Count)) %>%
@@ -278,10 +279,14 @@ ADaM (Analysis Data Model) datasets are analysis-ready, with variables derived a
 
 # Start with DM as the foundation
 adsl <- dm %>%
+  filter(!is.na(ARM), ARM != "", ARM != "Screen Failure") %>%
   select(USUBJID, ARMCD, ARM, AGE, SEX, RACE) %>%
   mutate(
-    # Create treatment group numeric code for analysis
-    TRT01P = factor(ARM, levels = c("Placebo", "Drug XYZ")),
+    # Map actual ARM values to study treatment labels
+    TRT01P = factor(
+      case_when(ARM == "Placebo" ~ "Placebo", TRUE ~ "Drug XYZ"),
+      levels = c("Placebo", "Drug XYZ")
+    ),
     TRT01PN = as.numeric(TRT01P),
 
     # Randomisation date (derive from early VS/LB records)
@@ -304,16 +309,19 @@ adsl <- dm %>%
     SEXF = ifelse(SEX == "F", "Female", "Male")
   )
 
-# Merge baseline SBP and DBP
+# Merge baseline SBP and DBP (earliest record per subject/test)
 baseline_vitals <- vs_bp %>%
-  filter(VISIT == "Baseline") %>%
+  filter(VSTESTCD %in% c("SYSBP", "DIABP"), !is.na(VSVAL)) %>%
+  group_by(USUBJID, VSTESTCD) %>%
+  slice_min(VSDT, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(USUBJID, VSTESTCD, VSVAL) %>%
   pivot_wider(
     id_cols = USUBJID,
     names_from = VSTESTCD,
-    values_from = VSVAL,
-    names_prefix = "BL_"
+    values_from = VSVAL
   ) %>%
-  rename(BLSBP = BL_SYSBP, BLDBP = BL_DIABP)
+  rename(BLSBP = SYSBP, BLDBP = DIABP)
 
 adsl <- adsl %>%
   left_join(baseline_vitals, by = "USUBJID") %>%
@@ -325,7 +333,13 @@ adsl <- adsl %>%
 
 # Merge baseline lab values (potassium, creatinine)
 baseline_labs <- lb %>%
-  filter(VISIT == "Baseline", LBTESTCD %in% c("POTASSIUM", "CREATININE")) %>%
+  filter(LBTESTCD %in% c("K", "CREAT")) %>%
+  { if ("LBBLFL" %in% names(.) && any(.[["LBBLFL"]] == "Y", na.rm = TRUE))
+      filter(., LBBLFL == "Y")
+    else
+      group_by(., USUBJID, LBTESTCD) %>%
+        slice_min(LBDY, n = 1, with_ties = FALSE) %>%
+        ungroup() } %>%
   select(USUBJID, LBTESTCD, LBSTRESN) %>%
   pivot_wider(
     id_cols = USUBJID,
@@ -336,7 +350,7 @@ baseline_labs <- lb %>%
 
 adsl <- adsl %>%
   left_join(baseline_labs, by = "USUBJID") %>%
-  rename(BLPOTASSIUM = BL_POTASSIUM, BLCREATININE = BL_CREATININE)
+  rename(any_of(c(BLPOTASSIUM = "BL_K", BLCREATININE = "BL_CREAT")))
 
 # Count baseline safety events/exclusions for documentation
 adsl <- adsl %>%
@@ -348,7 +362,8 @@ adsl <- adsl %>%
   select(
     USUBJID, ARMCD, ARM, TRT01P, TRT01PN, AGE, AGEGRP, SEX, SEXF, RACE,
     RANDDT, SAFFL, ITTFL, PPFL, COMPLFL, EFFICACY_POP,
-    BLSBP, BLDBP, BLSBPGRP, BLDBPGRP, BLPOTASSIUM, BLCREATININE
+    BLSBP, BLDBP, BLSBPGRP, BLDBPGRP,
+    any_of(c("BLPOTASSIUM", "BLCREATININE"))
   )
 
 cat("ADSL Dataset Created:\n")
@@ -383,11 +398,11 @@ advs <- advs %>%
 advs <- advs %>%
   mutate(
     VISIT_NUM = case_when(
-      VISIT == "Baseline" ~ 0,
-      VISIT == "Week 2" ~ 2,
-      VISIT == "Week 4" ~ 4,
-      VISIT == "Week 8" ~ 8,
-      VISIT == "Week 12" ~ 12,
+      grepl("BASELINE|Baseline", VISIT) ~ 0,
+      grepl("WEEK 2|Week 2", VISIT) ~ 2,
+      grepl("WEEK 4|Week 4", VISIT) ~ 4,
+      grepl("WEEK 8|Week 8", VISIT) ~ 8,
+      grepl("WEEK 12|Week 12", VISIT) ~ 12,
       TRUE ~ NA_integer_
     ),
     VISITN = VISIT_NUM  # Analysis visit number
@@ -395,6 +410,8 @@ advs <- advs %>%
 
 # Pivot to get SBP and DBP in same row
 advs <- advs %>%
+  group_by(USUBJID, VISIT, VISIT_NUM, ARM, TRT01P, BLSBP, BLDBP, VSTESTCD) %>%
+  summarise(VSVAL = mean(VSVAL, na.rm = TRUE), VSDT = first(VSDT), .groups = "drop") %>%
   pivot_wider(
     id_cols = c(USUBJID, VISIT, VISIT_NUM, VSDT, ARM, TRT01P, BLSBP, BLDBP),
     names_from = VSTESTCD,
@@ -415,8 +432,9 @@ advs <- advs %>%
 advs <- advs %>%
   mutate(
     ANFL = ifelse(!is.na(SBP), "Y", "N"),  # Analysis flag: record has value
-    ABLFL = ifelse(VISIT == "Baseline", "Y", "N")  # Baseline flag
+    ABLFL = ifelse(grepl("BASELINE|Baseline", VISIT), "Y", "N")  # Baseline flag
   ) %>%
+  mutate(VISITN = VISIT_NUM) %>%
   select(
     USUBJID, VISITN, VISIT, VSDT, ARM, TRT01P, ANFL, ABLFL,
     SBP, DBP, BLSBP, BLDBP, CHG_SBP, CHG_DBP, PCHG_SBP, PCHG_DBP
@@ -451,7 +469,9 @@ print(visit_completeness)
 
 # SDTM AE domain → ADAE
 adae <- ae %>%
-  select(USUBJID, AETERM, AESEV, AESER, AEREL, AEOUT, AESTDTC, ARM) %>%
+  select(USUBJID, AETERM, AESEV, AESER, AEREL, AEOUT, AESTDTC) %>%
+  left_join(dm %>% filter(ARM != "Screen Failure") %>% select(USUBJID, ARM),
+            by = "USUBJID") %>%
   left_join(adsl %>% select(USUBJID, TRT01P, RANDDT),
             by = "USUBJID")
 
@@ -486,7 +506,7 @@ ae_by_arm <- adae %>%
   group_by(ARM, AETERM) %>%
   summarise(Count = n(), .groups = "drop") %>%
   pivot_wider(names_from = ARM, values_from = Count, values_fill = 0) %>%
-  arrange(desc(`Drug XYZ` + Placebo))
+  arrange(desc(rowSums(across(where(is.numeric)))))
 
 cat("\nAE Incidence by Arm (Top 10):\n")
 print(head(ae_by_arm, 10))
@@ -503,7 +523,6 @@ The primary endpoint is change in mean seated systolic BP from baseline to Week 
 ```{r}
 #| label: prepare-primary-ep
 #| message: false
-library(tidymodels)
 
 # Select Week 12 data for efficacy population (ITT)
 adsl_ittfl <- adsl %>% filter(ITTFL == "Y")
@@ -723,14 +742,21 @@ cat("\nLogistic Regression (Response):\n")
 print(summary(log_model))
 
 # Extract OR
-log_coef <- coef(log_model)
-or <- exp(log_coef["TRT01PDrug XYZ"])
-ci_lower <- exp(log_coef["TRT01PDrug XYZ"] - 1.96 * summary(log_model)$coef["TRT01PDrug XYZ", "Std. Error"])
-ci_upper <- exp(log_coef["TRT01PDrug XYZ"] + 1.96 * summary(log_model)$coef["TRT01PDrug XYZ", "Std. Error"])
-
-cat(sprintf("\nOdds Ratio (Drug vs Placebo):\n"))
-cat(sprintf("  OR: %.2f\n", or))
-cat(sprintf("  95%% CI: (%.2f, %.2f)\n", ci_lower, ci_upper))
+log_coef  <- coef(log_model)
+log_se    <- summary(log_model)$coef[, "Std. Error"]
+trt_terms <- setdiff(names(log_coef), "(Intercept)")
+if (length(trt_terms) > 0) {
+  cat(sprintf("\nOdds Ratios by Treatment Term:\n"))
+  for (term in trt_terms) {
+    or       <- exp(log_coef[term])
+    ci_lower <- exp(log_coef[term] - 1.96 * log_se[term])
+    ci_upper <- exp(log_coef[term] + 1.96 * log_se[term])
+    cat(sprintf("  %s: OR = %.2f (95%% CI: %.2f, %.2f)\n",
+                term, or, ci_lower, ci_upper))
+  }
+} else {
+  cat("No treatment terms found in logistic model.\n")
+}
 ```
 
 ### 5.3 Time-Course Analysis (Mean SBP by Visit)
@@ -848,7 +874,7 @@ ae_term_tbl <- ae_summary_tbl %>%
     .groups = "drop"
   ) %>%
   pivot_wider(names_from = ARM, values_from = N_subj, values_fill = 0) %>%
-  mutate(Total = Placebo + `Drug XYZ`) %>%
+  mutate(Total = rowSums(across(where(is.numeric)))) %>%
   arrange(desc(Total)) %>%
   head(15)
 
@@ -864,15 +890,22 @@ print(ae_term_tbl)
 #| message: false
 
 # Baseline and Week 12 potassium, with shift categories
-lb_potassium <- lb %>%
-  filter(LBTESTCD == "POTASSIUM", VISIT %in% c("Baseline", "Week 12")) %>%
-  select(USUBJID, VISIT, LBSTRESN, ARM) %>%
-  pivot_wider(
-    id_cols = c(USUBJID, ARM),
-    names_from = VISIT,
-    values_from = LBSTRESN
-  ) %>%
-  rename(BLPOT = Baseline, W12POT = Week12) %>%
+lb_bl_k <- lb %>%
+  filter(LBTESTCD == "K") %>%
+  { if ("LBBLFL" %in% names(.) && any(.[["LBBLFL"]] == "Y", na.rm = TRUE))
+      filter(., LBBLFL == "Y")
+    else
+      group_by(., USUBJID) %>% slice_min(LBDY, n = 1, with_ties = FALSE) %>% ungroup() } %>%
+  select(USUBJID, BLPOT = LBSTRESN)
+
+lb_w12_k <- lb %>%
+  filter(LBTESTCD == "K", grepl("WEEK 12|Week 12", VISIT)) %>%
+  group_by(USUBJID) %>%
+  summarise(W12POT = mean(LBSTRESN, na.rm = TRUE), .groups = "drop")
+
+lb_potassium <- lb_bl_k %>%
+  inner_join(lb_w12_k, by = "USUBJID") %>%
+  left_join(dm %>% filter(ARM != "Screen Failure") %>% select(USUBJID, ARM), by = "USUBJID") %>%
   # Normal range for potassium: 3.5–5.0 mEq/L
   mutate(
     BL_shift = case_when(
@@ -899,7 +932,7 @@ shift_tbl <- lb_potassium %>%
     values_from = N,
     values_fill = 0
   ) %>%
-  rename("Week 12: Low" = Low, "Week 12: Normal" = Normal, "Week 12: High" = High) %>%
+  rename(any_of(c("Week 12: Low" = "Low", "Week 12: Normal" = "Normal", "Week 12: High" = "High"))) %>%
   arrange(ARM, BL_shift)
 
 cat("Shift Table: Serum Potassium (Baseline → Week 12)\n")

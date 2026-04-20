@@ -1,10 +1,5 @@
----
-title: "Chapter 7: Data Visualization in Clinical Research"
-subtitle: "From Grammar of Graphics to Publication-Quality Figures"
-author: "Mahesh Divakaran, Jayadevan Sreedharan, Gunjan Singh"
----
 
-# Chapter 7: Data Visualization in Clinical Research
+# Chapter 7: Data Visualization in Clinical Research: From Grammar of Graphics to Publication-Quality Figures
 
 ## Learning Objectives
 
@@ -48,6 +43,7 @@ $$\text{Plot} = \text{Data} + \text{Aesthetics} + \text{Geoms} + \text{Facets} +
 ```{r}
 library(ggplot2)
 library(dplyr)
+library(tidyr)
 library(pharmaversesdtm)
 
 # Load data
@@ -56,7 +52,7 @@ data(dm)
 
 # Prepare data: baseline vitals by treatment arm
 baseline_vitals <- vs %>%
-  filter(VISITNUM == 0, VSTESTCD == "SYSBP") %>%
+  filter(VISITNUM == 1, VSTESTCD == "SYSBP") %>%
   select(USUBJID, VSSTRESN) %>%
   mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
   left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
@@ -69,7 +65,7 @@ p <- ggplot(baseline_vitals, aes(x = Treatment, y = SBP))
 p <- p + geom_point(alpha = 0.5)
 
 # Layer 3: Add boxplot
-p <- p + geom_boxplot(fill = NA, color = "blue", size = 1)
+p <- p + geom_boxplot(fill = NA, color = "blue", linewidth = 1)
 
 # Layer 4: Add mean point in red
 p <- p + stat_summary(fun = mean, geom = "point", color = "red", size = 4)
@@ -98,7 +94,7 @@ Shows individual observations, useful for exploring relationships.
 ```{r}
 # Scatter: Baseline vs. Week 4 systolic BP
 baseline <- vs %>%
-  filter(VISITNUM == 0, VSTESTCD == "SYSBP") %>%
+  filter(VISITNUM == 1, VSTESTCD == "SYSBP") %>%
   select(USUBJID, VSSTRESN) %>%
   rename(SBP_Baseline = VSSTRESN)
 
@@ -157,8 +153,8 @@ ggplot(longit_data, aes(x = Visit, y = SBP, group = USUBJID, color = Treatment))
   geom_point(alpha = 0.2, size = 1) +
   # Mean trend (bold)
   geom_line(data = mean_trend, aes(y = Mean_SBP, group = Treatment),
-            color = "black", size = 1.2, linetype = "solid") +
-  geom_point(data = mean_trend, aes(y = Mean_SBP), color = "black", size = 3) +
+            color = "black", linewidth = 1.2, linetype = "solid") +
+  geom_point(data = mean_trend, aes(y = Mean_SBP, group = Treatment), color = "black", size = 3) +
   facet_wrap(~ Treatment) +
   labs(
     title = "Systolic BP Over Time: Spaghetti Plot with Mean Trend",
@@ -208,7 +204,7 @@ Shows median, quartiles, and outliers.
 ```{r}
 # Boxplot: Baseline vitals by treatment
 baseline_vitals_summary <- vs %>%
-  filter(VISITNUM == 0, VSTESTCD %in% c("SYSBP", "DIABP", "HR")) %>%
+  filter(VISITNUM == 1, VSTESTCD %in% c("SYSBP", "DIABP", "PULSE")) %>%
   select(USUBJID, VSTESTCD, VSSTRESN) %>%
   mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
   left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
@@ -234,13 +230,13 @@ Visualizes frequency distributions, key for assessing normality.
 ```{r}
 # Distribution of baseline BP
 sbp_dist <- vs %>%
-  filter(VISITNUM == 0, VSTESTCD == "SYSBP") %>%
+  filter(VISITNUM == 1, VSTESTCD == "SYSBP") %>%
   select(VSSTRESN) %>%
   mutate(VSSTRESN = as.numeric(VSSTRESN))
 
 # Histogram with density overlay
 ggplot(sbp_dist, aes(x = VSSTRESN)) +
-  geom_histogram(aes(y = ..density..), bins = 20, fill = "skyblue", color = "black") +
+  geom_histogram(aes(y = after_stat(density)), bins = 20, fill = "skyblue", color = "black") +
   geom_density(color = "red", linewidth = 1) +
   stat_function(
     fun = dnorm,
@@ -278,11 +274,11 @@ subgroup_effects <- tibble::tribble(
 
 ggplot(subgroup_effects, aes(y = reorder(Subgroup, HR), x = HR)) +
   # Confidence interval as horizontal error bar
-  geom_errorbarh(aes(xmin = Lower_CI, xmax = Upper_CI), height = 0.2, size = 1) +
+  geom_errorbarh(aes(xmin = Lower_CI, xmax = Upper_CI), height = 0.2, linewidth = 1) +
   # Point estimate
   geom_point(size = 4, color = "darkblue") +
   # Vertical line at HR = 1 (no effect)
-  geom_vline(xintercept = 1, linetype = "dashed", color = "red", size = 1) +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "red", linewidth = 1) +
   # Scale x-axis on log scale
   scale_x_log10() +
   labs(
@@ -506,7 +502,7 @@ ggplot(baseline_vitals_summary, aes(x = Treatment, y = Value, fill = Treatment))
 ```{r}
 # Define clinical-appropriate color palette
 clinical_colors <- list(
-  "three_arm" = c("#0173B2", "#DE8F05", "#CC78BC"),  # Blue, Orange, Purple
+  "three_arm" = c("#0173B2", "#DE8F05", "#CC78BC", "#029E73"),  # Blue, Orange, Purple, Green
   "binary" = c("#56B4E9", "#E69F00"),  # Light blue, Orange
   "safety" = c("#009E73", "#F0E442", "#CC79A7")  # Green, Yellow, Pink
 )
@@ -531,6 +527,7 @@ ggplot(baseline_vitals, aes(x = Treatment, y = SBP, fill = Treatment)) +
 ### Using ggsave()
 
 ```{r}
+#| eval: false
 # Create a comprehensive figure
 fig_sbp <- ggplot(baseline_vitals, aes(x = Treatment, y = SBP, fill = Treatment)) +
   geom_boxplot(alpha = 0.8) +
@@ -573,6 +570,7 @@ cat("- figure_sbp_baseline.png (raster, 300 DPI)\n")
 ### Settings for Regulatory Submissions
 
 ```{r}
+#| eval: false
 # FDA/EMA submission requirements:
 # - Minimum 300 DPI for raster images
 # - Vector formats (PDF, EPS) preferred
@@ -630,6 +628,7 @@ data(dm); data(vs); data(ae); data(lb)
 # ========== FIGURE 1: Baseline Demographics ==========
 
 baseline_char <- dm %>%
+  filter(ARM != "Screen Failure") %>%
   select(USUBJID, ARM, AGE, SEX) %>%
   mutate(
     Age_Group = case_when(
@@ -655,7 +654,7 @@ print(fig1_demographics)
 # ========== FIGURE 2: Baseline Vital Signs ==========
 
 baseline_vitals_complete <- vs %>%
-  filter(VISITNUM == 0, VSTESTCD %in% c("SYSBP", "DIABP", "HR")) %>%
+  filter(VISITNUM == 1, VSTESTCD %in% c("SYSBP", "DIABP", "PULSE")) %>%
   select(USUBJID, VSTESTCD, VSSTRESN) %>%
   mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
   left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
@@ -666,7 +665,7 @@ baseline_vitals_complete <- vs %>%
   ) %>%
   mutate(
     Test = factor(Test,
-                  levels = c("SYSBP", "DIABP", "HR"),
+                  levels = c("SYSBP", "DIABP", "PULSE"),
                   labels = c("Systolic BP (mmHg)",
                             "Diastolic BP (mmHg)",
                             "Heart Rate (bpm)"))
@@ -705,7 +704,7 @@ fig3_trend <- ggplot(longit_sbp, aes(x = Visit, y = SBP, group = USUBJID, color 
   geom_point(alpha = 0.1, size = 0.5) +
   geom_line(data = mean_sbp, aes(y = Mean_SBP, group = Treatment, linetype = "Mean"),
             color = "black", size = 1) +
-  geom_point(data = mean_sbp, aes(y = Mean_SBP), color = "black", size = 3) +
+  geom_point(data = mean_sbp, aes(y = Mean_SBP, group = Treatment), color = "black", size = 3) +
   facet_wrap(~ Treatment) +
   scale_linetype_manual(values = "solid") +
   labs(
@@ -851,6 +850,7 @@ Create a 2x2 panel figure:
 
 Combine using `patchwork` package:
 ```{r}
+#| eval: false
 library(patchwork)
 (fig_A + fig_B) / (fig_C + fig_D) +
   plot_annotation(title = "Adverse Event Summary")

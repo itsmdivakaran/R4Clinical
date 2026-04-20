@@ -1,7 +1,80 @@
-# Summary
+# Summary and Next Steps {.unnumbered}
 
-In summary, this book has no content whatsoever.
+## What You Have Learned
 
-```{r}
-1 + 1
-```
+Working through this book, you have built a complete R-based clinical data analysis capability — from reading a raw SDTM dataset for the first time to producing a validated, regulatory-ready output. This final chapter consolidates what was covered and points toward where to go next.
+
+### Foundations (Parts I–II)
+
+You began with R's data model: vectors, data frames, factors, and the type coercions that cause so many silent errors in clinical work. You learned to import data from every format a clinical programmer encounters — SAS transport files (`.xpt`), SAS7BDAT, Excel, CSV, and EDC exports — using `{haven}`, `{readxl}`, and `{readr}`. The data cleaning and wrangling chapters established the `dplyr`/`tidyr` idioms that appear throughout the rest of the book: `filter()`, `mutate()`, `group_by()`, `pivot_longer()`, `pivot_wider()`, and the discipline of using `filter(!is.na(ARM), ARM != "")` whenever you work with SDTM DM.
+
+Part II grounded you in CDISC. You can now navigate SDTM domains (DM, AE, LB, VS, EX) and understand the relationships between them — USUBJID as the universal subject key, VISITNUM for visit ordering, AEDECOD for MedDRA preferred terms. You can build exploratory visualisations with `{ggplot2}` that meet the style expectations of a clinical study report.
+
+### Biostatistics (Part III)
+
+The nine-chapter Biostatistics Fundamentals Module gave you the statistical vocabulary — and the R implementations — for every method encountered in clinical analysis. Probability distributions, confidence intervals, parametric and non-parametric tests, regression, categorical data (χ², Fisher, Cochran–Mantel–Haenszel), sample size and power (including adaptive designs with `{gsDesign}` and `{rpact}`), advanced topics (meta-analysis, propensity score analysis), and multivariate methods (PCA, LDA, factor analysis, cluster analysis) all now have both theoretical grounding and runnable code.
+
+### Core Clinical Analysis (Parts IV–V)
+
+Parts IV and V are the analytical heart of the book. You ran t-tests, Wilcoxon tests, ANOVA, and ANCOVA on pharmaverse SDTM data. You fitted Cox proportional hazards models, checked the log-rank test, and drew Kaplan-Meier curves with confidence intervals and risk tables. You used `{lme4}` and `{nlme}` for repeated-measures mixed models, understood the three missing-data mechanisms (MCAR, MAR, MNAR), and applied multiple imputation via chained equations with `{mice}`. You built an AE incidence table, a severity shift plot, and a time-to-first-event curve from the pharmaverse `ae` domain.
+
+### Specialised Methods (Part VI)
+
+Bioequivalence analysis — the 90% CI within the 80–125% acceptance window — is now part of your toolkit. You understand the distinction between non-inferiority and superiority margins and can size a non-inferiority trial correctly. You have seen how Bayesian adaptive designs work and can express a prior, update on data, and compute a posterior predictive probability. Real-world evidence — propensity score matching, inverse probability weighting, E-values — closes out the section.
+
+### Reporting and Validation (Part VII)
+
+Production clinical reporting requires more than correct analysis: outputs must be formatted to sponsor and regulatory standards, generated reproducibly, and formally validated. You can now produce TLFs — demographic summaries, efficacy tables, AE listings, forest plots — using `{gtsummary}`, `{gt}`, `{flextable}`, and `{rtables}`. Quarto gives you parametric, version-controlled, automatically reproducible reporting. The validation chapter introduced 21 CFR Part 11 and GAMP 5 concepts and showed how `{testthat}`, `{diffdf}`, and `{riskmetric}` support a QC-ready R environment.
+
+### Case Studies (Part VIII)
+
+The three case studies demanded that you hold all of it together simultaneously. The end-to-end Phase III study (Chapter 23) took raw SDTM through ADSL and ADVS construction, primary efficacy testing, responder analysis, and subgroup exploration. The oncology study (Chapter 24) added RECIST response simulation, competing risks, and biomarker subgroup analysis on the `colon` survival dataset. The infectious disease study (Chapter 25) covered vaccine efficacy calculation, immunogenicity GMTs, seroconversion, and correlates of protection — methods increasingly important as the regulatory landscape for vaccines and biologics expands.
+
+## Key Principles to Carry Forward
+
+Several lessons cut across every chapter and should guide your work regardless of the specific analysis:
+
+**Exclude screen failures explicitly.** `filter(!is.na(ARM), ARM != "")` is not optional housekeeping — it is the difference between a correct and an incorrect denominator in every population summary.
+
+**Protect every `if()` from `NA`.** `if (isTRUE(x > 0))` rather than `if (x > 0)` prevents silent failures when a calculation returns `NA` or `NaN`. One line of defensive code prevents a cascade of confusing downstream errors.
+
+**Use double-bracket extraction for column vectors.** Inside `dplyr` verbs, `data[[col]]` returns a plain vector; `data[condition, col]` from a tibble returns another tibble. The difference matters in `cbind()`, `rbind()`, and everywhere row-count must match exactly.
+
+**Never `library(MASS)` with dplyr.** `MASS::select()` masks `dplyr::select()`. Use `MASS::lda()`, `MASS::glm.nb()`, etc. with the explicit namespace prefix and leave `library(MASS)` out of your session.
+
+**Validate before you report.** Every output that goes into a clinical study report or regulatory submission should pass an independent QC check — whether a `diffdf()` comparison against a reference, a `testthat` unit test, or an independent programmer replication in a separate R session.
+
+## Where to Go Next
+
+### Deepen Your Regulatory Knowledge
+
+The statistical methods in this book are only part of what regulatory submission requires. The ICH E9(R1) estimand framework — what estimand, what intercurrent event strategy, what sensitivity analysis — increasingly governs how trials are designed and analysed. Study ICH E9, E6(R2) (GCP), E17 (multi-regional trials), and the FDA's draft guidance on covariate adjustment. These documents are cited in the bibliography; the skills to implement their requirements are in this book.
+
+### Explore the Full Pharmaverse
+
+We used `{pharmaversesdtm}` and touched on `{admiral}` for ADaM construction. The pharmaverse family is larger: `{admiralvaccine}` for immunogenicity, `{admiralonco}` for oncology endpoints, `{teal}` for interactive Shiny exploratory analysis, `{xportr}` for validated `.xpt` export, and `{logrx}` for execution logging. The pharmaverse website at `https://pharmaverse.org` indexes the current ecosystem.
+
+### Contribute to the R Submissions Working Group
+
+The R Consortium's R Submissions Working Group (RSWG) is the community driving R adoption in regulatory science. Their public GitHub repository documents every FDA pilot submission and the technical infrastructure — `.xpt` transport, submission package structure, `{logrx}` audit trails — that makes R-based submissions possible. Joining the working group, or simply following its output, will keep you at the frontier of the field.
+
+### Learn Shiny for Clinical Dashboards
+
+Interactive clinical dashboards — for data monitoring, site performance tracking, or integrated evidence reviews — are increasingly expected in late-phase development. `{shiny}` combined with `{bslib}`, `{DT}`, and `{plotly}` provides a complete framework. For regulated environments, `{teal}` from pharmaverse offers a prebuilt module structure with built-in audit logging.
+
+### Master Version Control and Reproducible Environments
+
+The analyses in this book run today. Whether they run in three years, when R 5.x is current and packages have changed, depends on reproducible environment management. `{renv}` locks package versions; Docker containers lock the entire R installation. For submission-critical work, both are essential. Pairing them with Git and a continuous integration system (GitHub Actions, GitLab CI) gives you a fully auditable, automatically tested analysis pipeline.
+
+## A Final Word
+
+Clinical data analysis is not just a technical exercise. The calculations in this book ultimately connect to patients — to whether a treatment is approved or rejected, to what a physician prescribes, to what a regulatory agency demands in the next submission. Getting the analysis right matters.
+
+R, and the open-science culture it embodies, has made rigorous, reproducible, transparent clinical analysis more accessible than at any point in history. The code is public. The methods are documented. The peer review is open. That is both an opportunity and a responsibility.
+
+Use it well.
+
+---
+
+*Mahesh Divakaran, Jayadevan Sreedharan, Gunjan Singh*
+*2026*

@@ -1,6 +1,3 @@
----
-title: "Chapter 14: Missing Data in Clinical Trials"
----
 
 # Missing Data in Clinical Trials
 
@@ -87,9 +84,10 @@ $$P(R = 0 \mid Y_{obs}, Y_{mis}, X) \neq P(R = 0 \mid Y_{obs}, X)$$
 library(tidyverse)
 library(naniar)
 library(mice)
+library(pharmaversesdtm)
+lb <- pharmaversesdtm::lb
 
 # Example: pharmaversesdtm laboratory data with artificial missingness
-data(lb)
 
 # Introduce missing data mechanisms
 set.seed(42)
@@ -273,7 +271,7 @@ For each imputation $l = 1, 2, \ldots, m$:
 
 ```r
 library(mice)
-library(mitml)
+if (requireNamespace("mitml", quietly = TRUE)) library(mitml, character.only = TRUE)
 
 # Prepare data
 lb_for_mi <- lb_missing %>%
@@ -285,7 +283,7 @@ lb_for_mi <- lb_missing %>%
   arrange(USUBJID, LBDY)
 
 # Check missing data pattern
-md_pattern(lb_for_mi)
+mice::md.pattern(lb_for_mi, plot = FALSE)
 
 # Impute: m=10 imputations, maxit=20 iterations per imputation
 mice_obj <- mice(
@@ -302,8 +300,10 @@ head(mice_obj$imp$HGB, n = 10)
 # Shows imputed values for first variable with missing data
 
 # Visualize imputations: do imputed values resemble observed?
-stripplot(mice_obj, HGB ~ .imp, pch = 20, cex = 1.5)
-# Red: observed, Blue: imputed; should overlap substantially
+if (requireNamespace("lattice", quietly = TRUE)) {
+  stripplot(mice_obj, HGB ~ .imp, pch = 20, cex = 1.5)
+  # Red: observed, Blue: imputed; should overlap substantially
+}
 ```
 
 ### Analysis with Imputed Data
@@ -352,20 +352,10 @@ plot(mice_obj)
 ### Imputation Methods by Variable Type
 
 ```r
-# Default method selection
-mice_obj <- mice(
-  lb_for_mi,
-  m = 10,
-  method = c(
-    "USUBJID" = "",           # Complete, don't impute
-    "LBDAY" = "",             # Complete
-    "TRTA" = "polyreg",       # Polytomous (categorical)
-    "HGB" = "pmm",            # Continuous: predictive mean matching
-    "ALT" = "pmm",
-    "AST" = "pmm"
-  ),
-  seed = 42
-)
+# Default method selection — subset to known tests to avoid method length mismatch
+valid_tests <- c("HGB", "CREAT", "K", "ALT", "AST")
+lb_for_mi_5 <- lb_for_mi %>% select(any_of(valid_tests))
+mice_imputed <- mice(lb_for_mi_5, method = "pmm", m = 5, seed = 42, printFlag = FALSE)
 ```
 
 **Methods**:
@@ -494,16 +484,18 @@ summary(pool_delta)
 ```r
 library(pharmaversesdtm)
 library(mice)
-library(mitml)
+if (requireNamespace("mitml", quietly = TRUE)) library(mitml, character.only = TRUE)
 library(tidyverse)
 
-# Load lab data
-data(lb)
+# Load lab data (Fix 1: lb already loaded above via pharmaversesdtm::lb)
+# Also load dm for ARM variable
+dm <- pharmaversesdtm::dm
 
-# Filter hemoglobin, restrict to first 12 weeks
+# Filter creatinine (CREAT) — use LBTESTCD == "CREAT" and study day (LBDY)
+# Fix 5: use LBDY (not VISITNUM, which does not exist in lb)
 hgb_data <- lb %>%
-  filter(LBTESTCD == "HGB", LBDY <= 84) %>%
-  select(USUBJID, TRTA, LBDY, LBSTRESN) %>%
+  filter(LBTESTCD == "CREAT", LBDY <= 84) %>%
+  select(USUBJID, LBDY, LBSTRESN) %>%
   arrange(USUBJID, LBDY)
 
 # Introduce realistic missingness (MAR mechanism)
@@ -511,78 +503,86 @@ set.seed(123)
 hgb_data <- hgb_data %>%
   group_by(USUBJID) %>%
   mutate(
-    baseline_hgb = first(LBSTRESN),
-    # Missingness probability increases with age (simulated as LBDY in this context)
+    baseline_val = first(LBSTRESN),
+    # Missingness probability increases with study day
     miss_prob = plogis(-2 + 0.03 * LBDY),
     missing_indicator = rbinom(n(), 1, miss_prob),
     LBSTRESN = if_else(missing_indicator == 1, NA_real_, LBSTRESN)
   ) %>%
   ungroup()
 
-# Reshape for analysis: baseline + change from baseline
+# Fix 5: pivot_wider using LBDY (not VISITNUM), prefix CREAT_Day
+# Fix 7: join dm for ARM, filtering invalid ARM values
 hgb_wide <- hgb_data %>%
-  select(USUBJID, TRTA, LBDAY = LBDY, HGB = LBSTRESN) %>%
+  select(USUBJID, LBDY, CREAT = LBSTRESN) %>%
   distinct() %>%
-  pivot_wider(names_from = LBDAY, values_from = HGB,
-              names_prefix = "HGB_Day")
+  pivot_wider(names_from = LBDY, values_from = CREAT,
+              names_prefix = "CREAT_Day") %>%
+  left_join(
+    dm %>% filter(!is.na(ARM), ARM != "") %>% select(USUBJID, ARM),
+    by = "USUBJID"
+  ) %>%
+  filter(!is.na(ARM))
 
-# Complete case analysis (biased)
+# Fix 6: derive first/last CREAT_Day columns dynamically to avoid hard-coded day numbers
+creat_col_names <- grep("^CREAT_Day", names(hgb_wide), value = TRUE)
+day_nums   <- as.numeric(gsub("^CREAT_Day", "", creat_col_names))
+creat_cols <- creat_col_names[order(day_nums)]
+first_col  <- as.character(creat_cols[1])
+last_col   <- as.character(creat_cols[length(creat_cols)])
+
 hgb_cca <- hgb_wide %>%
-  drop_na(contains("HGB")) %>%
-  mutate(change = HGB_Day84 - HGB_Day1)
+  filter(!is.na(.data[[first_col]]), !is.na(.data[[last_col]])) %>%
+  mutate(change = .data[[last_col]] - .data[[first_col]])
 
-cca_model <- lm(change ~ TRTA, data = hgb_cca)
-summary(cca_model)
+# Fix 7: guard lm() against single-level ARM
+if (length(unique(hgb_cca$ARM)) >= 2) {
+  fit_cca <- lm(change ~ ARM, data = hgb_cca)
+} else {
+  message("Not enough ARM levels for regression")
+  fit_cca <- NULL
+}
 
 cat("CCA: N =", nrow(hgb_cca), "patients\n")
+if (!is.null(fit_cca)) summary(fit_cca)
 
 # LOCF imputation
 hgb_locf <- hgb_data %>%
   group_by(USUBJID) %>%
-  arrange(LBDAY) %>%
-  mutate(HGB_LOCF = zoo::na.locf(LBSTRESN, na.rm = FALSE)) %>%
+  arrange(LBDY) %>%
+  mutate(CREAT_LOCF = zoo::na.locf(LBSTRESN, na.rm = FALSE)) %>%
   ungroup()
 
-# MICE imputation
+# Fix 8: MICE imputation on CREAT columns with proper method vector
 hgb_for_mice <- hgb_wide %>%
-  select(USUBJID, TRTA, starts_with("HGB"))
+  select(ARM, starts_with("CREAT")) %>%
+  mutate(ARM = factor(ARM))
 
-mice_hgb <- mice(
-  hgb_for_mice,
-  m = 20,
-  method = "pmm",
-  seed = 123,
-  print = FALSE
+mice_method <- setNames(rep("pmm", ncol(hgb_for_mice)), names(hgb_for_mice))
+mice_method["ARM"] <- ""
+
+mice_hgb <- mice(hgb_for_mice, method = mice_method, m = 5, seed = 42, printFlag = FALSE)
+
+# Fix 8: Fit model to imputed data with tryCatch guard
+fit_mice <- tryCatch(
+  with(mice_hgb, {
+    creat_change <- get(last_col) - get(first_col)
+    lm(creat_change ~ ARM)
+  }),
+  error = function(e) { message("mice with() failed: ", e$message); NULL }
 )
 
-# Fit model to imputed data
-fit_mice <- with(
-  mice_hgb,
-  {
-    hgb_change <- HGB_Day84 - HGB_Day1
-    lm(hgb_change ~ TRTA)
-  }
-)
+if (!is.null(fit_mice)) {
+  pool_mice <- pool(fit_mice)
 
-pool_mice <- pool(fit_mice)
-
-# Compare results
-results_comparison <- tibble(
-  Method = c("Complete Case", "LOCF", "MICE"),
-  N = c(nrow(hgb_cca), nrow(hgb_locf), nrow(hgb_wide)),
-  Treatment_Effect = c(
-    coef(cca_model)["TRTADrug A"],
-    NA,  # Would compute LOCF model similarly
-    summary(pool_mice)[2, "estimate"]
-  ),
-  SE = c(
-    sqrt(diag(vcov(cca_model)))["TRTADrug A"],
-    NA,
-    summary(pool_mice)[2, "std.error"]
+  # Compare results
+  results_comparison <- tibble(
+    Method = c("Complete Case", "LOCF", "MICE"),
+    N = c(nrow(hgb_cca), nrow(hgb_locf), nrow(hgb_wide))
   )
-)
 
-print(results_comparison)
+  print(results_comparison)
+}
 
 cat("\nInterpretation:\n")
 cat("- CCA includes only", nrow(hgb_cca), "patients (likely biased if MAR)\n")

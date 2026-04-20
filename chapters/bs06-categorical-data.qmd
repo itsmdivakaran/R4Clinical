@@ -1,0 +1,517 @@
+# Categorical Data Analysis in Clinical Trials
+
+## Introduction
+
+Many of the most important clinical outcomes are categorical: a patient either responds or does not; they experience an adverse event or remain event-free; they are cured, improved, stable, or worse. Categorical data analysis provides the statistical tools to summarise, test, and model these outcomes.
+
+This chapter covers:
+
+- **2×2 contingency tables**: Cross-tabulation of binary variables
+- **Chi-square and Fisher's exact tests**: Testing independence
+- **Measures of association**: Odds ratio, relative risk, number needed to treat
+- **McNemar's test**: Paired binary outcomes
+- **Ordinal outcomes**: Cochran–Mantel–Haenszel and proportional odds
+- **Logistic regression**: Modelling binary outcomes with covariates
+- **Stratified analysis and the CMH test**: Controlling for confounders
+
+---
+
+## 1. Setting Up Categorical Clinical Data
+
+```{r}
+#| label: cat-setup
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(broom)
+library(gt)
+set.seed(42)
+
+# Simulated Phase III RCT: binary endpoint (responder yes/no)
+n_per_arm <- 150
+trial_data <- tibble(
+  subject_id = paste0("SUBJ-", sprintf("%03d", 1:(n_per_arm * 2))),
+  arm        = rep(c("Active", "Placebo"), each = n_per_arm),
+  age        = round(rnorm(n_per_arm * 2, mean = 52, sd = 12)),
+  sex        = sample(c("Female", "Male"), n_per_arm * 2, replace = TRUE,
+                      prob = c(0.52, 0.48)),
+  responder  = c(
+    rbinom(n_per_arm, 1, prob = 0.58),   # Active: 58% response
+    rbinom(n_per_arm, 1, prob = 0.38)    # Placebo: 38% response
+  ),
+  ae_serious = c(
+    rbinom(n_per_arm, 1, prob = 0.08),   # Active: 8% SAE
+    rbinom(n_per_arm, 1, prob = 0.05)    # Placebo: 5% SAE
+  ),
+  disease_severity = sample(c("Mild", "Moderate", "Severe"),
+                            n_per_arm * 2, replace = TRUE,
+                            prob = c(0.3, 0.5, 0.2))
+)
+
+# Quick summary
+cat("=== Trial Summary ===\n")
+trial_data |>
+  group_by(arm) |>
+  summarise(
+    N             = n(),
+    Responders    = sum(responder),
+    Response_rate = paste0(round(mean(responder) * 100, 1), "%"),
+    SAE_n         = sum(ae_serious),
+    SAE_rate      = paste0(round(mean(ae_serious) * 100, 1), "%")
+  ) |>
+  print()
+```
+
+---
+
+## 2. Contingency Tables
+
+### 2.1 The 2×2 Table
+
+A 2×2 contingency table cross-classifies two binary variables:
+
+|  | Response: Yes | Response: No | Total |
+|---|---|---|---|
+| Active | a | b | a+b |
+| Placebo | c | d | c+d |
+| **Total** | a+c | b+d | N |
+
+```{r}
+#| label: contingency-table
+
+# Build 2x2 table
+ct <- table(trial_data$arm, trial_data$responder,
+            dnn = c("Arm", "Responder"))
+colnames(ct) <- c("No", "Yes")
+
+cat("=== 2×2 Contingency Table ===\n")
+print(ct)
+cat("\nRow proportions:\n")
+print(round(prop.table(ct, margin = 1) * 100, 1))
+```
+
+```{r}
+#| label: mosaic-plot
+#| fig-cap: "Mosaic plot: proportion of responders by treatment arm"
+
+tibble(
+  arm       = c("Active", "Active", "Placebo", "Placebo"),
+  response  = c("Responder", "Non-responder", "Responder", "Non-responder"),
+  n         = c(ct["Active", "Yes"], ct["Active", "No"],
+                ct["Placebo", "Yes"], ct["Placebo", "No"])
+) |>
+  mutate(
+    arm      = factor(arm,      levels = c("Placebo", "Active")),
+    response = factor(response, levels = c("Non-responder", "Responder"))
+  ) |>
+  ggplot(aes(x = arm, y = n, fill = response)) +
+  geom_col(position = "fill", alpha = 0.85, colour = "white", linewidth = 0.5) +
+  geom_text(
+    aes(label = paste0(n, "\n(", round(n / sum(n[arm == arm]) * 100, 1), "%)")),
+    position = position_fill(vjust = 0.5), size = 3.5, colour = "white"
+  ) +
+  scale_fill_manual(values = c("Responder" = "#2C6E9E", "Non-responder" = "#D32F2F")) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    x = "Treatment Arm",
+    y = "Proportion",
+    fill = NULL,
+    title = "Response Rates by Treatment Arm",
+    subtitle = "Stacked bar shows proportion of responders"
+  ) +
+  theme_bw(base_size = 12) +
+  theme(legend.position = "bottom")
+```
+
+---
+
+## 3. Chi-Square Test of Independence
+
+### 3.1 Pearson's Chi-Square
+
+The $\chi^2$ test evaluates whether two categorical variables are independent. The test statistic:
+
+$$\chi^2 = \sum_{i,j} \frac{(O_{ij} - E_{ij})^2}{E_{ij}}$$
+
+where $E_{ij} = \frac{(\text{row total}_i)(\text{col total}_j)}{N}$.
+
+**Assumptions**: $E_{ij} \geq 5$ for all cells; if not, use Fisher's exact test.
+
+```{r}
+#| label: chi-square-test
+
+chi_result <- chisq.test(ct, correct = FALSE)
+
+cat("=== Chi-Square Test of Independence ===\n")
+cat("χ² =", round(chi_result$statistic, 4),
+    ", df =", chi_result$parameter,
+    ", p =", round(chi_result$p.value, 4), "\n\n")
+
+cat("Expected frequencies:\n")
+print(round(chi_result$expected, 1))
+
+cat("\nAll expected values ≥ 5:", all(chi_result$expected >= 5), "\n")
+```
+
+### 3.2 Fisher's Exact Test
+
+When expected cell counts are small (< 5), Fisher's exact test is preferred. It computes exact probabilities based on the hypergeometric distribution.
+
+```{r}
+#| label: fishers-test
+
+# Small-sample example: SAE comparison
+sae_ct <- table(trial_data$arm, trial_data$ae_serious,
+                dnn = c("Arm", "SAE"))
+colnames(sae_ct) <- c("No SAE", "SAE")
+
+cat("=== SAE Contingency Table ===\n")
+print(sae_ct)
+cat("\nExpected frequencies:\n")
+print(round(chisq.test(sae_ct)$expected, 1))
+
+# Use Fisher's exact test
+fisher_result <- fisher.test(sae_ct)
+cat("\nFisher's Exact Test:\n")
+cat("  OR =", round(fisher_result$estimate, 3),
+    ", p =", round(fisher_result$p.value, 4), "\n")
+cat("  95% CI: [", round(fisher_result$conf.int[1], 3), ",",
+    round(fisher_result$conf.int[2], 3), "]\n")
+```
+
+---
+
+## 4. Measures of Association
+
+### 4.1 Relative Risk, Odds Ratio, and NNT
+
+```{r}
+#| label: measures-of-association
+
+# Extract cell values from response table
+a <- ct["Active",  "Yes"]   # Active responders
+b <- ct["Active",  "No"]    # Active non-responders
+c <- ct["Placebo", "Yes"]   # Placebo responders
+d <- ct["Placebo", "No"]    # Placebo non-responders
+
+# Compute measures
+rr   <- (a / (a + b)) / (c / (c + d))
+or   <- (a * d) / (b * c)
+rd   <- (a / (a + b)) - (c / (c + d))   # Risk difference (ARD)
+nnt  <- 1 / rd                            # Number needed to treat
+
+# 95% CI for RR (log method)
+se_log_rr <- sqrt(b / (a * (a + b)) + d / (c * (c + d)))
+rr_ci     <- exp(log(rr) + c(-1, 1) * qnorm(0.975) * se_log_rr)
+
+# 95% CI for OR
+se_log_or <- sqrt(1/a + 1/b + 1/c + 1/d)
+or_ci     <- exp(log(or) + c(-1, 1) * qnorm(0.975) * se_log_or)
+
+tibble(
+  Measure     = c("Response rate (Active)", "Response rate (Placebo)",
+                  "Risk Difference (ARD)", "Relative Risk (RR)",
+                  "Odds Ratio (OR)", "Number Needed to Treat (NNT)"),
+  Estimate    = c(
+    paste0(round(a / (a + b) * 100, 1), "%"),
+    paste0(round(c / (c + d) * 100, 1), "%"),
+    paste0(round(rd * 100, 1), "% (", round(rd * 100, 1), " pp)"),
+    round(rr, 3),
+    round(or, 3),
+    round(nnt, 1)
+  ),
+  `95% CI` = c(
+    "—", "—", "—",
+    paste0("[", round(rr_ci[1], 3), ", ", round(rr_ci[2], 3), "]"),
+    paste0("[", round(or_ci[1], 3), ", ", round(or_ci[2], 3), "]"),
+    "—"
+  )
+) |>
+  gt() |>
+  tab_header(title = "Measures of Association: Response Endpoint")
+```
+
+### 4.2 Interpreting Odds Ratios vs. Relative Risks
+
+```{r}
+#| label: or-vs-rr
+
+cat("Key distinction: OR vs. RR\n\n")
+cat("When response rates are high (>10%), OR overestimates RR:\n")
+cat("  Active response rate:", round(a / (a + b) * 100, 1), "%\n")
+cat("  Placebo response rate:", round(c / (c + d) * 100, 1), "%\n")
+cat("  RR =", round(rr, 3), "(Active", round(rr, 1), "× more likely to respond)\n")
+cat("  OR =", round(or, 3), "(inflated because outcomes are common)\n\n")
+cat("Rule of thumb: when event rate < 10%, OR ≈ RR.\n")
+cat("For rare events (SAEs), OR and RR are nearly identical.\n")
+```
+
+---
+
+## 5. McNemar's Test for Paired Binary Data
+
+When the same subject is assessed before and after treatment, or matched pairs are compared, use McNemar's test.
+
+```{r}
+#| label: mcnemar-test
+
+# Crossover study: response at Period 1 (Active) and Period 2 (Placebo)
+set.seed(55)
+n_crossover <- 100
+crossover_data <- tibble(
+  subject_id  = paste0("XO-", sprintf("%03d", 1:n_crossover)),
+  period1_act = rbinom(n_crossover, 1, 0.60),   # Active period
+  period2_pbo = rbinom(n_crossover, 1, 0.42)    # Placebo period
+)
+
+# McNemar table
+mcn_table <- table(
+  Active  = crossover_data$period1_act,
+  Placebo = crossover_data$period2_pbo
+)
+cat("McNemar Table (Active period vs. Placebo period):\n")
+print(mcn_table)
+
+mcn_result <- mcnemar.test(mcn_table, correct = FALSE)
+cat("\nMcNemar's Test:\n")
+cat("  χ² =", round(mcn_result$statistic, 3),
+    ", df =", mcn_result$parameter,
+    ", p =", round(mcn_result$p.value, 4), "\n")
+cat("\nNote: Only discordant pairs (01 and 10) contribute information.\n")
+cat("  Active yes / Placebo no (b):", mcn_table[2, 1], "\n")
+cat("  Active no / Placebo yes (c):", mcn_table[1, 2], "\n")
+```
+
+---
+
+## 6. Cochran–Mantel–Haenszel Test: Stratified Analysis
+
+The CMH test extends the chi-square test to stratified 2×2 tables, allowing control of a categorical confounder.
+
+```{r}
+#| label: cmh-test
+
+# Stratify by disease severity
+cmh_data <- trial_data |>
+  mutate(
+    responder_f  = factor(responder, levels = c(0, 1), labels = c("No", "Yes")),
+    severity_f   = factor(disease_severity,
+                          levels = c("Mild", "Moderate", "Severe"))
+  )
+
+# 3-dimensional table: arm × response × severity
+cmh_table <- xtabs(~ arm + responder_f + severity_f, data = cmh_data)
+
+cmh_result <- mantelhaen.test(cmh_table)
+cat("=== Cochran–Mantel–Haenszel Test ===\n")
+cat("Stratification variable: Disease Severity\n\n")
+cat("CMH χ² =", round(cmh_result$statistic, 3),
+    ", df =", cmh_result$parameter,
+    ", p =", round(cmh_result$p.value, 4), "\n")
+cat("Common OR estimate:", round(cmh_result$estimate, 3), "\n")
+cat("95% CI: [", round(cmh_result$conf.int[1], 3), ",",
+    round(cmh_result$conf.int[2], 3), "]\n")
+
+# Stratum-specific response rates
+cat("\nResponse rates by stratum:\n")
+cmh_data |>
+  group_by(arm, disease_severity) |>
+  summarise(n = n(), resp = sum(responder),
+            rate = paste0(round(mean(responder) * 100, 1), "%"),
+            .groups = "drop") |>
+  pivot_wider(names_from = arm, values_from = c(n, resp, rate)) |>
+  print()
+```
+
+---
+
+## 7. Logistic Regression for Binary Outcomes
+
+### 7.1 The Logistic Model
+
+When we want to adjust for covariates in a binary outcome analysis, we use logistic regression:
+
+$$\log\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1 x_1 + \cdots + \beta_p x_p$$
+
+The exponentiated coefficients $e^{\beta_j}$ are **adjusted odds ratios**.
+
+```{r}
+#| label: logistic-regression
+
+# Logistic regression: response ~ arm + age + sex + disease_severity
+logit_model <- glm(
+  responder ~ arm + age + sex + disease_severity,
+  data   = trial_data,
+  family = binomial(link = "logit")
+)
+
+tidy(logit_model, conf.int = TRUE, exponentiate = TRUE) |>
+  filter(term != "(Intercept)") |>
+  mutate(across(c(estimate, conf.low, conf.high, p.value),
+                \(x) round(x, 4))) |>
+  gt() |>
+  tab_header(
+    title    = "Logistic Regression: Adjusted Odds Ratios",
+    subtitle = "Outcome: Clinical Responder"
+  ) |>
+  cols_label(
+    term      = "Predictor",
+    estimate  = "Adjusted OR",
+    std.error = "SE (log scale)",
+    statistic = "z",
+    p.value   = "p-value",
+    conf.low  = "95% CI Lower",
+    conf.high = "95% CI Upper"
+  )
+```
+
+### 7.2 Model Diagnostics and Goodness of Fit
+
+```{r}
+#| label: logistic-diagnostics
+
+# Hosmer-Lemeshow goodness-of-fit (manual decile calculation)
+trial_data_fitted <- trial_data |>
+  mutate(fitted_prob = fitted(logit_model))
+
+hl_data <- trial_data_fitted |>
+  mutate(decile = ntile(fitted_prob, 10)) |>
+  group_by(decile) |>
+  summarise(
+    n_obs  = n(),
+    obs    = sum(responder),
+    exp    = sum(fitted_prob),
+    .groups = "drop"
+  )
+
+cat("Hosmer-Lemeshow diagnostic (observed vs. expected by decile):\n")
+hl_data |>
+  mutate(
+    obs_rate = paste0(round(obs / n_obs * 100, 1), "%"),
+    exp_rate = paste0(round(exp / n_obs * 100, 1), "%")
+  ) |>
+  select(decile, n_obs, obs_rate, exp_rate) |>
+  print()
+```
+
+```{r}
+#| label: roc-curve
+#| fig-cap: "ROC curve for the logistic regression model predicting clinical response"
+
+# ROC curve using sorted fitted probabilities
+roc_data <- trial_data_fitted |>
+  arrange(desc(fitted_prob)) |>
+  mutate(
+    tp = cumsum(responder),
+    fp = cumsum(1 - responder),
+    tpr = tp / sum(responder),
+    fpr = fp / sum(1 - responder)
+  )
+
+auc_val <- with(roc_data, {
+  dx <- diff(fpr)
+  dy <- (tpr[-1] + tpr[-length(tpr)]) / 2
+  abs(sum(dx * dy))
+})
+
+roc_data |>
+  ggplot(aes(x = fpr, y = tpr)) +
+  geom_line(colour = "#2C6E9E", linewidth = 1.1) +
+  geom_abline(linetype = "dashed", colour = "grey50") +
+  annotate("text", x = 0.6, y = 0.3,
+           label = paste0("AUC = ", round(auc_val, 3)),
+           size = 4, fontface = "bold", colour = "#2C6E9E") +
+  labs(
+    x = "False Positive Rate (1 – Specificity)",
+    y = "True Positive Rate (Sensitivity)",
+    title = "ROC Curve: Logistic Regression Model",
+    subtitle = "Predicting clinical response"
+  ) +
+  theme_bw(base_size = 12) +
+  coord_equal()
+```
+
+### 7.3 Predicted Probabilities by Treatment Arm
+
+```{r}
+#| label: predicted-probs
+#| fig-cap: "Distribution of predicted response probabilities by treatment arm"
+
+trial_data_fitted |>
+  ggplot(aes(x = fitted_prob, fill = arm)) +
+  geom_density(alpha = 0.65) +
+  scale_fill_manual(values = c("Active" = "#2C6E9E", "Placebo" = "#E07B39")) +
+  geom_vline(xintercept = 0.5, linetype = "dashed", colour = "black") +
+  labs(
+    x     = "Predicted Probability of Response",
+    y     = "Density",
+    fill  = "Treatment",
+    title = "Predicted Response Probabilities by Arm",
+    subtitle = "Vertical line = 0.5 decision threshold"
+  ) +
+  theme_bw(base_size = 12) +
+  theme(legend.position = "bottom")
+```
+
+---
+
+## 8. Ordinal Outcomes: Proportional Odds Model
+
+When outcomes have more than two ordered categories (e.g., much worse / worse / same / better / much better), the proportional odds logistic regression model is appropriate.
+
+```{r}
+#| label: proportional-odds
+
+library(MASS)
+
+# Convert severity to ordered outcome
+outcomes <- c("Much worse", "Worse", "No change", "Better", "Much better")
+ordinal_data <- trial_data |>
+  mutate(
+    outcome_ord = factor(
+      sapply(arm, function(a) {
+        probs <- if (a == "Active") c(0.03, 0.07, 0.15, 0.45, 0.30)
+                 else               c(0.05, 0.15, 0.30, 0.35, 0.15)
+        sample(outcomes, 1, prob = probs)
+      }),
+      levels = outcomes,
+      ordered = TRUE
+    )
+  )
+
+# Proportional odds model
+po_model <- polr(outcome_ord ~ arm + age + sex,
+                 data    = ordinal_data,
+                 Hess    = TRUE,
+                 method  = "logistic")
+
+# Coefficients as ORs
+po_coefs <- exp(coef(po_model))
+po_ci    <- exp(confint(po_model, level = 0.95))
+
+cat("=== Proportional Odds Model ===\n")
+cat("Cumulative Odds Ratios:\n")
+tibble(
+  Term     = names(po_coefs),
+  OR       = round(po_coefs, 3),
+  CI_lower = round(po_ci[, 1], 3),
+  CI_upper = round(po_ci[, 2], 3)
+) |> print()
+```
+
+---
+
+## Summary
+
+Categorical data analysis is central to clinical trial evaluation. Key takeaways:
+
+- **2×2 tables** with chi-square or Fisher's exact test are the workhorse for binary outcomes; choose Fisher's when expected counts are < 5
+- **Odds ratios** are natural parameters for logistic regression and case-control studies; **relative risks** are more interpretable for RCTs with common outcomes
+- **NNT** (number needed to treat) translates statistical results into clinical practice language
+- **McNemar's test** handles paired binary data correctly — never use chi-square for matched data
+- **CMH test** controls for confounders in stratified analyses, producing an adjusted common OR
+- **Logistic regression** allows adjustment for multiple covariates simultaneously; report adjusted ORs with 95% CIs
+- **Proportional odds models** are the appropriate tool for ordered categorical outcomes
+
+> **Regulatory note**: For confirmatory trials with a binary primary endpoint, the analysis method (chi-square, CMH, logistic regression), stratification factors, and covariate adjustment strategy must be pre-specified in the Statistical Analysis Plan (SAP). Post-hoc choice of analysis method is not acceptable.

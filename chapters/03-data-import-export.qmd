@@ -1,6 +1,3 @@
----
-title: "Chapter 3: Data Import and Export in Clinical Research"
----
 
 # Data Import and Export in Clinical Research
 
@@ -429,7 +426,6 @@ The {pharmaversesdtm} package provides simulated clinical data in SDTM format, p
 
 ```{r}
 #| label: pharmaversesdtm-load
-#| eval: false
 
 library(pharmaversesdtm)
 library(tidyverse)
@@ -459,7 +455,6 @@ str(vs)
 
 ```{r}
 #| label: pharmaversesdtm-structure
-#| eval: false
 
 library(pharmaversesdtm)
 library(dplyr)
@@ -494,10 +489,8 @@ The pharmaversesdtm data can be used directly with the {admiral} package to crea
 
 ```{r}
 #| label: pharmaversesdtm-adam
-#| eval: false
 
 library(pharmaversesdtm)
-library(admiral)
 library(tidyverse)
 
 # Load SDTM domains

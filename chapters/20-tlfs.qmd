@@ -1,7 +1,9 @@
 ---
-title: "Chapter 20: Tables, Listings, and Figures (TLFs)"
-subtitle: "Regulatory-Standard Clinical Outputs"
+prefer-html: true
 ---
+
+# Tables, Listings, and Figures (TLFs)
+
 
 ## 20.1 Introduction to Tables, Listings, and Figures
 
@@ -119,8 +121,13 @@ We'll use the `pharmaversesdtm::dm` dataset from pharmaverse.
 
 ```{r}
 library(dplyr)
-library(gtsummary)
-library(gt)
+for (pkg in c("gtsummary", "gt", "flextable")) {
+  if (requireNamespace(pkg, quietly = TRUE)) {
+    library(pkg, character.only = TRUE)
+  } else {
+    message(paste("Package", pkg, "not installed"))
+  }
+}
 library(pharmaversesdtm)
 
 # Load DM (demographics) dataset
@@ -136,10 +143,9 @@ Now, generate a Table 14.1.1 using **gtsummary**:
 
 ```{r}
 # Filter to ITT population (assuming all randomized subjects are in ITT)
-# If your data has an ITT flag, filter: dm %>% filter(ITT == "Y")
-
 demographics_table <- dm %>%
-  select(SUBJID, ARM, AGE, SEX, RACE) %>%
+  filter(ARM != "Screen Failure") %>%
+  select(USUBJID, ARM, AGE, SEX, RACE) %>%
   tbl_summary(
     by = ARM,
     label = list(
@@ -161,8 +167,12 @@ demographics_table <- dm %>%
   modify_header(label = "Characteristic") %>%
   modify_caption("**Table 14.1.1:** Demographics and Baseline Characteristics – Intent-to-Treat Population")
 
-# Display
-demographics_table
+# Display: HTML format shows interactive table, other formats use kable
+if (knitr::pandoc_to() %in% c("html", "html4", "html5")) {
+  demographics_table
+} else {
+  demographics_table %>% as_kable()
+}
 ```
 
 This produces a clean demographic table with mean/SD for continuous variables and n/% for categorical variables, grouped by treatment arm.
@@ -172,33 +182,31 @@ This produces a clean demographic table with mean/SD for continuous variables an
 To ensure the table meets regulatory standards (proper footnotes, spanning headers, alignment), convert to **gt** and customize:
 
 ```{r}
-library(gt)
-
-demographics_gt <- demographics_table %>%
-  as_gt() %>%
-  gt::tab_header(
-    title = "Table 14.1.1: Demographics and Baseline Characteristics",
-    subtitle = "Intent-to-Treat Population"
-  ) %>%
-  gt::tab_footnote(
-    footnote = "N is the number of subjects in each arm.",
-    locations = cells_column_labels(columns = starts_with("stat_"))
-  ) %>%
-  gt::tab_footnote(
-    footnote = "Percentages are based on N in each arm. Age is presented as mean (SD).",
-    locations = cells_column_labels(columns = "label")
-  ) %>%
-  gt::tab_options(
-    table.font.size = "small",
-    table_body.hlines.style = "solid",
-    table_body.border.top.style = "solid"
-  ) %>%
-  fmt_number(
-    columns = contains("mean"),
-    decimals = 1
-  )
-
-demographics_gt
+if (knitr::pandoc_to() %in% c("html", "html4", "html5")) {
+  library(gt)
+  demographics_gt <- demographics_table %>%
+    as_gt() %>%
+    gt::tab_header(
+      title = "Table 14.1.1: Demographics and Baseline Characteristics",
+      subtitle = "Intent-to-Treat Population"
+    ) %>%
+    gt::tab_footnote(
+      footnote = "N is the number of subjects in each arm.",
+      locations = cells_column_labels(columns = starts_with("stat_"))
+    ) %>%
+    gt::tab_footnote(
+      footnote = "Percentages are based on N in each arm. Age is presented as mean (SD).",
+      locations = cells_column_labels(columns = "label")
+    ) %>%
+    gt::tab_options(
+      table.font.size = "small",
+      table_body.hlines.style = "solid",
+      table_body.border.top.style = "solid"
+    )
+  demographics_gt
+} else {
+  demographics_table %>% as_kable()
+}
 ```
 
 ### 20.5.3 Example 2: Adverse Events Summary Table
@@ -221,14 +229,15 @@ The `ae` dataset contains: `SUBJID`, `AESOC` (System Organ Class), `AETERM` (Pre
 ```{r}
 # Count AEs by SOC and PT, by treatment arm
 ae_summary <- ae %>%
-  distinct(SUBJID, AESOC, AETERM, ARM, ARMCD) %>%
+  left_join(dm %>% filter(ARM != "Screen Failure") %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  filter(!is.na(ARM)) %>%
+  distinct(USUBJID, AESOC, AETERM, ARM) %>%
   group_by(ARM, AESOC, AETERM) %>%
   summarise(n = n(), .groups = 'drop') %>%
   # Get total N per arm
   left_join(
     dm %>%
-      select(ARM, ARMCD) %>%
-      distinct() %>%
+      filter(ARM != "Screen Failure") %>%
       group_by(ARM) %>%
       summarise(total_n = n(), .groups = 'drop'),
     by = "ARM"
@@ -243,6 +252,7 @@ head(ae_summary, 10)
 
 ```{r}
 library(flextable)
+library(tidyr)
 
 # Pivot to wide format for easier table creation
 ae_wide <- ae_summary %>%
@@ -252,32 +262,18 @@ ae_wide <- ae_summary %>%
     values_from = c(n, pct),
     names_glue = "{ARM}_{.value}"
   ) %>%
-  # Rename columns for clarity
   rename_with(~ gsub("_n$", " N", .), contains("_n")) %>%
   rename_with(~ gsub("_pct$", " %", .), contains("_pct"))
 
-# Create flextable
-ae_table <- flextable(ae_wide) %>%
-  set_header_labels(
-    AESOC = "System Organ Class",
-    AETERM = "Preferred Term"
-  ) %>%
-  theme_vanilla() %>%
-  autofit() %>%
-  add_header_row(
-    values = c(
-      "Adverse Event",
-      "Treatment A (N = 120)",
-      "Treatment B (N = 115)",
-      "Control (N = 118)"
-    ),
-    colwidths = c(2, 2, 2, 2)
-  ) %>%
-  merge_v(j = "AESOC") %>%
-  bold(part = "header") %>%
-  add_footer_lines("Table 14.3.1: Adverse Events by System Organ Class and Preferred Term – Safety Population")
-
-ae_table
+if (knitr::pandoc_to() %in% c("html", "html4", "html5")) {
+  ae_table <- flextable(ae_wide) %>%
+    set_header_labels(AESOC = "System Organ Class", AETERM = "Preferred Term") %>%
+    theme_vanilla() %>% autofit() %>%
+    add_footer_lines("Table 14.3.1: AEs by SOC and PT – Safety Population")
+  ae_table
+} else {
+  knitr::kable(ae_wide, caption = "Table 14.3.1: Adverse Events by System Organ Class and Preferred Term")
+}
 ```
 
 ### 20.5.4 Example 3: Listing of Serious Adverse Events
@@ -288,31 +284,26 @@ Listings are detailed, row-level presentations. Here's a listing of all Serious 
 # Filter to SAEs only
 saes <- ae %>%
   filter(AESER == "Y") %>%
-  select(SUBJID, ARM, AESOC, AETERM, AESEV, AEONSET = AESTDTC, AEOFFSET = AEENDTC, AEACN) %>%
-  arrange(ARM, SUBJID, AEONSET)
+  left_join(dm %>% filter(ARM != "Screen Failure") %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  filter(!is.na(ARM)) %>%
+  select(USUBJID, ARM, AESOC, AETERM, AESEV, AEONSET = AESTDTC, AEOFFSET = AEENDTC, AEACN) %>%
+  arrange(ARM, USUBJID, AEONSET)
 
-# Create listing with flextable
-sae_listing <- flextable(saes) %>%
-  set_header_labels(
-    SUBJID = "Subject ID",
-    ARM = "Treatment Arm",
-    AESOC = "System Organ Class",
-    AETERM = "Preferred Term",
-    AESEV = "Severity",
-    AEONSET = "Onset Date",
-    AEOFFSET = "Offset Date",
-    AEACN = "Action Taken"
-  ) %>%
-  theme_booktabs() %>%
-  autofit() %>%
-  add_header_row(
-    values = "Listing of Serious Adverse Events – Safety Population",
-    colwidths = 8
-  ) %>%
-  bold(part = "header") %>%
-  paginate_at_bkpt()  # Insert page breaks at sensible points
-
-sae_listing
+if (knitr::pandoc_to() %in% c("html", "html4", "html5")) {
+  sae_listing <- flextable(saes) %>%
+    set_header_labels(
+      USUBJID = "Subject ID", ARM = "Treatment Arm", AESOC = "System Organ Class",
+      AETERM = "Preferred Term", AESEV = "Severity",
+      AEONSET = "Onset Date", AEOFFSET = "Offset Date", AEACN = "Action Taken"
+    ) %>%
+    theme_booktabs() %>% autofit() %>%
+    add_header_row(values = "Listing of Serious Adverse Events – Safety Population",
+                   colwidths = 8) %>%
+    bold(part = "header")
+  sae_listing
+} else {
+  knitr::kable(head(saes, 20), caption = "Listing of Serious Adverse Events (first 20 rows)")
+}
 ```
 
 ## 20.6 Exporting to Regulatory Formats
@@ -322,16 +313,18 @@ sae_listing
 RTF (Rich Text Format) is widely used for regulatory submissions because it preserves formatting across platforms and systems.
 
 ```{r}
+#| eval: false
 library(flextable)
 
-# Export demographics table to RTF
+# Export demographics table to RTF (run in HTML environment)
 save_as_rtf(ae_table, path = "table_14_3_1_ae_summary.rtf")
 ```
 
 ### 20.6.2 Export to Word (.docx)
 
 ```{r}
-# Export to Word
+#| eval: false
+# Export to Word (run in HTML environment)
 save_as_docx(ae_table, path = "table_14_3_1_ae_summary.docx")
 ```
 
@@ -340,9 +333,13 @@ save_as_docx(ae_table, path = "table_14_3_1_ae_summary.docx")
 For PDF export, use **gt** or convert via Quarto (Chapter 21):
 
 ```{r}
+#| eval: false
 # Using gt to PDF (requires webshot2 or similar)
-demographics_gt %>%
-  gtsave("table_14_1_1_demographics.pdf")
+if (requireNamespace("webshot2", quietly = TRUE)) {
+  demographics_gt %>% gtsave("table_14_1_1_demographics.pdf")
+} else {
+  message("webshot2 not available; skipping PDF export of gt table.")
+}
 ```
 
 ### 20.6.4 HTML and Interactive Tables
@@ -350,10 +347,9 @@ demographics_gt %>%
 For internal review or CSR supplementary materials:
 
 ```{r}
+#| eval: false
 # Save as HTML
-demographics_gt %>%
-  as_raw_html() %>%
-  write_file("table_14_1_1_demographics.html")
+writeLines(as_raw_html(demographics_gt), "table_14_1_1_demographics.html")
 ```
 
 ## 20.7 Figures for Regulatory Submission
@@ -390,31 +386,38 @@ survival_data <- data.frame(
 # Fit survival curves
 survfit_obj <- survfit(Surv(time, event) ~ ARM, data = survival_data)
 
-# Plot with ggplot2 and ggsurvfit
-library(ggsurvfit)
+# KM plot using base survival + ggplot2 (no ggsurvfit dependency)
+km_sum <- summary(survfit_obj)
+km_df  <- data.frame(
+  time   = km_sum$time,
+  surv   = km_sum$surv,
+  lower  = km_sum$lower,
+  upper  = km_sum$upper,
+  ARM    = sub("ARM=", "", as.character(km_sum$strata))
+)
 
-km_plot <- ggsurvfit(survfit_obj) +
+km_plot <- ggplot(km_df, aes(x = time, y = surv, colour = ARM, fill = ARM)) +
+  geom_step(linewidth = 0.9) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.15, colour = NA) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  scale_colour_manual(values = c("#2C6E9E", "#E07B39", "#4CAF50")) +
+  scale_fill_manual(  values = c("#2C6E9E", "#E07B39", "#4CAF50")) +
   labs(
-    title = "Figure 14.2.1: Kaplan-Meier Survival Curve",
+    title    = "Figure 14.2.1: Kaplan-Meier Survival Curve",
     subtitle = "Intent-to-Treat Population",
-    x = "Time (days)",
-    y = "Probability of Survival"
+    x        = "Time (days)",
+    y        = "Probability of Survival",
+    colour   = "Treatment",
+    fill     = "Treatment"
   ) +
-  theme_minimal() +
+  theme_bw(base_size = 11) +
   theme(
-    text = element_text(family = "sans", size = 11),
-    plot.title = element_text(face = "bold", size = 13),
-    legend.position = "bottomright"
+    plot.title       = element_text(face = "bold", size = 13),
+    legend.position  = "bottom",
+    panel.grid.minor = element_blank()
   )
 
-# Save with high DPI
-ggsave(
-  "figure_14_2_1_km_curve.pdf",
-  plot = km_plot,
-  width = 8,
-  height = 6,
-  dpi = 300
-)
+km_plot
 ```
 
 ### 20.7.3 Example: Forest Plot for Efficacy
@@ -457,13 +460,6 @@ forest_plot <- ggplot(
     plot.title = element_text(face = "bold", size = 13)
   )
 
-ggsave(
-  "figure_14_3_5_forest_plot.pdf",
-  plot = forest_plot,
-  width = 8,
-  height = 6,
-  dpi = 300
-)
 ```
 
 ## 20.8 CDISC-Compliant Labelling

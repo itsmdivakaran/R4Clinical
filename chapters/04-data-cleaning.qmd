@@ -1,6 +1,4 @@
----
-title: "Chapter 4: Data Cleaning and Transformation in Clinical Research"
----
+
 
 # Data Cleaning and Transformation in Clinical Research
 
@@ -29,7 +27,6 @@ Missing data is ubiquitous in clinical research. Understanding and handling it c
 
 ```{r}
 #| label: missing-data-identification
-#| eval: false
 
 library(tidyverse)
 library(pharmaversesdtm)
@@ -94,7 +91,6 @@ Understanding *why* data is missing matters statistically:
 
 ```{r}
 #| label: mnar-example
-#| eval: false
 
 library(tidyverse)
 library(pharmaversesdtm)
@@ -143,7 +139,6 @@ Remove any observation with ANY missing value. Simple but loses information.
 
 ```{r}
 #| label: complete-case-analysis
-#| eval: false
 
 library(tidyverse)
 library(pharmaversesdtm)
@@ -179,7 +174,6 @@ Use all available data for each analysis. Default for many statistical functions
 
 ```{r}
 #| label: pairwise-deletion
-#| eval: false
 
 # Pairwise deletion for correlation
 lab_values <- data.frame(
@@ -202,7 +196,6 @@ Replace missing values with the mean or median of non-missing values. Simple but
 
 ```{r}
 #| label: mean-imputation
-#| eval: false
 
 library(tidyverse)
 library(pharmaversesdtm)
@@ -249,7 +242,6 @@ For longitudinal data, use the last non-missing value as a proxy for later visit
 
 ```{r}
 #| label: locf
-#| eval: false
 
 library(tidyverse)
 
@@ -292,32 +284,36 @@ Create multiple "plausible" completed datasets, analyze each separately, and poo
 
 ```{r}
 #| label: multiple-imputation
-#| eval: false
 
-library(mice)
-library(tidyverse)
-
-# Create a dataset with missing values
-incomplete_data <- data.frame(
-  USUBJID = paste0("001-", 101:110),
-  AGE = c(62, 45, NA, 56, 31, 54, 46, 34, 29, 35),
-  WEIGHT_KG = c(70, 85, 92, NA, 60, 75, 68, NA, 77, 82),
-  GLUCOSE = c(95, 102, 110, 88, NA, 98, 105, 92, 87, 100)
-)
-
-# Multiple imputation by chained equations
-imputed_data <- mice(incomplete_data, m = 5, method = "pmm", seed = 123)
-
-# Extract completed datasets
-completed_datasets <- complete(imputed_data, action = "all")
-
-# Analyze each completed dataset
-results <- lapply(completed_datasets, function(data) {
-  lm(GLUCOSE ~ AGE + WEIGHT_KG, data = data)
-})
-
-# Summary (simplified; use pool() for proper pooling)
-sapply(results, function(model) coef(model)["AGE"])
+# mice package: multiple imputation by chained equations
+if (requireNamespace("mice", quietly = TRUE)) {
+  # Create a dataset with missing values
+  incomplete_data <- data.frame(
+    USUBJID   = paste0("001-", 101:110),
+    AGE       = c(62, 45, NA, 56, 31, 54, 46, 34, 29, 35),
+    WEIGHT_KG = c(70, 85, 92, NA, 60, 75, 68, NA, 77, 82),
+    GLUCOSE   = c(95, 102, 110, 88, NA, 98, 105, 92, 87, 100)
+  )
+  # Multiple imputation
+  imputed_data      <- mice::mice(incomplete_data, m = 5,
+                                   method = "pmm", seed = 123, printFlag = FALSE)
+  completed_datasets <- mice::complete(imputed_data, action = "all")
+  results            <- lapply(completed_datasets,
+                               function(d) lm(GLUCOSE ~ AGE + WEIGHT_KG, data = d))
+  cat("Age coefficients across 5 imputed datasets:
+")
+  print(round(sapply(results, function(m) coef(m)["AGE"]), 3))
+} else {
+  message("mice not installed. Install with: install.packages('mice')")
+  message("Demonstrating with complete cases only:")
+  incomplete_data <- data.frame(
+    AGE       = c(62, 45, 56, 31, 54, 46, 34, 29, 35),
+    WEIGHT_KG = c(70, 85, 75, 60, 75, 68, 82, 77, 82),
+    GLUCOSE   = c(95, 102, 88, NA, 98, 105, 92, 87, 100)
+  )
+  m <- lm(GLUCOSE ~ AGE + WEIGHT_KG, data = incomplete_data)
+  print(coef(m))
+}
 ```
 
 ## 4.3 Outliers and Implausible Values
@@ -326,7 +322,6 @@ sapply(results, function(model) coef(model)["AGE"])
 
 ```{r}
 #| label: outlier-identification
-#| eval: false
 
 library(tidyverse)
 library(pharmaversesdtm)
@@ -386,7 +381,6 @@ Always investigate outliers before removing them—they might be real.
 
 ```{r}
 #| label: investigate-outliers
-#| eval: false
 
 library(tidyverse)
 library(pharmaversesdtm)
@@ -461,7 +455,8 @@ outliers_for_review <- lb_with_flags %>%
   select(USUBJID, LBTEST, LBDTC, LBSTRESN, LBSTRESU, OUTLIER_STAT, OUTLIER_CLIN)
 
 # Write to file for clinical team to review
-write_csv(outliers_for_review, "outliers_for_review.csv")
+cat("Outliers flagged for review:", nrow(outliers_for_review), "
+")  # write_csv() omitted in render
 
 cat("Found", nrow(outliers_for_review), "potential outliers flagged for review.\n")
 ```
@@ -494,7 +489,6 @@ Converting from wide to long:
 
 ```{r}
 #| label: pivot-longer
-#| eval: false
 
 library(tidyverse)
 
@@ -554,7 +548,6 @@ Converting from long to wide:
 
 ```{r}
 #| label: pivot-wider
-#| eval: false
 
 library(tidyverse)
 library(pharmaversesdtm)
@@ -591,7 +584,6 @@ print(lb_wide)
 
 ```{r}
 #| label: reshape-for-analysis
-#| eval: false
 
 library(tidyverse)
 library(pharmaversesdtm)
@@ -652,7 +644,6 @@ print(head(analysis_lb, n = 5))
 
 ```{r}
 #| label: filtering-basics
-#| eval: false
 
 library(tidyverse)
 library(pharmaversesdtm)
@@ -693,7 +684,6 @@ cat("Subjects on active treatment with severe AE:", n_distinct(ae_analysis$USUBJ
 
 ```{r}
 #| label: filtering-patterns
-#| eval: false
 
 library(tidyverse)
 library(pharmaversesdtm)
@@ -736,7 +726,6 @@ baseline_glucose <- lb %>%
 
 ```{r}
 #| label: creating-variables
-#| eval: false
 
 library(tidyverse)
 library(lubridate)
@@ -790,7 +779,6 @@ ae_analysis <- ae %>%
 
 ```{r}
 #| label: date-handling
-#| eval: false
 
 library(tidyverse)
 library(lubridate)
@@ -836,7 +824,6 @@ print(time_analysis)
 
 ```{r}
 #| label: join-types
-#| eval: false
 
 library(tidyverse)
 
@@ -898,7 +885,6 @@ print(full_result)
 
 ```{r}
 #| label: joining-workflow
-#| eval: false
 
 library(tidyverse)
 library(pharmaversesdtm)
@@ -954,7 +940,6 @@ colSums(is.na(analysis_data))
 
 ```{r}
 #| label: string-manipulation
-#| eval: false
 
 library(tidyverse)
 library(stringr)
@@ -1005,7 +990,6 @@ print(ae_summary)
 
 ```{r}
 #| label: string-extraction
-#| eval: false
 
 library(tidyverse)
 library(stringr)
@@ -1035,7 +1019,6 @@ Here's a complete, realistic data cleaning pipeline:
 
 ```{r}
 #| label: complete-cleaning-workflow
-#| eval: false
 
 library(tidyverse)
 library(lubridate)
@@ -1150,8 +1133,7 @@ flags_for_review <- ae_clean %>%
   select(USUBJID, AETERM, AESEV, FLAG_INVALID_SEVERITY)
 
 if (nrow(flags_for_review) > 0) {
-  write_csv(flags_for_review, "ae_flags_for_review.csv")
-  cat("Flagged records exported to ae_flags_for_review.csv\n")
+  cat("Flagged AE records:", nrow(flags_for_review), "rows (write_csv omitted in render)\n")
 }
 
 implausible_labs <- lb_clean %>%
@@ -1159,8 +1141,7 @@ implausible_labs <- lb_clean %>%
   select(USUBJID, LBTEST, LBSTRESN, FLAG_IMPLAUSIBLE)
 
 if (nrow(implausible_labs) > 0) {
-  write_csv(implausible_labs, "lb_implausible_for_review.csv")
-  cat("Implausible lab values exported to lb_implausible_for_review.csv\n")
+  cat("Implausible lab values:", nrow(implausible_labs), "rows (write_csv omitted in render)\n")
 }
 
 cat("\nCLEANING COMPLETE\n")

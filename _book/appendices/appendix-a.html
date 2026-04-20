@@ -1,0 +1,2352 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>37&nbsp; Appendix A: R and SAS Equivalence Guide – R for Clinical Data Analysis: From Fundamentals to Advanced Biostatistics</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../appendices/appendix-b.html" rel="next">
+<link href="../chapters/25-infectious-disease.html" rel="prev">
+<link href="../cover.png" rel="icon" type="image/png">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-cfa45de4c6f2fde802ca69ebd4f440e2.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-f37303f8b17d592088e6d372bde27f4d.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-cfa45de4c6f2fde802ca69ebd4f440e2.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-50fe7d2bad15909f59ebb547d81bae49.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-293a0bc44baea06b6a522a83c0e3d1d6.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-50fe7d2bad15909f59ebb547d81bae49.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+</head>
+
+<body class="nav-sidebar floating nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">R for Clinical Data Analysis: From Fundamentals to Advanced Biostatistics</span>
+    </a>
+  </div>
+        <div class="quarto-navbar-tools tools-wide tools-end">
+    <a href="https://github.com/r4clinical/book" title="Source Code" class="quarto-navigation-tool px-1" aria-label="Source Code"><i class="bi bi-github"></i></a>
+    <div class="dropdown">
+      <a href="" title="Download" id="quarto-navigation-tool-dropdown-0" class="quarto-navigation-tool dropdown-toggle px-1" data-bs-toggle="dropdown" aria-expanded="false" role="link" aria-label="Download"><i class="bi bi-download"></i></a>
+      <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="quarto-navigation-tool-dropdown-0">
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="../R-for-Clinical-Data-Analysis--From-Fundamentals-to-Advanced-Biostatistics.pdf">
+              <i class="bi bi-file-pdf pe-1"></i>
+            Download PDF
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="../R-for-Clinical-Data-Analysis--From-Fundamentals-to-Advanced-Biostatistics.epub">
+              <i class="bi bi-journal pe-1"></i>
+            Download ePub
+            </a>
+          </li>
+      </ul>
+    </div>
+    <div class="dropdown">
+      <a href="" title="Share" id="quarto-navigation-tool-dropdown-1" class="quarto-navigation-tool dropdown-toggle px-1" data-bs-toggle="dropdown" aria-expanded="false" role="link" aria-label="Share"><i class="bi bi-share"></i></a>
+      <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="quarto-navigation-tool-dropdown-1">
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="https://twitter.com/intent/tweet?url=|url|">
+              <i class="bi bi-twitter pe-1"></i>
+            Twitter
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="https://www.linkedin.com/sharing/share-offsite/?url=|url|">
+              <i class="bi bi-linkedin pe-1"></i>
+            LinkedIn
+            </a>
+          </li>
+      </ul>
+    </div>
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+          <div id="quarto-search" class="" title="Search"></div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../appendices/appendix-a.html">Appendices</a></li><li class="breadcrumb-item"><a href="../appendices/appendix-a.html"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Appendix A: R and SAS Equivalence Guide</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part I: Foundations of R Programming</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/01-intro-clinical-r.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction to R in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/02-r-basics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">R Fundamentals and Data Structures</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/03-data-import-export.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Data Import and Export in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04-data-cleaning.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Data Cleaning and Transformation in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04a-data-manipulation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Data Manipulation with dplyr: Filtering, Selecting, Mutating, Grouping, and Summarising Clinical Data</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04b-data-wrangling.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Data Wrangling with tidyr: Reshaping, Pivoting, Nesting, and Structuring Clinical Data</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part II: Clinical Data Standards and Structures</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/05-cdisc-standards.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Chapter 5: CDISC Standards (SDTM &amp; ADaM)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/06-eda.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Chapter 6: Exploratory Data Analysis (EDA): Understanding Your Data Before Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/07-data-visualization.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Chapter 7: Data Visualization in Clinical Research: From Grammar of Graphics to Publication-Quality Figures</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Biostatistics Foundations</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs01-probability-distributions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Probability Distributions in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs02-statistical-inference.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Statistical Inference in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs03-parametric-tests.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Parametric Statistical Tests in Clinical Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs04-nonparametric-tests.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Non-Parametric Tests in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs05-regression-analysis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Regression Analysis in Clinical Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs06-categorical-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">Categorical Data Analysis in Clinical Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs07-sample-size-power.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Sample Size and Power Calculations</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs08-advanced-biostatistics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">17</span>&nbsp; <span class="chapter-title">Advanced Biostatistical Methods in Drug Development</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs09-multivariate-methods.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">18</span>&nbsp; <span class="chapter-title">Multivariate Methods in Clinical Research</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part III: Core Biostatistics in Clinical Trials</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/08-descriptive-stats.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">19</span>&nbsp; <span class="chapter-title">Chapter 8: Descriptive Statistics</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/09-hypothesis-testing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">20</span>&nbsp; <span class="chapter-title">Chapter 9: Hypothesis Testing</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/10-anova-ancova.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">21</span>&nbsp; <span class="chapter-title">Chapter 10: ANOVA and ANCOVA</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/11-regression-models.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">22</span>&nbsp; <span class="chapter-title">Chapter 11: Regression Models</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part IV: Advanced Clinical Analysis</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/12-survival-analysis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">23</span>&nbsp; <span class="chapter-title">Survival Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/13-longitudinal-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">24</span>&nbsp; <span class="chapter-title">Longitudinal Data Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/14-missing-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">25</span>&nbsp; <span class="chapter-title">Missing Data in Clinical Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/15-safety-analysis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">26</span>&nbsp; <span class="chapter-title">Safety Analysis in Clinical Trials</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part V: Specialized Clinical Methods</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/16-bioequivalence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">27</span>&nbsp; <span class="chapter-title">Bioequivalence Studies</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/17-non-inferiority.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">28</span>&nbsp; <span class="chapter-title">Non-Inferiority and Equivalence Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/18-bayesian-methods.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Bayesian Methods in Clinical Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/19-rwe.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">Real-World Evidence (RWE)</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part VI: Reporting and Regulatory Outputs</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/20-tlfs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">31</span>&nbsp; <span class="chapter-title">Tables, Listings, and Figures (TLFs)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/21-reproducible-reporting.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">32</span>&nbsp; <span class="chapter-title">Reproducible Reporting with R Markdown and Quarto</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/22-validation-qc.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">33</span>&nbsp; <span class="chapter-title">Validation and Quality Control</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part VII: Case Studies</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/23-case-study-ete.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">34</span>&nbsp; <span class="chapter-title">End-to-End Clinical Trial Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/24-oncology-case-study.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">35</span>&nbsp; <span class="chapter-title">Oncology Trial Case Study</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/25-infectious-disease.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">36</span>&nbsp; <span class="chapter-title">Infectious Disease Study</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../appendices/appendix-a.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Appendix A: R and SAS Equivalence Guide</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../appendices/appendix-b.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Appendix B: Essential R Packages for Clinical Data Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../appendices/appendix-c.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">39</span>&nbsp; <span class="chapter-title">Appendix C: Simulated Clinical Datasets</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../appendices/appendix-d.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">40</span>&nbsp; <span class="chapter-title">Appendix D: Regulatory References and Resources</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../references.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">References</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#appendix-a-r-and-sas-equivalence-guide" id="toc-appendix-a-r-and-sas-equivalence-guide" class="nav-link active" data-scroll-target="#appendix-a-r-and-sas-equivalence-guide"><span class="header-section-number">38</span> Appendix A: R and SAS Equivalence Guide</a>
+  <ul class="collapse">
+  <li><a href="#introduction" id="toc-introduction" class="nav-link" data-scroll-target="#introduction"><span class="header-section-number">38.1</span> Introduction</a></li>
+  <li><a href="#complete-sas-to-r-comparison-table" id="toc-complete-sas-to-r-comparison-table" class="nav-link" data-scroll-target="#complete-sas-to-r-comparison-table"><span class="header-section-number">38.2</span> Complete SAS-to-R Comparison Table</a></li>
+  <li><a href="#sas-macro-to-r-function-translation" id="toc-sas-macro-to-r-function-translation" class="nav-link" data-scroll-target="#sas-macro-to-r-function-translation"><span class="header-section-number">38.3</span> SAS Macro to R Function Translation</a>
+  <ul class="collapse">
+  <li><a href="#example-create-a-summary-table-by-arm" id="toc-example-create-a-summary-table-by-arm" class="nav-link" data-scroll-target="#example-create-a-summary-table-by-arm"><span class="header-section-number">38.3.1</span> Example: Create a summary table by arm</a></li>
+  </ul></li>
+  <li><a href="#sas-ods-styles-vs.-r-table-packages" id="toc-sas-ods-styles-vs.-r-table-packages" class="nav-link" data-scroll-target="#sas-ods-styles-vs.-r-table-packages"><span class="header-section-number">38.4</span> SAS ODS Styles vs.&nbsp;R Table Packages</a></li>
+  <li><a href="#common-pitfalls-for-sas-programmers-transitioning-to-r" id="toc-common-pitfalls-for-sas-programmers-transitioning-to-r" class="nav-link" data-scroll-target="#common-pitfalls-for-sas-programmers-transitioning-to-r"><span class="header-section-number">38.5</span> Common Pitfalls for SAS Programmers Transitioning to R</a>
+  <ul class="collapse">
+  <li><a href="#missing-values-.-vs.-na" id="toc-missing-values-.-vs.-na" class="nav-link" data-scroll-target="#missing-values-.-vs.-na"><span class="header-section-number">38.5.1</span> 1. <strong>Missing Values: <code>.</code> vs.&nbsp;<code>NA</code></strong></a></li>
+  <li><a href="#based-indexing-confusion" id="toc-based-indexing-confusion" class="nav-link" data-scroll-target="#based-indexing-confusion"><span class="header-section-number">38.5.2</span> 2. <strong>1-Based Indexing Confusion</strong></a></li>
+  <li><a href="#no-implicit-data-step-loop" id="toc-no-implicit-data-step-loop" class="nav-link" data-scroll-target="#no-implicit-data-step-loop"><span class="header-section-number">38.5.3</span> 3. <strong>No Implicit Data Step Loop</strong></a></li>
+  <li><a href="#subsetting-syntax-differences" id="toc-subsetting-syntax-differences" class="nav-link" data-scroll-target="#subsetting-syntax-differences"><span class="header-section-number">38.5.4</span> 4. <strong>Subsetting: Syntax Differences</strong></a></li>
+  <li><a href="#data-frame-vs.-vector-confusion" id="toc-data-frame-vs.-vector-confusion" class="nav-link" data-scroll-target="#data-frame-vs.-vector-confusion"><span class="header-section-number">38.5.5</span> 5. <strong>Data Frame vs.&nbsp;Vector Confusion</strong></a></li>
+  </ul></li>
+  <li><a href="#summary-sas-to-r-mindset-shift" id="toc-summary-sas-to-r-mindset-shift" class="nav-link" data-scroll-target="#summary-sas-to-r-mindset-shift"><span class="header-section-number">38.6</span> Summary: SAS to R Mindset Shift</a></li>
+  <li><a href="#additional-resources" id="toc-additional-resources" class="nav-link" data-scroll-target="#additional-resources"><span class="header-section-number">38.7</span> Additional Resources</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/r4clinical/book/edit/main/appendices/appendix-a.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/r4clinical/book/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../appendices/appendix-a.html">Appendices</a></li><li class="breadcrumb-item"><a href="../appendices/appendix-a.html"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Appendix A: R and SAS Equivalence Guide</span></a></li></ol></nav>
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Appendix A: R and SAS Equivalence Guide</span></h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="appendix-a-r-and-sas-equivalence-guide" class="level1" data-number="38">
+<h1 data-number="38"><span class="header-section-number">38</span> Appendix A: R and SAS Equivalence Guide</h1>
+<section id="introduction" class="level2" data-number="38.1">
+<h2 data-number="38.1" class="anchored" data-anchor-id="introduction"><span class="header-section-number">38.1</span> Introduction</h2>
+<p>For SAS programmers transitioning to R, the concepts are remarkably similar—both are designed for data manipulation, statistical analysis, and reporting. However, the syntax differs significantly. This appendix serves as a quick reference guide to bridge the gap between SAS and R, helping you leverage your existing knowledge while adopting R’s more modern, functional programming approach.</p>
+<p><strong>Key philosophical differences:</strong></p>
+<ul>
+<li><strong>SAS is imperative</strong>: “Do this, then that” (data step, PROC step)</li>
+<li><strong>R is functional</strong>: Chain operations together or nest functions</li>
+<li><strong>SAS uses datasets as memory-resident tables</strong>; R uses data frames/tibbles</li>
+<li><strong>SAS indexing is 1-based</strong>; R indexing is 1-based too, but subsets work differently</li>
+<li><strong>SAS missing values are <code>.</code></strong>; R uses <code>NA</code></li>
+<li><strong>SAS has implicit loops</strong> over BY variables; R requires explicit grouping with <code>group_by()</code></li>
+</ul>
+<p>The good news: if you understand PROC SORT, PROC MEANS, and PROC REG in SAS, you already understand what <code>arrange()</code>, <code>summarise()</code>, and <code>lm()</code> do in R. It’s just syntax.</p>
+<hr>
+</section>
+<section id="complete-sas-to-r-comparison-table" class="level2" data-number="38.2">
+<h2 data-number="38.2" class="anchored" data-anchor-id="complete-sas-to-r-comparison-table"><span class="header-section-number">38.2</span> Complete SAS-to-R Comparison Table</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 19%">
+<col style="width: 32%">
+<col style="width: 25%">
+<col style="width: 22%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Task</th>
+<th>SAS Code</th>
+<th>R Code</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Reading CSV file</strong></td>
+<td><code>PROC IMPORT datafile="file.csv" out=mydata dbms=csv; RUN;</code></td>
+<td><code>library(readr); mydata &lt;- read_csv("file.csv")</code> or <code>read.csv("file.csv")</code></td>
+<td><code>read_csv()</code> is faster; handles column types better</td>
+</tr>
+<tr class="even">
+<td><strong>Reading SAS dataset</strong></td>
+<td><code>libname mylib '/path/'; data work.temp; set mylib.dataset; run;</code></td>
+<td><code>library(haven); mydata &lt;- read_sas("/path/file.sas7bdat")</code></td>
+<td><code>haven</code> package reads SAS, SPSS, Stata formats</td>
+</tr>
+<tr class="odd">
+<td><strong>Reading XPT (transport) file</strong></td>
+<td><code>PROC XCOPY in="/path/" infile=file imemtype=data outfile=file; RUN;</code></td>
+<td><code>library(haven); mydata &lt;- read_xpt("file.xpt")</code></td>
+<td>For regulatory submissions (CDISC)</td>
+</tr>
+<tr class="even">
+<td><strong>Writing XPT file</strong></td>
+<td><code>PROC XCOPY in=work infile=dataset outfile="/path/" outtype=xpt; RUN;</code></td>
+<td><code>library(haven); write_xpt(mydata, "output.xpt", version=5)</code></td>
+<td>Required for FDA submissions</td>
+</tr>
+<tr class="odd">
+<td><strong>Data manipulation / subsetting</strong></td>
+<td><code>data work.new; set work.old; where age &gt; 30; keep subjid age sex; run;</code></td>
+<td><code>library(dplyr); new &lt;- old %&gt;% filter(age &gt; 30) %&gt;% select(subjid, age, sex)</code></td>
+<td>Pipe <code>%&gt;%</code> chains operations; <code>filter()</code> = WHERE, <code>select()</code> = KEEP</td>
+</tr>
+<tr class="even">
+<td><strong>Sorting</strong></td>
+<td><code>PROC SORT data=work.in out=work.out; by arm visitnum; run;</code></td>
+<td><code>library(dplyr); out &lt;- in %&gt;% arrange(arm, visitnum)</code></td>
+<td><code>arrange()</code> is <code>PROC SORT</code>; ascending default</td>
+</tr>
+<tr class="odd">
+<td><strong>Sorting descending</strong></td>
+<td><code>PROC SORT data=work.in out=work.out; by arm descending visitnum; run;</code></td>
+<td><code>library(dplyr); out &lt;- in %&gt;% arrange(arm, desc(visitnum))</code></td>
+<td>Use <code>desc()</code> for descending order</td>
+</tr>
+<tr class="even">
+<td><strong>Descriptive statistics</strong></td>
+<td><code>PROC MEANS data=work.in; var age weight; by arm; run;</code></td>
+<td><code>library(dplyr); in %&gt;% group_by(arm) %&gt;% summarise(mean_age=mean(age), mean_weight=mean(weight))</code></td>
+<td><code>summarise()</code> = <code>PROC MEANS</code>; <code>group_by()</code> = BY statement</td>
+</tr>
+<tr class="odd">
+<td><strong>Descriptive statistics (publication table)</strong></td>
+<td><code>PROC MEANS data=work.in; var age weight; class arm; run;</code></td>
+<td><code>library(gtsummary); in %&gt;% tbl_summary(by=arm, include=c(age, weight))</code></td>
+<td><code>gtsummary</code> creates publication-ready tables</td>
+</tr>
+<tr class="even">
+<td><strong>Frequency table</strong></td>
+<td><code>PROC FREQ data=work.in; tables arm*sex; run;</code></td>
+<td><code>table(in$arm, in$sex)</code> or <code>library(gtsummary); in %&gt;% tbl_cross(row=arm, col=sex)</code></td>
+<td><code>table()</code> basic; <code>tbl_cross()</code> prettier</td>
+</tr>
+<tr class="odd">
+<td><strong>Univariate statistics</strong></td>
+<td><code>PROC UNIVARIATE data=work.in; var age; histogram; qqplot; run;</code></td>
+<td><code>summary(in$age)</code> and <code>shapiro.test(in$age)</code></td>
+<td>Check normality with Shapiro-Wilk test; <code>hist()</code> and <code>qqnorm()</code> for plots</td>
+</tr>
+<tr class="even">
+<td><strong>T-test (unpaired)</strong></td>
+<td><code>PROC TTEST data=work.in; class arm; var sbp; run;</code></td>
+<td><code>t.test(sbp ~ arm, data=in, var.equal=TRUE)</code></td>
+<td><code>~</code> is formula notation (variable ~ grouping); <code>var.equal=TRUE</code> for Student’s t</td>
+</tr>
+<tr class="odd">
+<td><strong>T-test (paired)</strong></td>
+<td><code>PROC TTEST data=work.in; paired visit1*visit2; run;</code></td>
+<td><code>t.test(in$visit1, in$visit2, paired=TRUE)</code></td>
+<td>Specify <code>paired=TRUE</code></td>
+</tr>
+<tr class="even">
+<td><strong>Wilcoxon rank-sum test</strong></td>
+<td><code>PROC NPAR1WAY data=work.in wilcoxon; class arm; var response; run;</code></td>
+<td><code>wilcox.test(response ~ arm, data=in)</code></td>
+<td>Non-parametric equivalent of t-test</td>
+</tr>
+<tr class="odd">
+<td><strong>One-way ANOVA</strong></td>
+<td><code>PROC GLM data=work.in; class arm; model sbp=arm; run;</code></td>
+<td><code>aov(sbp ~ arm, data=in)</code> or <code>lm(sbp ~ arm, data=in)</code> and <code>anova()</code></td>
+<td><code>aov()</code> simpler; <code>lm()</code> more flexible</td>
+</tr>
+<tr class="even">
+<td><strong>Two-way ANOVA</strong></td>
+<td><code>PROC GLM data=work.in; class arm visit; model sbp=arm visit arm*visit; run;</code></td>
+<td><code>aov(sbp ~ arm * visit, data=in)</code> or <code>lm(sbp ~ arm * visit, data=in)</code></td>
+<td>Use <code>*</code> for interaction terms</td>
+</tr>
+<tr class="odd">
+<td><strong>Linear regression</strong></td>
+<td><code>PROC REG data=work.in; model sbp=age weight bmi / clb; run;</code></td>
+<td><code>lm(sbp ~ age + weight + bmi, data=in)</code> or <code>lm(sbp ~ ., data=in)</code></td>
+<td><code>lm()</code> = <code>PROC REG</code>; <code>summary(model)</code> for results</td>
+</tr>
+<tr class="even">
+<td><strong>Logistic regression</strong></td>
+<td><code>PROC LOGISTIC data=work.in; model response(event='1')=age weight bmi; run;</code></td>
+<td><code>glm(response ~ age + weight + bmi, family=binomial(link="logit"), data=in)</code></td>
+<td><code>family=binomial()</code> for binary outcomes; odds ratios via <code>exp(coef())</code></td>
+</tr>
+<tr class="odd">
+<td><strong>Mixed-effects model (random intercept)</strong></td>
+<td><code>PROC MIXED data=work.in; class arm subjid; model sbp=arm / solution; random intercept / subject=subjid; run;</code></td>
+<td><code>library(lme4); lmer(sbp ~ arm + (1 \| subjid), data=in)</code></td>
+<td><code>lme4::lmer()</code> for random effects; <code>(1 \| subjid)</code> = random intercept by subject</td>
+</tr>
+<tr class="even">
+<td><strong>Mixed-effects model (random slope)</strong></td>
+<td><code>PROC MIXED data=work.in; class arm subjid visit; model sbp=arm visit arm*visit / solution; random intercept slope_visit / subject=subjid; run;</code></td>
+<td><code>library(lme4); lmer(sbp ~ arm * visit + (visit \| subjid), data=in)</code></td>
+<td><code>(visit \| subjid)</code> = random slope for visit within subject</td>
+</tr>
+<tr class="odd">
+<td><strong>GEE (Generalized Estimating Equations)</strong></td>
+<td><code>PROC GENMOD data=work.in; class arm subjid; model sbp=arm visit / dist=normal link=identity; repeated subject=subjid / type=ar(1); run;</code></td>
+<td><code>library(geepack); geeglm(sbp ~ arm + visit, id=subjid, family=gaussian(), corstr="ar1", data=in)</code></td>
+<td>Marginal models for repeated measures</td>
+</tr>
+<tr class="even">
+<td><strong>Cox proportional hazards</strong></td>
+<td><code>PROC PHREG data=work.in; class arm; model time*event(0)=arm age; run;</code></td>
+<td><code>library(survival); coxph(Surv(time, event) ~ arm + age, data=in)</code></td>
+<td><code>Surv()</code> creates survival object; event=1 for event, 0 for censored</td>
+</tr>
+<tr class="odd">
+<td><strong>Kaplan-Meier survival curve</strong></td>
+<td><code>PROC LIFETEST data=work.in plots=survival; time time*event(0); strata arm; run;</code></td>
+<td><code>library(survival); survfit(Surv(time, event) ~ arm, data=in)</code> then <code>plot()</code> or <code>library(ggsurvfit)</code></td>
+<td><code>survfit()</code> estimates; <code>ggsurvfit()</code> creates ggplot2 plots</td>
+</tr>
+<tr class="even">
+<td><strong>Multiple imputation (MI)</strong></td>
+<td><code>PROC MI data=work.in out=work.mids nimpute=5; var age sbp weight; run;</code></td>
+<td><code>library(mice); mids &lt;- mice(in, m=5, method="pmm", seed=123)</code></td>
+<td><code>m=5</code> creates 5 imputed datasets; <code>method="pmm"</code> = predictive mean matching</td>
+</tr>
+<tr class="odd">
+<td><strong>Pool MI results (Rubin’s rules)</strong></td>
+<td><code>PROC MIANALYZE data=work.mids; modeleffects age weight; run;</code></td>
+<td><code>library(mice); fit &lt;- with(mids, lm(sbp ~ age + weight)); pool(fit)</code></td>
+<td><code>with()</code> fits model to each imputed dataset; <code>pool()</code> combines estimates</td>
+</tr>
+<tr class="even">
+<td><strong>Output to RTF</strong></td>
+<td><code>ODS RTF file="output.rtf"; PROC PRINT data=work.in; RUN; ODS RTF close;</code></td>
+<td><code>library(flextable); ft &lt;- flextable(in); save_as_rtf(ft, path="output.rtf")</code></td>
+<td><code>flextable</code> creates formatted Word-compatible tables</td>
+</tr>
+<tr class="odd">
+<td><strong>Output to PDF</strong></td>
+<td><code>ODS PDF file="output.pdf"; PROC PRINT data=work.in; RUN; ODS PDF close;</code></td>
+<td>Render Quarto/RMarkdown: <code>quarto::quarto_render("report.qmd")</code></td>
+<td>Quarto produces professional PDFs with code + results</td>
+</tr>
+<tr class="even">
+<td><strong>Macro variable</strong></td>
+<td><code>%let arm_list = Placebo Drug_A_Low Drug_A_High;</code></td>
+<td><code>arm_list &lt;- c("Placebo", "Drug_A_Low", "Drug_A_High")</code></td>
+<td>Store values in vectors; use in functions</td>
+</tr>
+<tr class="odd">
+<td><strong>Macro variable substitution</strong></td>
+<td><code>data work.&amp;dsname; set work.input; run;</code></td>
+<td>Use R functions: <code>f &lt;- function(dsname) { data &lt;- read_csv(paste0(dsname, ".csv")) }</code></td>
+<td>Functions replace macros for dynamic programming</td>
+</tr>
+<tr class="even">
+<td><strong>Array</strong></td>
+<td><code>array weight_visits{6} weight_v1-weight_v6;</code></td>
+<td><code>weight_visits &lt;- c(weight_v1, weight_v2, ..., weight_v6)</code> or <code>weight_visits &lt;- in[, c("weight_v1", "weight_v2", ...)]</code></td>
+<td>Use vectors or data frame column selection</td>
+</tr>
+<tr class="odd">
+<td><strong>PROC FORMAT (custom formats)</strong></td>
+<td><code>PROC FORMAT; value armfmt 1='Placebo' 2='Drug_A'; RUN; PROC PRINT; format arm armfmt.; RUN;</code></td>
+<td><code>in$arm &lt;- factor(in$arm, levels=c(1,2), labels=c("Placebo", "Drug_A"))</code></td>
+<td><code>factor()</code> with labels; use <code>forcats::fct_recode()</code> for advanced re-coding</td>
+</tr>
+<tr class="even">
+<td><strong>IF/THEN/ELSE</strong></td>
+<td><code>if age &gt; 30 then agegroup='30+'; else agegroup='&lt;30';</code></td>
+<td><code>ifelse(age &gt; 30, "30+", "&lt;30")</code></td>
+<td><code>ifelse()</code> is vectorized (works row-wise)</td>
+</tr>
+<tr class="odd">
+<td><strong>Multiple conditions (CASE WHEN)</strong></td>
+<td><code>select (arm) when (1) arm_name='Placebo'; when (2) arm_name='Drug_A'; otherwise arm_name='Other'; end;</code></td>
+<td><code>library(dplyr); mutate(arm_name = case_when(arm==1 ~ "Placebo", arm==2 ~ "Drug_A", TRUE ~ "Other"))</code></td>
+<td><code>case_when()</code> is cleaner for multiple conditions</td>
+</tr>
+<tr class="even">
+<td><strong>DO loop (for)</strong></td>
+<td><code>DO i = 1 TO 10; x = i**2; output; end;</code></td>
+<td><code>for (i in 1:10) { x &lt;- i^2; print(x) }</code> or <code>sapply(1:10, function(i) i^2)</code></td>
+<td>Use <code>for()</code> loops or functional <code>sapply()</code>/<code>purrr::map()</code></td>
+</tr>
+<tr class="odd">
+<td><strong>DO WHILE loop</strong></td>
+<td><code>DO WHILE (age &gt; 30); age = age - 1; end;</code></td>
+<td><code>while (age &gt; 30) { age &lt;- age - 1 }</code></td>
+<td>Less common in data analysis; use <code>for()</code> over vectors</td>
+</tr>
+<tr class="even">
+<td><strong>Purrr::map for vectorized operations</strong></td>
+<td>Similar to arrays + do loops</td>
+<td><code>library(purrr); map_df(c("arm1", "arm2"), ~read_csv(paste0(., ".csv")))</code></td>
+<td>Functional programming replaces many loops</td>
+</tr>
+<tr class="odd">
+<td><strong>LEFT JOIN (merge)</strong></td>
+<td><code>PROC SQL; select a.*, b.sbp from dm a left join vs b on a.subjid=b.subjid; quit;</code></td>
+<td><code>library(dplyr); dm %&gt;% left_join(vs, by="subjid")</code></td>
+<td><code>left_join()</code>, <code>right_join()</code>, <code>inner_join()</code>, <code>full_join()</code></td>
+</tr>
+<tr class="even">
+<td><strong>Multiple joins</strong></td>
+<td>Multiple PROC SQL steps</td>
+<td><code>library(dplyr); dm %&gt;% left_join(vs) %&gt;% left_join(ae)</code></td>
+<td>Chain joins with <code>%&gt;%</code></td>
+</tr>
+<tr class="odd">
+<td><strong>BY variable processing (group-by)</strong></td>
+<td><code>PROC SORT; by arm; PROC PRINT; by arm; RUN;</code></td>
+<td><code>library(dplyr); in %&gt;% group_by(arm) %&gt;% summarise(...)</code> or use <code>nest()</code></td>
+<td><code>group_by()</code> replaces BY statement for most operations</td>
+</tr>
+<tr class="even">
+<td><strong>RETAIN statement (lag)</strong></td>
+<td><code>data work.new; set work.old; retain prev_sbp; prev_sbp_lag = lag(sbp); prev_sbp = sbp; run;</code></td>
+<td><code>library(dplyr); in %&gt;% mutate(prev_sbp = lag(sbp))</code></td>
+<td><code>lag()</code> accesses previous row value</td>
+</tr>
+<tr class="odd">
+<td><strong>Cumulative sum</strong></td>
+<td><code>data work.new; set work.old; cumsum+ae_count; output; run;</code></td>
+<td><code>library(dplyr); in %&gt;% mutate(cumsum = cumsum(ae_count))</code></td>
+<td><code>cumsum()</code> computes running total</td>
+</tr>
+<tr class="even">
+<td><strong>LENGTH statement</strong></td>
+<td><code>length varname $ 50;</code></td>
+<td><code>nchar(varname)</code> or <code>stringr::str_length(varname)</code></td>
+<td>Get string length; assign with <code>as.character()</code> and no explicit length needed</td>
+</tr>
+<tr class="odd">
+<td><strong>COMPRESS (remove spaces)</strong></td>
+<td><code>newvar = compress(oldvar);</code></td>
+<td><code>gsub(" ", "", oldvar)</code> or <code>library(stringr); str_remove_all(oldvar, " ")</code></td>
+<td>Remove all spaces from string</td>
+</tr>
+<tr class="even">
+<td><strong>SUBSTR (substring)</strong></td>
+<td><code>newvar = substr(oldvar, 1, 5);</code></td>
+<td><code>substring(oldvar, 1, 5)</code> or <code>library(stringr); str_sub(oldvar, 1, 5)</code></td>
+<td>Extract characters 1-5 from string</td>
+</tr>
+<tr class="odd">
+<td><strong>SCAN (parse words)</strong></td>
+<td><code>word2 = scan(sentence, 2, delim=' ');</code></td>
+<td><code>library(stringr); str_split(sentence, " ")[[1]][2]</code></td>
+<td>Extract nth word</td>
+</tr>
+<tr class="even">
+<td><strong>UPCASE / LOWCASE</strong></td>
+<td><code>newvar = upcase(oldvar);</code> or <code>newvar = lowcase(oldvar);</code></td>
+<td><code>toupper(oldvar)</code> or <code>tolower(oldvar)</code> or <code>library(stringr); str_to_upper()</code> / <code>str_to_lower()</code></td>
+<td>Case conversion functions</td>
+</tr>
+<tr class="odd">
+<td><strong>Concatenate strings</strong></td>
+<td><code>newvar = cat(var1, var2);</code> or <code>newvar = var1 \|\| var2;</code></td>
+<td><code>paste(var1, var2)</code> or <code>library(stringr); str_c(var1, var2)</code></td>
+<td>Use <code>paste()</code> with <code>sep=""</code> for no space</td>
+</tr>
+<tr class="even">
+<td><strong>PUT (numeric to character)</strong></td>
+<td><code>char_var = put(num_var, 8.2);</code></td>
+<td><code>as.character(num_var)</code> or <code>sprintf("%.2f", num_var)</code></td>
+<td>Convert to string with formatting</td>
+</tr>
+<tr class="odd">
+<td><strong>INPUT (character to numeric)</strong></td>
+<td><code>num_var = input(char_var, 8.);</code></td>
+<td><code>as.numeric(char_var)</code></td>
+<td>Convert string to number</td>
+</tr>
+<tr class="even">
+<td><strong>Date conversion</strong></td>
+<td><code>date_var = input(char_date, MMDDYY10.);</code></td>
+<td><code>library(lubridate); mdy(char_date)</code> or <code>as.Date(char_date, format="%m/%d/%Y")</code></td>
+<td><code>lubridate</code> makes date handling cleaner</td>
+</tr>
+<tr class="odd">
+<td><strong>INTNX (add months/days)</strong></td>
+<td><code>new_date = intnx('month', date_var, 6);</code></td>
+<td><code>library(lubridate); date_var %m+% months(6)</code> or <code>date_var + months(6)</code></td>
+<td>Add months; use <code>%m+%</code> to keep day-of-month</td>
+</tr>
+<tr class="even">
+<td><strong>INTCK (difference between dates)</strong></td>
+<td><code>days_diff = intck('day', date1, date2);</code></td>
+<td><code>as.numeric(difftime(date2, date1, units="days"))</code> or <code>difftime(date2, date1)</code></td>
+<td>Get days/weeks/months between dates</td>
+</tr>
+<tr class="odd">
+<td><strong>WHERE clause</strong></td>
+<td><code>PROC PRINT where=(age &gt; 30 and arm='Drug_A'); RUN;</code></td>
+<td><code>library(dplyr); in %&gt;% filter(age &gt; 30 &amp; arm=="Drug_A")</code></td>
+<td><code>filter()</code> = WHERE statement</td>
+</tr>
+<tr class="even">
+<td><strong>KEEP statement</strong></td>
+<td><code>PROC PRINT data=work.in(keep=subjid age sex); RUN;</code></td>
+<td><code>library(dplyr); in %&gt;% select(subjid, age, sex)</code></td>
+<td><code>select()</code> = KEEP statement</td>
+</tr>
+<tr class="odd">
+<td><strong>DROP statement</strong></td>
+<td><code>PROC PRINT data=work.in(drop=weight height); RUN;</code></td>
+<td><code>library(dplyr); in %&gt;% select(-weight, -height)</code></td>
+<td><code>select(-col)</code> drops columns</td>
+</tr>
+<tr class="even">
+<td><strong>RENAME statement</strong></td>
+<td><code>PROC PRINT data=work.in(rename=(oldname=newname)); RUN;</code></td>
+<td><code>library(dplyr); in %&gt;% rename(newname = oldname)</code></td>
+<td><code>rename(new = old)</code></td>
+</tr>
+<tr class="odd">
+<td><strong>FIRSTOBS/OBS (slice rows)</strong></td>
+<td><code>data work.new; set work.old(firstobs=10 obs=20); run;</code></td>
+<td><code>library(dplyr); in %&gt;% slice(10:20)</code></td>
+<td><code>slice(10:20)</code> gets rows 10-20</td>
+</tr>
+<tr class="even">
+<td><strong>SET statement (append)</strong></td>
+<td><code>data work.combined; set work.ds1 work.ds2; run;</code></td>
+<td><code>library(dplyr); bind_rows(ds1, ds2)</code></td>
+<td><code>bind_rows()</code> = SET statement (vertical append)</td>
+</tr>
+<tr class="odd">
+<td><strong>PROC APPEND (append in-place)</strong></td>
+<td><code>PROC APPEND base=work.ds1 data=work.ds2; RUN;</code></td>
+<td><code>library(dplyr); ds1 &lt;- bind_rows(ds1, ds2)</code></td>
+<td>Re-assign combined result</td>
+</tr>
+<tr class="even">
+<td><strong>PROC TRANSPOSE (reshape wide-to-long)</strong></td>
+<td><code>PROC TRANSPOSE data=work.in out=work.out name=visit value=sbp; by subjid; var sbp_v1-sbp_v6; run;</code></td>
+<td><code>library(tidyr); in %&gt;% pivot_longer(starts_with("sbp_"), names_to="visit", values_to="sbp")</code></td>
+<td><code>pivot_longer()</code> = PROC TRANSPOSE</td>
+</tr>
+<tr class="odd">
+<td><strong>Reshape long-to-wide</strong></td>
+<td><code>PROC TRANSPOSE data=work.in out=work.out prefix=sbp_; by subjid; id visit; var sbp; run;</code></td>
+<td><code>library(tidyr); in %&gt;% pivot_wider(names_from=visit, values_from=sbp, names_prefix="sbp_")</code></td>
+<td><code>pivot_wider()</code> opposite of <code>pivot_longer()</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="sas-macro-to-r-function-translation" class="level2" data-number="38.3">
+<h2 data-number="38.3" class="anchored" data-anchor-id="sas-macro-to-r-function-translation"><span class="header-section-number">38.3</span> SAS Macro to R Function Translation</h2>
+<p>SAS programmers often use macros to create reusable code blocks. In R, <strong>functions</strong> replace macros and are cleaner, more efficient, and easier to test.</p>
+<section id="example-create-a-summary-table-by-arm" class="level3" data-number="38.3.1">
+<h3 data-number="38.3.1" class="anchored" data-anchor-id="example-create-a-summary-table-by-arm"><span class="header-section-number">38.3.1</span> Example: Create a summary table by arm</h3>
+<p><strong>SAS Macro:</strong></p>
+<pre class="sas"><code>%MACRO summary_by_arm(indsn, varlist, byvar, outdsn);
+  PROC MEANS data=&amp;indsn NWAY ALPHA=0.05;
+    CLASS &amp;byvar;
+    VAR &amp;varlist;
+    OUTPUT OUT=&amp;outdsn MEAN= MEDIAN= STDDEV= / AUTONAME;
+  RUN;
+%MEND;
+
+%summary_by_arm(work.vital, sbp dbp weight, arm, work.summary);</code></pre>
+<p><strong>R Function:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>summary_by_arm <span class="ot">&lt;-</span> <span class="cf">function</span>(data, vars, by_var) {</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">library</span>(dplyr)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  data <span class="sc">%&gt;%</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(<span class="fu">across</span>(<span class="fu">all_of</span>(by_var))) <span class="sc">%&gt;%</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="fu">across</span>(<span class="fu">all_of</span>(vars),</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">list</span>(<span class="at">mean =</span> mean, <span class="at">median =</span> median, <span class="at">sd =</span> sd),</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>                     <span class="at">.names =</span> <span class="st">"{.col}_{.fn}"</span>),</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>              <span class="at">.groups =</span> <span class="st">"drop"</span>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">summary_by_arm</span>(vital, <span class="fu">c</span>(<span class="st">"sbp"</span>, <span class="st">"dbp"</span>, <span class="st">"weight"</span>), <span class="st">"arm"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Benefits of R functions over SAS macros:</strong> - Type safety: R checks argument types - Easier debugging with <code>browser()</code> - Return data frames directly - No string substitution issues - Test-friendly (<code>testthat</code> package)</p>
+<hr>
+</section>
+</section>
+<section id="sas-ods-styles-vs.-r-table-packages" class="level2" data-number="38.4">
+<h2 data-number="38.4" class="anchored" data-anchor-id="sas-ods-styles-vs.-r-table-packages"><span class="header-section-number">38.4</span> SAS ODS Styles vs.&nbsp;R Table Packages</h2>
+<p>SAS uses ODS (Output Delivery System) to create formatted tables. R achieves this with dedicated table packages.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 21%">
+<col style="width: 26%">
+<col style="width: 21%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Output Type</th>
+<th>SAS ODS</th>
+<th>R Package</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Publication-ready summary table</strong></td>
+<td><code>PROC MEANS</code> + <code>ODS TABLE</code></td>
+<td><code>gtsummary::tbl_summary()</code></td>
+<td>Demographics, baseline characteristics</td>
+</tr>
+<tr class="even">
+<td><strong>Cross-tabulation</strong></td>
+<td><code>PROC FREQ</code> + ODS</td>
+<td><code>gtsummary::tbl_cross()</code></td>
+<td>Arm × Sex frequency table</td>
+</tr>
+<tr class="odd">
+<td><strong>Regression results</strong></td>
+<td><code>PROC REG</code> + ODS</td>
+<td><code>gtsummary::tbl_regression()</code></td>
+<td>Odds ratios, confidence intervals</td>
+</tr>
+<tr class="even">
+<td><strong>Cox regression</strong></td>
+<td><code>PROC PHREG</code> + ODS</td>
+<td><code>gtsummary::tbl_regression()</code> with survival models</td>
+<td>HR, 95% CI</td>
+</tr>
+<tr class="odd">
+<td><strong>Survival tables</strong></td>
+<td><code>PROC LIFETEST</code> + ODS</td>
+<td><code>ggsurvfit::ggsurvfit()</code></td>
+<td>Kaplan-Meier curves</td>
+</tr>
+<tr class="even">
+<td><strong>Excel/RTF export</strong></td>
+<td><code>ODS RTF</code>, <code>ODS EXCEL</code></td>
+<td><code>flextable::save_as_rtf()</code>, <code>flextable::save_as_docx()</code></td>
+<td>For regulatory submissions</td>
+</tr>
+<tr class="odd">
+<td><strong>CDISC ADaM listings</strong></td>
+<td>Custom PROC PRINT + ODS</td>
+<td><code>rtables</code> or <code>flextable</code></td>
+<td>Subject-level data listings</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Quick example:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(gtsummary)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># SAS equivalent: PROC MEANS + PROC FREQ for baseline table</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>baseline_table <span class="ot">&lt;-</span> trial_data <span class="sc">%&gt;%</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tbl_summary</span>(</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> arm,</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">include =</span> <span class="fu">c</span>(age, sex, grade),</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">label =</span> <span class="fu">list</span>(<span class="at">age =</span> <span class="st">"Age (years)"</span>, <span class="at">sex =</span> <span class="st">"Sex"</span>, <span class="at">grade =</span> <span class="st">"Grade"</span>),</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">statistic =</span> <span class="fu">list</span>(<span class="fu">all_continuous</span>() <span class="sc">~</span> <span class="st">"{mean} ({sd})"</span>,</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">all_categorical</span>() <span class="sc">~</span> <span class="st">"{n} ({p}%)"</span>),</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">missing =</span> <span class="st">"no"</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_overall</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_p</span>(<span class="at">test =</span> <span class="fu">everything</span>() <span class="sc">~</span> <span class="st">"t.test"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_q</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">modify_spanning_header</span>(<span class="fu">everything</span>() <span class="sc">~</span> <span class="st">"**Treatment Arm**"</span>)</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Save to Word/PDF via flextable integration or Quarto</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>gt<span class="sc">::</span><span class="fu">gtsave</span>(<span class="fu">as_gt</span>(baseline_table), <span class="st">"baseline.docx"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
+</section>
+<section id="common-pitfalls-for-sas-programmers-transitioning-to-r" class="level2" data-number="38.5">
+<h2 data-number="38.5" class="anchored" data-anchor-id="common-pitfalls-for-sas-programmers-transitioning-to-r"><span class="header-section-number">38.5</span> Common Pitfalls for SAS Programmers Transitioning to R</h2>
+<section id="missing-values-.-vs.-na" class="level3" data-number="38.5.1">
+<h3 data-number="38.5.1" class="anchored" data-anchor-id="missing-values-.-vs.-na"><span class="header-section-number">38.5.1</span> 1. <strong>Missing Values: <code>.</code> vs.&nbsp;<code>NA</code></strong></h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 42%">
+<col style="width: 19%">
+<col style="width: 11%">
+<col style="width: 26%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Situation</th>
+<th>SAS</th>
+<th>R</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Check for missing</td>
+<td><code>if age = . then ...</code></td>
+<td><code>if (is.na(age)) { ... }</code></td>
+<td>SAS uses <code>.</code>; R uses <code>NA</code>. Using <code>age = NA</code> will always be FALSE</td>
+</tr>
+<tr class="even">
+<td>Count missing</td>
+<td><code>PROC MEANS NMISS;</code></td>
+<td><code>sum(is.na(data$age))</code></td>
+<td>Be explicit about checking NA</td>
+</tr>
+<tr class="odd">
+<td>Remove rows with missing</td>
+<td><code>data new; set old; if cmiss(of age weight) = 0;</code></td>
+<td><code>na.omit(data)</code> or <code>drop_na(data)</code></td>
+<td>Use <code>tidyr::drop_na()</code> or <code>dplyr::filter(!is.na(age), !is.na(weight))</code></td>
+</tr>
+<tr class="even">
+<td>Impute simple missing</td>
+<td><code>if age = . then age = 0;</code></td>
+<td><code>data$age[is.na(data$age)] &lt;- 0</code> or <code>mutate(age = replace_na(age, 0))</code></td>
+<td>Use <code>replace_na()</code> for readability</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="based-indexing-confusion" class="level3" data-number="38.5.2">
+<h3 data-number="38.5.2" class="anchored" data-anchor-id="based-indexing-confusion"><span class="header-section-number">38.5.2</span> 2. <strong>1-Based Indexing Confusion</strong></h3>
+<p>Both SAS and R use 1-based indexing for row/column numbers, BUT subsetting works differently:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 39%">
+<col style="width: 17%">
+<col style="width: 10%">
+<col style="width: 32%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Operation</th>
+<th>SAS</th>
+<th>R</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>First 5 rows</td>
+<td><code>data new; set old(obs=5); run;</code></td>
+<td><code>slice(1:5, data)</code> or <code>head(data, 5)</code></td>
+<td><code>data[1:5, ]</code> also works</td>
+</tr>
+<tr class="even">
+<td>Rows 10-20</td>
+<td><code>data new; set old(firstobs=10 obs=20); run;</code></td>
+<td><code>slice(10:20, data)</code></td>
+<td>Not intuitive: <code>obs=20</code> means “stop at row 20”</td>
+</tr>
+<tr class="odd">
+<td>Nth column</td>
+<td><code>array x{*} _numeric_; x{5}</code></td>
+<td><code>data[[5]]</code> or <code>data[, 5]</code></td>
+<td>Use column names instead: <code>data$sbp</code> or <code>data[["sbp"]]</code></td>
+</tr>
+<tr class="even">
+<td>By condition</td>
+<td><code>where age &gt; 30;</code></td>
+<td><code>filter(age &gt; 30)</code></td>
+<td>Don’t use row indices; use logical conditions</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Common mistake:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># SAS thinking: "Give me columns 1, 3, 5"</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>data[, <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">5</span>)]  <span class="co"># This works!</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># But better practice in R:</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(col1, col3, col5)  <span class="co"># More readable</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="no-implicit-data-step-loop" class="level3" data-number="38.5.3">
+<h3 data-number="38.5.3" class="anchored" data-anchor-id="no-implicit-data-step-loop"><span class="header-section-number">38.5.3</span> 3. <strong>No Implicit Data Step Loop</strong></h3>
+<p>SAS loops through every observation automatically in the DATA step. R does not.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 23%">
+<col style="width: 14%">
+<col style="width: 61%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>SAS</th>
+<th>R</th>
+<th>Explanation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>data new; set old; newvar = oldvar * 2; run;</code></td>
+<td><code>new &lt;- old %&gt;% mutate(newvar = oldvar * 2)</code></td>
+<td>R’s <code>mutate()</code> is vectorized; apply to all rows at once</td>
+</tr>
+<tr class="even">
+<td><code>data new; set old; newvar = lag(oldvar); run;</code></td>
+<td><code>new &lt;- old %&gt;% mutate(newvar = lag(oldvar))</code></td>
+<td>Use <code>lag()</code>, <code>lead()</code>, or <code>cumsum()</code></td>
+</tr>
+<tr class="odd">
+<td><code>DO i = 1 TO nobs; ... END;</code></td>
+<td><code>for (i in 1:nrow(data)) { ... }</code></td>
+<td>Avoid loops! Use vectorized operations when possible</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Better R practice:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Don't do this:</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(data)) {</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  data<span class="sc">$</span>newvar[i] <span class="ot">&lt;-</span> data<span class="sc">$</span>oldvar[i] <span class="sc">*</span> <span class="dv">2</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Do this instead:</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>data <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">newvar =</span> oldvar <span class="sc">*</span> <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="subsetting-syntax-differences" class="level3" data-number="38.5.4">
+<h3 data-number="38.5.4" class="anchored" data-anchor-id="subsetting-syntax-differences"><span class="header-section-number">38.5.4</span> 4. <strong>Subsetting: Syntax Differences</strong></h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 13%">
+<col style="width: 23%">
+<col style="width: 26%">
+<col style="width: 21%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Task</th>
+<th>SAS</th>
+<th>R (Bad)</th>
+<th>R (Good)</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Filter rows AND columns</td>
+<td><code>PROC PRINT where=(age &gt; 30); var subjid age;</code></td>
+<td><code>data[data$age &gt; 30, c(1, 3)]</code></td>
+<td><code>data %&gt;% filter(age &gt; 30) %&gt;% select(subjid, age)</code></td>
+<td>Piping is cleaner; use names not indices</td>
+</tr>
+<tr class="even">
+<td>Keep one column as vector</td>
+<td><code>PROC MEANS var=age;</code></td>
+<td><code>data[, "age"]</code></td>
+<td><code>data$age</code> or <code>pull(data, age)</code></td>
+<td><code>[,]</code> returns data frame; <code>$</code> or <code>pull()</code> returns vector</td>
+</tr>
+<tr class="odd">
+<td>Conditional assignment</td>
+<td><code>if age &gt; 30 then agegroup=1; else agegroup=0;</code></td>
+<td><code>ifelse(age &gt; 30, 1, 0)</code></td>
+<td><code>case_when(age &gt; 30 ~ 1, TRUE ~ 0)</code></td>
+<td><code>case_when()</code> handles multiple conditions</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="data-frame-vs.-vector-confusion" class="level3" data-number="38.5.5">
+<h3 data-number="38.5.5" class="anchored" data-anchor-id="data-frame-vs.-vector-confusion"><span class="header-section-number">38.5.5</span> 5. <strong>Data Frame vs.&nbsp;Vector Confusion</strong></h3>
+<p>SAS doesn’t distinguish; R does.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 40%">
+<col style="width: 18%">
+<col style="width: 11%">
+<col style="width: 29%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Operation</th>
+<th>SAS</th>
+<th>R</th>
+<th>Gotcha</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Create variable</td>
+<td><code>varname = value;</code></td>
+<td><code>data$varname &lt;- value</code></td>
+<td>In R, <code>data["varname"]</code> returns a 1-column data frame; <code>data$varname</code> returns a vector</td>
+</tr>
+<tr class="even">
+<td>Access variable</td>
+<td>Reference by name in PROC</td>
+<td><code>data$varname</code> or <code>data[["varname"]]</code> or <code>pull(data, varname)</code></td>
+<td>Using <code>[["name"]]</code> is pedantic but safe</td>
+</tr>
+<tr class="odd">
+<td>Check length</td>
+<td><code>%LET nobs = &amp;sysnobs;</code></td>
+<td><code>nrow(data)</code></td>
+<td>For vector length, use <code>length(vector)</code> not <code>nrow()</code></td>
+</tr>
+<tr class="even">
+<td>Combine variables</td>
+<td>Arrays + DO loop</td>
+<td><code>c(var1, var2, var3)</code></td>
+<td><code>c()</code> combines into vector; data frame requires <code>data.frame()</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+</section>
+<section id="summary-sas-to-r-mindset-shift" class="level2" data-number="38.6">
+<h2 data-number="38.6" class="anchored" data-anchor-id="summary-sas-to-r-mindset-shift"><span class="header-section-number">38.6</span> Summary: SAS to R Mindset Shift</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 33%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>SAS Concept</th>
+<th>R Equivalent</th>
+<th>Mindset Shift</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>PROC SORT + PROC MEANS</td>
+<td><code>arrange()</code> + <code>group_by()</code> + <code>summarise()</code></td>
+<td>From separate steps to chained operations</td>
+</tr>
+<tr class="even">
+<td>Macro variables</td>
+<td>Function arguments</td>
+<td>From text substitution to functional programming</td>
+</tr>
+<tr class="odd">
+<td>DATA step loops</td>
+<td><code>mutate()</code>, <code>map()</code>, vectorized operations</td>
+<td>From explicit loops to implicit broadcasting</td>
+</tr>
+<tr class="even">
+<td>KEEP/DROP/RENAME</td>
+<td><code>select()</code>, <code>rename()</code></td>
+<td>From statement-based to function-based</td>
+</tr>
+<tr class="odd">
+<td>BY variables</td>
+<td><code>group_by()</code></td>
+<td>From automatic iteration to explicit grouping</td>
+</tr>
+<tr class="even">
+<td>ODS output</td>
+<td><code>gtsummary</code>, <code>flextable</code>, Quarto</td>
+<td>From monolithic ODS to modular packages</td>
+</tr>
+<tr class="odd">
+<td>PROC PHREG, PROC GLM</td>
+<td><code>survival::coxph()</code>, <code>lm()</code>, <code>glm()</code></td>
+<td>From built-in procs to function-based models</td>
+</tr>
+</tbody>
+</table>
+<p>The good news: <strong>SAS knowledge translates directly.</strong> You already understand statistics; R is just a new way to express it.</p>
+<hr>
+</section>
+<section id="additional-resources" class="level2" data-number="38.7">
+<h2 data-number="38.7" class="anchored" data-anchor-id="additional-resources"><span class="header-section-number">38.7</span> Additional Resources</h2>
+<ul>
+<li><strong>Base R vs.&nbsp;Tidyverse</strong>: This guide emphasizes tidyverse (<code>dplyr</code>, <code>ggplot2</code>) because it’s more readable. Base R equivalents exist but are often less elegant.</li>
+<li><strong>Package documentation</strong>: Visit <code>?function_name</code> in R for help, e.g., <code>?dplyr::left_join</code></li>
+<li><strong>RStudio Cheat Sheets</strong>: https://posit.co/resources/cheatsheets/ includes dplyr, tidyr, and ggplot2 cheat sheets.</li>
+<li><strong>Statistical methods</strong>: ICH E9(R1) and FDA guidance documents use statistical language, not software. The concepts are identical; syntax differs.</li>
+</ul>
+
+
+<!-- -->
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/r4clinical\.github\.io");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+            // default icon
+            link.classList.add("external");
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../chapters/25-infectious-disease.html" class="pagination-link" aria-label="Infectious Disease Study">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">36</span>&nbsp; <span class="chapter-title">Infectious Disease Study</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../appendices/appendix-b.html" class="pagination-link" aria-label="Appendix B: Essential R Packages for Clinical Data Analysis">
+        <span class="nav-page-text"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Appendix B: Essential R Packages for Clinical Data Analysis</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Appendix A: R and SAS Equivalence Guide"</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu"># Appendix A: R and SAS Equivalence Guide</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="fu">## Introduction</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>For SAS programmers transitioning to R, the concepts are remarkably similar—both are designed for data manipulation, statistical analysis, and reporting. However, the syntax differs significantly. This appendix serves as a quick reference guide to bridge the gap between SAS and R, helping you leverage your existing knowledge while adopting R's more modern, functional programming approach.</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>**Key philosophical differences:**</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**SAS is imperative**: "Do this, then that" (data step, PROC step)</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**R is functional**: Chain operations together or nest functions</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**SAS uses datasets as memory-resident tables**; R uses data frames/tibbles</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**SAS indexing is 1-based**; R indexing is 1-based too, but subsets work differently</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**SAS missing values are `.`**; R uses <span class="in">`NA`</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**SAS has implicit loops** over BY variables; R requires explicit grouping with <span class="in">`group_by()`</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>The good news: if you understand PROC SORT, PROC MEANS, and PROC REG in SAS, you already understand what <span class="in">`arrange()`</span>, <span class="in">`summarise()`</span>, and <span class="in">`lm()`</span> do in R. It's just syntax.</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a><span class="fu">## Complete SAS-to-R Comparison Table</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Task <span class="pp">|</span> SAS Code <span class="pp">|</span> R Code <span class="pp">|</span> Notes <span class="pp">|</span></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a><span class="pp">|------|----------|--------|-------|</span></span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Reading CSV file** <span class="pp">|</span> <span class="in">`PROC IMPORT datafile="file.csv" out=mydata dbms=csv; RUN;`</span> <span class="pp">|</span> <span class="in">`library(readr); mydata &lt;- read_csv("file.csv")`</span> or <span class="in">`read.csv("file.csv")`</span> <span class="pp">|</span> <span class="in">`read_csv()`</span> is faster; handles column types better <span class="pp">|</span></span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Reading SAS dataset** <span class="pp">|</span> <span class="in">`libname mylib '/path/'; data work.temp; set mylib.dataset; run;`</span> <span class="pp">|</span> <span class="in">`library(haven); mydata &lt;- read_sas("/path/file.sas7bdat")`</span> <span class="pp">|</span> <span class="in">`haven`</span> package reads SAS, SPSS, Stata formats <span class="pp">|</span></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Reading XPT (transport) file** <span class="pp">|</span> <span class="in">`PROC XCOPY in="/path/" infile=file imemtype=data outfile=file; RUN;`</span> <span class="pp">|</span> <span class="in">`library(haven); mydata &lt;- read_xpt("file.xpt")`</span> <span class="pp">|</span> For regulatory submissions (CDISC) <span class="pp">|</span></span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Writing XPT file** <span class="pp">|</span> <span class="in">`PROC XCOPY in=work infile=dataset outfile="/path/" outtype=xpt; RUN;`</span> <span class="pp">|</span> <span class="in">`library(haven); write_xpt(mydata, "output.xpt", version=5)`</span> <span class="pp">|</span> Required for FDA submissions <span class="pp">|</span></span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Data manipulation / subsetting** <span class="pp">|</span> <span class="in">`data work.new; set work.old; where age &gt; 30; keep subjid age sex; run;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); new &lt;- old %&gt;% filter(age &gt; 30) %&gt;% select(subjid, age, sex)`</span> <span class="pp">|</span> Pipe <span class="in">`%&gt;%`</span> chains operations; <span class="in">`filter()`</span> = WHERE, <span class="in">`select()`</span> = KEEP <span class="pp">|</span></span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Sorting** <span class="pp">|</span> <span class="in">`PROC SORT data=work.in out=work.out; by arm visitnum; run;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); out &lt;- in %&gt;% arrange(arm, visitnum)`</span> <span class="pp">|</span> <span class="in">`arrange()`</span> is <span class="in">`PROC SORT`</span>; ascending default <span class="pp">|</span></span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Sorting descending** <span class="pp">|</span> <span class="in">`PROC SORT data=work.in out=work.out; by arm descending visitnum; run;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); out &lt;- in %&gt;% arrange(arm, desc(visitnum))`</span> <span class="pp">|</span> Use <span class="in">`desc()`</span> for descending order <span class="pp">|</span></span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Descriptive statistics** <span class="pp">|</span> <span class="in">`PROC MEANS data=work.in; var age weight; by arm; run;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); in %&gt;% group_by(arm) %&gt;% summarise(mean_age=mean(age), mean_weight=mean(weight))`</span> <span class="pp">|</span> <span class="in">`summarise()`</span> = <span class="in">`PROC MEANS`</span>; <span class="in">`group_by()`</span> = BY statement <span class="pp">|</span></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Descriptive statistics (publication table)** <span class="pp">|</span> <span class="in">`PROC MEANS data=work.in; var age weight; class arm; run;`</span> <span class="pp">|</span> <span class="in">`library(gtsummary); in %&gt;% tbl_summary(by=arm, include=c(age, weight))`</span> <span class="pp">|</span> <span class="in">`gtsummary`</span> creates publication-ready tables <span class="pp">|</span></span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Frequency table** <span class="pp">|</span> <span class="in">`PROC FREQ data=work.in; tables arm*sex; run;`</span> <span class="pp">|</span> <span class="in">`table(in$arm, in$sex)`</span> or <span class="in">`library(gtsummary); in %&gt;% tbl_cross(row=arm, col=sex)`</span> <span class="pp">|</span> <span class="in">`table()`</span> basic; <span class="in">`tbl_cross()`</span> prettier <span class="pp">|</span></span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Univariate statistics** <span class="pp">|</span> <span class="in">`PROC UNIVARIATE data=work.in; var age; histogram; qqplot; run;`</span> <span class="pp">|</span> <span class="in">`summary(in$age)`</span> and <span class="in">`shapiro.test(in$age)`</span> <span class="pp">|</span> Check normality with Shapiro-Wilk test; <span class="in">`hist()`</span> and <span class="in">`qqnorm()`</span> for plots <span class="pp">|</span></span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **T-test (unpaired)** <span class="pp">|</span> <span class="in">`PROC TTEST data=work.in; class arm; var sbp; run;`</span> <span class="pp">|</span> <span class="in">`t.test(sbp ~ arm, data=in, var.equal=TRUE)`</span> <span class="pp">|</span> <span class="in">`~`</span> is formula notation (variable ~ grouping); <span class="in">`var.equal=TRUE`</span> for Student's t <span class="pp">|</span></span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **T-test (paired)** <span class="pp">|</span> <span class="in">`PROC TTEST data=work.in; paired visit1*visit2; run;`</span> <span class="pp">|</span> <span class="in">`t.test(in$visit1, in$visit2, paired=TRUE)`</span> <span class="pp">|</span> Specify <span class="in">`paired=TRUE`</span> <span class="pp">|</span></span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Wilcoxon rank-sum test** <span class="pp">|</span> <span class="in">`PROC NPAR1WAY data=work.in wilcoxon; class arm; var response; run;`</span> <span class="pp">|</span> <span class="in">`wilcox.test(response ~ arm, data=in)`</span> <span class="pp">|</span> Non-parametric equivalent of t-test <span class="pp">|</span></span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **One-way ANOVA** <span class="pp">|</span> <span class="in">`PROC GLM data=work.in; class arm; model sbp=arm; run;`</span> <span class="pp">|</span> <span class="in">`aov(sbp ~ arm, data=in)`</span> or <span class="in">`lm(sbp ~ arm, data=in)`</span> and <span class="in">`anova()`</span> <span class="pp">|</span> <span class="in">`aov()`</span> simpler; <span class="in">`lm()`</span> more flexible <span class="pp">|</span></span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Two-way ANOVA** <span class="pp">|</span> <span class="in">`PROC GLM data=work.in; class arm visit; model sbp=arm visit arm*visit; run;`</span> <span class="pp">|</span> <span class="in">`aov(sbp ~ arm * visit, data=in)`</span> or <span class="in">`lm(sbp ~ arm * visit, data=in)`</span> <span class="pp">|</span> Use <span class="in">`*`</span> for interaction terms <span class="pp">|</span></span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Linear regression** <span class="pp">|</span> <span class="in">`PROC REG data=work.in; model sbp=age weight bmi / clb; run;`</span> <span class="pp">|</span> <span class="in">`lm(sbp ~ age + weight + bmi, data=in)`</span> or <span class="in">`lm(sbp ~ ., data=in)`</span> <span class="pp">|</span> <span class="in">`lm()`</span> = <span class="in">`PROC REG`</span>; <span class="in">`summary(model)`</span> for results <span class="pp">|</span></span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Logistic regression** <span class="pp">|</span> <span class="in">`PROC LOGISTIC data=work.in; model response(event='1')=age weight bmi; run;`</span> <span class="pp">|</span> <span class="in">`glm(response ~ age + weight + bmi, family=binomial(link="logit"), data=in)`</span> <span class="pp">|</span> <span class="in">`family=binomial()`</span> for binary outcomes; odds ratios via <span class="in">`exp(coef())`</span> <span class="pp">|</span></span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Mixed-effects model (random intercept)** <span class="pp">|</span> <span class="in">`PROC MIXED data=work.in; class arm subjid; model sbp=arm / solution; random intercept / subject=subjid; run;`</span> <span class="pp">|</span> <span class="in">`library(lme4); lmer(sbp ~ arm + (1 \| subjid), data=in)`</span> <span class="pp">|</span> <span class="in">`lme4::lmer()`</span> for random effects; <span class="in">`(1 \| subjid)`</span> = random intercept by subject <span class="pp">|</span></span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Mixed-effects model (random slope)** <span class="pp">|</span> <span class="in">`PROC MIXED data=work.in; class arm subjid visit; model sbp=arm visit arm*visit / solution; random intercept slope_visit / subject=subjid; run;`</span> <span class="pp">|</span> <span class="in">`library(lme4); lmer(sbp ~ arm * visit + (visit \| subjid), data=in)`</span> <span class="pp">|</span> <span class="in">`(visit \| subjid)`</span> = random slope for visit within subject <span class="pp">|</span></span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **GEE (Generalized Estimating Equations)** <span class="pp">|</span> <span class="in">`PROC GENMOD data=work.in; class arm subjid; model sbp=arm visit / dist=normal link=identity; repeated subject=subjid / type=ar(1); run;`</span> <span class="pp">|</span> <span class="in">`library(geepack); geeglm(sbp ~ arm + visit, id=subjid, family=gaussian(), corstr="ar1", data=in)`</span> <span class="pp">|</span> Marginal models for repeated measures <span class="pp">|</span></span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Cox proportional hazards** <span class="pp">|</span> <span class="in">`PROC PHREG data=work.in; class arm; model time*event(0)=arm age; run;`</span> <span class="pp">|</span> <span class="in">`library(survival); coxph(Surv(time, event) ~ arm + age, data=in)`</span> <span class="pp">|</span> <span class="in">`Surv()`</span> creates survival object; event=1 for event, 0 for censored <span class="pp">|</span></span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Kaplan-Meier survival curve** <span class="pp">|</span> <span class="in">`PROC LIFETEST data=work.in plots=survival; time time*event(0); strata arm; run;`</span> <span class="pp">|</span> <span class="in">`library(survival); survfit(Surv(time, event) ~ arm, data=in)`</span> then <span class="in">`plot()`</span> or <span class="in">`library(ggsurvfit)`</span> <span class="pp">|</span> <span class="in">`survfit()`</span> estimates; <span class="in">`ggsurvfit()`</span> creates ggplot2 plots <span class="pp">|</span></span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Multiple imputation (MI)** <span class="pp">|</span> <span class="in">`PROC MI data=work.in out=work.mids nimpute=5; var age sbp weight; run;`</span> <span class="pp">|</span> <span class="in">`library(mice); mids &lt;- mice(in, m=5, method="pmm", seed=123)`</span> <span class="pp">|</span> <span class="in">`m=5`</span> creates 5 imputed datasets; <span class="in">`method="pmm"`</span> = predictive mean matching <span class="pp">|</span></span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Pool MI results (Rubin's rules)** <span class="pp">|</span> <span class="in">`PROC MIANALYZE data=work.mids; modeleffects age weight; run;`</span> <span class="pp">|</span> <span class="in">`library(mice); fit &lt;- with(mids, lm(sbp ~ age + weight)); pool(fit)`</span> <span class="pp">|</span> <span class="in">`with()`</span> fits model to each imputed dataset; <span class="in">`pool()`</span> combines estimates <span class="pp">|</span></span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Output to RTF** <span class="pp">|</span> <span class="in">`ODS RTF file="output.rtf"; PROC PRINT data=work.in; RUN; ODS RTF close;`</span> <span class="pp">|</span> <span class="in">`library(flextable); ft &lt;- flextable(in); save_as_rtf(ft, path="output.rtf")`</span> <span class="pp">|</span> <span class="in">`flextable`</span> creates formatted Word-compatible tables <span class="pp">|</span></span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Output to PDF** <span class="pp">|</span> <span class="in">`ODS PDF file="output.pdf"; PROC PRINT data=work.in; RUN; ODS PDF close;`</span> <span class="pp">|</span> Render Quarto/RMarkdown: <span class="in">`quarto::quarto_render("report.qmd")`</span> <span class="pp">|</span> Quarto produces professional PDFs with code + results <span class="pp">|</span></span>
+<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Macro variable** <span class="pp">|</span> <span class="in">`%let arm_list = Placebo Drug_A_Low Drug_A_High;`</span> <span class="pp">|</span> <span class="in">`arm_list &lt;- c("Placebo", "Drug_A_Low", "Drug_A_High")`</span> <span class="pp">|</span> Store values in vectors; use in functions <span class="pp">|</span></span>
+<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Macro variable substitution** <span class="pp">|</span> <span class="in">`data work.&amp;dsname; set work.input; run;`</span> <span class="pp">|</span> Use R functions: <span class="in">`f &lt;- function(dsname) { data &lt;- read_csv(paste0(dsname, ".csv")) }`</span> <span class="pp">|</span> Functions replace macros for dynamic programming <span class="pp">|</span></span>
+<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Array** <span class="pp">|</span> <span class="in">`array weight_visits{6} weight_v1-weight_v6;`</span> <span class="pp">|</span> <span class="in">`weight_visits &lt;- c(weight_v1, weight_v2, ..., weight_v6)`</span> or <span class="in">`weight_visits &lt;- in[, c("weight_v1", "weight_v2", ...)]`</span> <span class="pp">|</span> Use vectors or data frame column selection <span class="pp">|</span></span>
+<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **PROC FORMAT (custom formats)** <span class="pp">|</span> <span class="in">`PROC FORMAT; value armfmt 1='Placebo' 2='Drug_A'; RUN; PROC PRINT; format arm armfmt.; RUN;`</span> <span class="pp">|</span> <span class="in">`in$arm &lt;- factor(in$arm, levels=c(1,2), labels=c("Placebo", "Drug_A"))`</span> <span class="pp">|</span> <span class="in">`factor()`</span> with labels; use <span class="in">`forcats::fct_recode()`</span> for advanced re-coding <span class="pp">|</span></span>
+<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **IF/THEN/ELSE** <span class="pp">|</span> <span class="in">`if age &gt; 30 then agegroup='30+'; else agegroup='&lt;30';`</span> <span class="pp">|</span> <span class="in">`ifelse(age &gt; 30, "30+", "&lt;30")`</span> <span class="pp">|</span> <span class="in">`ifelse()`</span> is vectorized (works row-wise) <span class="pp">|</span></span>
+<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Multiple conditions (CASE WHEN)** <span class="pp">|</span> <span class="in">`select (arm) when (1) arm_name='Placebo'; when (2) arm_name='Drug_A'; otherwise arm_name='Other'; end;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); mutate(arm_name = case_when(arm==1 ~ "Placebo", arm==2 ~ "Drug_A", TRUE ~ "Other"))`</span> <span class="pp">|</span> <span class="in">`case_when()`</span> is cleaner for multiple conditions <span class="pp">|</span></span>
+<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **DO loop (for)** | `DO i = 1 TO 10; x = i**2; output; end;<span class="in">` | `</span>for (i in 1:10) { x &lt;- i^2; print(x) }<span class="in">` or `</span>sapply(1:10, function(i) i^2)<span class="in">` | Use `</span>for()<span class="in">` loops or functional `</span>sapply()<span class="in">`/`</span>purrr::map()` <span class="pp">|</span></span>
+<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **DO WHILE loop** <span class="pp">|</span> <span class="in">`DO WHILE (age &gt; 30); age = age - 1; end;`</span> <span class="pp">|</span> <span class="in">`while (age &gt; 30) { age &lt;- age - 1 }`</span> <span class="pp">|</span> Less common in data analysis; use <span class="in">`for()`</span> over vectors <span class="pp">|</span></span>
+<span id="cb6-63"><a href="#cb6-63" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Purrr::map for vectorized operations** <span class="pp">|</span> Similar to arrays + do loops <span class="pp">|</span> <span class="in">`library(purrr); map_df(c("arm1", "arm2"), ~read_csv(paste0(., ".csv")))`</span> <span class="pp">|</span> Functional programming replaces many loops <span class="pp">|</span></span>
+<span id="cb6-64"><a href="#cb6-64" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **LEFT JOIN (merge)** <span class="pp">|</span> <span class="in">`PROC SQL; select a.*, b.sbp from dm a left join vs b on a.subjid=b.subjid; quit;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); dm %&gt;% left_join(vs, by="subjid")`</span> <span class="pp">|</span> <span class="in">`left_join()`</span>, <span class="in">`right_join()`</span>, <span class="in">`inner_join()`</span>, <span class="in">`full_join()`</span> <span class="pp">|</span></span>
+<span id="cb6-65"><a href="#cb6-65" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Multiple joins** <span class="pp">|</span> Multiple PROC SQL steps <span class="pp">|</span> <span class="in">`library(dplyr); dm %&gt;% left_join(vs) %&gt;% left_join(ae)`</span> <span class="pp">|</span> Chain joins with <span class="in">`%&gt;%`</span> <span class="pp">|</span></span>
+<span id="cb6-66"><a href="#cb6-66" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **BY variable processing (group-by)** <span class="pp">|</span> <span class="in">`PROC SORT; by arm; PROC PRINT; by arm; RUN;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); in %&gt;% group_by(arm) %&gt;% summarise(...)`</span> or use <span class="in">`nest()`</span> <span class="pp">|</span> <span class="in">`group_by()`</span> replaces BY statement for most operations <span class="pp">|</span></span>
+<span id="cb6-67"><a href="#cb6-67" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **RETAIN statement (lag)** <span class="pp">|</span> <span class="in">`data work.new; set work.old; retain prev_sbp; prev_sbp_lag = lag(sbp); prev_sbp = sbp; run;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); in %&gt;% mutate(prev_sbp = lag(sbp))`</span> <span class="pp">|</span> <span class="in">`lag()`</span> accesses previous row value <span class="pp">|</span></span>
+<span id="cb6-68"><a href="#cb6-68" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Cumulative sum** <span class="pp">|</span> <span class="in">`data work.new; set work.old; cumsum+ae_count; output; run;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); in %&gt;% mutate(cumsum = cumsum(ae_count))`</span> <span class="pp">|</span> <span class="in">`cumsum()`</span> computes running total <span class="pp">|</span></span>
+<span id="cb6-69"><a href="#cb6-69" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **LENGTH statement** <span class="pp">|</span> <span class="in">`length varname $ 50;`</span> <span class="pp">|</span> <span class="in">`nchar(varname)`</span> or <span class="in">`stringr::str_length(varname)`</span> <span class="pp">|</span> Get string length; assign with <span class="in">`as.character()`</span> and no explicit length needed <span class="pp">|</span></span>
+<span id="cb6-70"><a href="#cb6-70" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **COMPRESS (remove spaces)** <span class="pp">|</span> <span class="in">`newvar = compress(oldvar);`</span> <span class="pp">|</span> <span class="in">`gsub(" ", "", oldvar)`</span> or <span class="in">`library(stringr); str_remove_all(oldvar, " ")`</span> <span class="pp">|</span> Remove all spaces from string <span class="pp">|</span></span>
+<span id="cb6-71"><a href="#cb6-71" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **SUBSTR (substring)** <span class="pp">|</span> <span class="in">`newvar = substr(oldvar, 1, 5);`</span> <span class="pp">|</span> <span class="in">`substring(oldvar, 1, 5)`</span> or <span class="in">`library(stringr); str_sub(oldvar, 1, 5)`</span> <span class="pp">|</span> Extract characters 1-5 from string <span class="pp">|</span></span>
+<span id="cb6-72"><a href="#cb6-72" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **SCAN (parse words)** <span class="pp">|</span> <span class="in">`word2 = scan(sentence, 2, delim=' ');`</span> <span class="pp">|</span> <span class="in">`library(stringr); str_split(sentence, " ")[[1]][2]`</span> <span class="pp">|</span> Extract nth word <span class="pp">|</span></span>
+<span id="cb6-73"><a href="#cb6-73" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **UPCASE / LOWCASE** <span class="pp">|</span> <span class="in">`newvar = upcase(oldvar);`</span> or <span class="in">`newvar = lowcase(oldvar);`</span> <span class="pp">|</span> <span class="in">`toupper(oldvar)`</span> or <span class="in">`tolower(oldvar)`</span> or <span class="in">`library(stringr); str_to_upper()`</span> / <span class="in">`str_to_lower()`</span> <span class="pp">|</span> Case conversion functions <span class="pp">|</span></span>
+<span id="cb6-74"><a href="#cb6-74" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Concatenate strings** <span class="pp">|</span> <span class="in">`newvar = cat(var1, var2);`</span> or <span class="in">`newvar = var1 \|\| var2;`</span> <span class="pp">|</span> <span class="in">`paste(var1, var2)`</span> or <span class="in">`library(stringr); str_c(var1, var2)`</span> <span class="pp">|</span> Use <span class="in">`paste()`</span> with <span class="in">`sep=""`</span> for no space <span class="pp">|</span></span>
+<span id="cb6-75"><a href="#cb6-75" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **PUT (numeric to character)** <span class="pp">|</span> <span class="in">`char_var = put(num_var, 8.2);`</span> <span class="pp">|</span> <span class="in">`as.character(num_var)`</span> or <span class="in">`sprintf("%.2f", num_var)`</span> <span class="pp">|</span> Convert to string with formatting <span class="pp">|</span></span>
+<span id="cb6-76"><a href="#cb6-76" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **INPUT (character to numeric)** <span class="pp">|</span> <span class="in">`num_var = input(char_var, 8.);`</span> <span class="pp">|</span> <span class="in">`as.numeric(char_var)`</span> <span class="pp">|</span> Convert string to number <span class="pp">|</span></span>
+<span id="cb6-77"><a href="#cb6-77" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Date conversion** <span class="pp">|</span> <span class="in">`date_var = input(char_date, MMDDYY10.);`</span> <span class="pp">|</span> <span class="in">`library(lubridate); mdy(char_date)`</span> or <span class="in">`as.Date(char_date, format="%m/%d/%Y")`</span> <span class="pp">|</span> <span class="in">`lubridate`</span> makes date handling cleaner <span class="pp">|</span></span>
+<span id="cb6-78"><a href="#cb6-78" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **INTNX (add months/days)** <span class="pp">|</span> <span class="in">`new_date = intnx('month', date_var, 6);`</span> <span class="pp">|</span> <span class="in">`library(lubridate); date_var %m+% months(6)`</span> or <span class="in">`date_var + months(6)`</span> <span class="pp">|</span> Add months; use <span class="in">`%m+%`</span> to keep day-of-month <span class="pp">|</span></span>
+<span id="cb6-79"><a href="#cb6-79" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **INTCK (difference between dates)** <span class="pp">|</span> <span class="in">`days_diff = intck('day', date1, date2);`</span> <span class="pp">|</span> <span class="in">`as.numeric(difftime(date2, date1, units="days"))`</span> or <span class="in">`difftime(date2, date1)`</span> <span class="pp">|</span> Get days/weeks/months between dates <span class="pp">|</span></span>
+<span id="cb6-80"><a href="#cb6-80" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **WHERE clause** <span class="pp">|</span> <span class="in">`PROC PRINT where=(age &gt; 30 and arm='Drug_A'); RUN;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); in %&gt;% filter(age &gt; 30 &amp; arm=="Drug_A")`</span> <span class="pp">|</span> <span class="in">`filter()`</span> = WHERE statement <span class="pp">|</span></span>
+<span id="cb6-81"><a href="#cb6-81" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **KEEP statement** <span class="pp">|</span> <span class="in">`PROC PRINT data=work.in(keep=subjid age sex); RUN;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); in %&gt;% select(subjid, age, sex)`</span> <span class="pp">|</span> <span class="in">`select()`</span> = KEEP statement <span class="pp">|</span></span>
+<span id="cb6-82"><a href="#cb6-82" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **DROP statement** <span class="pp">|</span> <span class="in">`PROC PRINT data=work.in(drop=weight height); RUN;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); in %&gt;% select(-weight, -height)`</span> <span class="pp">|</span> <span class="in">`select(-col)`</span> drops columns <span class="pp">|</span></span>
+<span id="cb6-83"><a href="#cb6-83" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **RENAME statement** <span class="pp">|</span> <span class="in">`PROC PRINT data=work.in(rename=(oldname=newname)); RUN;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); in %&gt;% rename(newname = oldname)`</span> <span class="pp">|</span> <span class="in">`rename(new = old)`</span> <span class="pp">|</span></span>
+<span id="cb6-84"><a href="#cb6-84" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **FIRSTOBS/OBS (slice rows)** <span class="pp">|</span> <span class="in">`data work.new; set work.old(firstobs=10 obs=20); run;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); in %&gt;% slice(10:20)`</span> <span class="pp">|</span> <span class="in">`slice(10:20)`</span> gets rows 10-20 <span class="pp">|</span></span>
+<span id="cb6-85"><a href="#cb6-85" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **SET statement (append)** <span class="pp">|</span> <span class="in">`data work.combined; set work.ds1 work.ds2; run;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); bind_rows(ds1, ds2)`</span> <span class="pp">|</span> <span class="in">`bind_rows()`</span> = SET statement (vertical append) <span class="pp">|</span></span>
+<span id="cb6-86"><a href="#cb6-86" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **PROC APPEND (append in-place)** <span class="pp">|</span> <span class="in">`PROC APPEND base=work.ds1 data=work.ds2; RUN;`</span> <span class="pp">|</span> <span class="in">`library(dplyr); ds1 &lt;- bind_rows(ds1, ds2)`</span> <span class="pp">|</span> Re-assign combined result <span class="pp">|</span></span>
+<span id="cb6-87"><a href="#cb6-87" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **PROC TRANSPOSE (reshape wide-to-long)** <span class="pp">|</span> <span class="in">`PROC TRANSPOSE data=work.in out=work.out name=visit value=sbp; by subjid; var sbp_v1-sbp_v6; run;`</span> <span class="pp">|</span> <span class="in">`library(tidyr); in %&gt;% pivot_longer(starts_with("sbp_"), names_to="visit", values_to="sbp")`</span> <span class="pp">|</span> <span class="in">`pivot_longer()`</span> = PROC TRANSPOSE <span class="pp">|</span></span>
+<span id="cb6-88"><a href="#cb6-88" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Reshape long-to-wide** <span class="pp">|</span> <span class="in">`PROC TRANSPOSE data=work.in out=work.out prefix=sbp_; by subjid; id visit; var sbp; run;`</span> <span class="pp">|</span> <span class="in">`library(tidyr); in %&gt;% pivot_wider(names_from=visit, values_from=sbp, names_prefix="sbp_")`</span> <span class="pp">|</span> <span class="in">`pivot_wider()`</span> opposite of <span class="in">`pivot_longer()`</span> <span class="pp">|</span></span>
+<span id="cb6-89"><a href="#cb6-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-90"><a href="#cb6-90" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-91"><a href="#cb6-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-92"><a href="#cb6-92" aria-hidden="true" tabindex="-1"></a><span class="fu">## SAS Macro to R Function Translation</span></span>
+<span id="cb6-93"><a href="#cb6-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-94"><a href="#cb6-94" aria-hidden="true" tabindex="-1"></a>SAS programmers often use macros to create reusable code blocks. In R, **functions** replace macros and are cleaner, more efficient, and easier to test.</span>
+<span id="cb6-95"><a href="#cb6-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-96"><a href="#cb6-96" aria-hidden="true" tabindex="-1"></a><span class="fu">### Example: Create a summary table by arm</span></span>
+<span id="cb6-97"><a href="#cb6-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-98"><a href="#cb6-98" aria-hidden="true" tabindex="-1"></a>**SAS Macro:**</span>
+<span id="cb6-99"><a href="#cb6-99" aria-hidden="true" tabindex="-1"></a><span class="in">```sas</span></span>
+<span id="cb6-100"><a href="#cb6-100" aria-hidden="true" tabindex="-1"></a><span class="in">%MACRO summary_by_arm(indsn, varlist, byvar, outdsn);</span></span>
+<span id="cb6-101"><a href="#cb6-101" aria-hidden="true" tabindex="-1"></a><span class="in">  PROC MEANS data=&amp;indsn NWAY ALPHA=0.05;</span></span>
+<span id="cb6-102"><a href="#cb6-102" aria-hidden="true" tabindex="-1"></a><span class="in">    CLASS &amp;byvar;</span></span>
+<span id="cb6-103"><a href="#cb6-103" aria-hidden="true" tabindex="-1"></a><span class="in">    VAR &amp;varlist;</span></span>
+<span id="cb6-104"><a href="#cb6-104" aria-hidden="true" tabindex="-1"></a><span class="in">    OUTPUT OUT=&amp;outdsn MEAN= MEDIAN= STDDEV= / AUTONAME;</span></span>
+<span id="cb6-105"><a href="#cb6-105" aria-hidden="true" tabindex="-1"></a><span class="in">  RUN;</span></span>
+<span id="cb6-106"><a href="#cb6-106" aria-hidden="true" tabindex="-1"></a><span class="in">%MEND;</span></span>
+<span id="cb6-107"><a href="#cb6-107" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-108"><a href="#cb6-108" aria-hidden="true" tabindex="-1"></a><span class="in">%summary_by_arm(work.vital, sbp dbp weight, arm, work.summary);</span></span>
+<span id="cb6-109"><a href="#cb6-109" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-110"><a href="#cb6-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-111"><a href="#cb6-111" aria-hidden="true" tabindex="-1"></a>**R Function:**</span>
+<span id="cb6-112"><a href="#cb6-112" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
+<span id="cb6-113"><a href="#cb6-113" aria-hidden="true" tabindex="-1"></a>summary_by_arm <span class="ot">&lt;-</span> <span class="cf">function</span>(data, vars, by_var) {</span>
+<span id="cb6-114"><a href="#cb6-114" aria-hidden="true" tabindex="-1"></a>  <span class="fu">library</span>(dplyr)</span>
+<span id="cb6-115"><a href="#cb6-115" aria-hidden="true" tabindex="-1"></a>  data <span class="sc">%&gt;%</span></span>
+<span id="cb6-116"><a href="#cb6-116" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(<span class="fu">across</span>(<span class="fu">all_of</span>(by_var))) <span class="sc">%&gt;%</span></span>
+<span id="cb6-117"><a href="#cb6-117" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="fu">across</span>(<span class="fu">all_of</span>(vars),</span>
+<span id="cb6-118"><a href="#cb6-118" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">list</span>(<span class="at">mean =</span> mean, <span class="at">median =</span> median, <span class="at">sd =</span> sd),</span>
+<span id="cb6-119"><a href="#cb6-119" aria-hidden="true" tabindex="-1"></a>                     <span class="at">.names =</span> <span class="st">"{.col}_{.fn}"</span>),</span>
+<span id="cb6-120"><a href="#cb6-120" aria-hidden="true" tabindex="-1"></a>              <span class="at">.groups =</span> <span class="st">"drop"</span>)</span>
+<span id="cb6-121"><a href="#cb6-121" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-122"><a href="#cb6-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-123"><a href="#cb6-123" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">summary_by_arm</span>(vital, <span class="fu">c</span>(<span class="st">"sbp"</span>, <span class="st">"dbp"</span>, <span class="st">"weight"</span>), <span class="st">"arm"</span>)</span>
+<span id="cb6-124"><a href="#cb6-124" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-125"><a href="#cb6-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-126"><a href="#cb6-126" aria-hidden="true" tabindex="-1"></a>**Benefits of R functions over SAS macros:**</span>
+<span id="cb6-127"><a href="#cb6-127" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Type safety: R checks argument types</span>
+<span id="cb6-128"><a href="#cb6-128" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Easier debugging with <span class="in">`browser()`</span></span>
+<span id="cb6-129"><a href="#cb6-129" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Return data frames directly</span>
+<span id="cb6-130"><a href="#cb6-130" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>No string substitution issues</span>
+<span id="cb6-131"><a href="#cb6-131" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Test-friendly (<span class="in">`testthat`</span> package)</span>
+<span id="cb6-132"><a href="#cb6-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-133"><a href="#cb6-133" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-134"><a href="#cb6-134" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-135"><a href="#cb6-135" aria-hidden="true" tabindex="-1"></a><span class="fu">## SAS ODS Styles vs. R Table Packages</span></span>
+<span id="cb6-136"><a href="#cb6-136" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-137"><a href="#cb6-137" aria-hidden="true" tabindex="-1"></a>SAS uses ODS (Output Delivery System) to create formatted tables. R achieves this with dedicated table packages.</span>
+<span id="cb6-138"><a href="#cb6-138" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-139"><a href="#cb6-139" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Output Type <span class="pp">|</span> SAS ODS <span class="pp">|</span> R Package <span class="pp">|</span> Example <span class="pp">|</span></span>
+<span id="cb6-140"><a href="#cb6-140" aria-hidden="true" tabindex="-1"></a><span class="pp">|-------------|---------|-----------|---------|</span></span>
+<span id="cb6-141"><a href="#cb6-141" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Publication-ready summary table** <span class="pp">|</span> <span class="in">`PROC MEANS`</span> + <span class="in">`ODS TABLE`</span> <span class="pp">|</span> <span class="in">`gtsummary::tbl_summary()`</span> <span class="pp">|</span> Demographics, baseline characteristics <span class="pp">|</span></span>
+<span id="cb6-142"><a href="#cb6-142" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Cross-tabulation** <span class="pp">|</span> <span class="in">`PROC FREQ`</span> + ODS <span class="pp">|</span> <span class="in">`gtsummary::tbl_cross()`</span> <span class="pp">|</span> Arm × Sex frequency table <span class="pp">|</span></span>
+<span id="cb6-143"><a href="#cb6-143" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Regression results** <span class="pp">|</span> <span class="in">`PROC REG`</span> + ODS <span class="pp">|</span> <span class="in">`gtsummary::tbl_regression()`</span> <span class="pp">|</span> Odds ratios, confidence intervals <span class="pp">|</span></span>
+<span id="cb6-144"><a href="#cb6-144" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Cox regression** <span class="pp">|</span> <span class="in">`PROC PHREG`</span> + ODS <span class="pp">|</span> <span class="in">`gtsummary::tbl_regression()`</span> with survival models <span class="pp">|</span> HR, 95% CI <span class="pp">|</span></span>
+<span id="cb6-145"><a href="#cb6-145" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Survival tables** <span class="pp">|</span> <span class="in">`PROC LIFETEST`</span> + ODS <span class="pp">|</span> <span class="in">`ggsurvfit::ggsurvfit()`</span> <span class="pp">|</span> Kaplan-Meier curves <span class="pp">|</span></span>
+<span id="cb6-146"><a href="#cb6-146" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Excel/RTF export** <span class="pp">|</span> <span class="in">`ODS RTF`</span>, <span class="in">`ODS EXCEL`</span> <span class="pp">|</span> <span class="in">`flextable::save_as_rtf()`</span>, <span class="in">`flextable::save_as_docx()`</span> <span class="pp">|</span> For regulatory submissions <span class="pp">|</span></span>
+<span id="cb6-147"><a href="#cb6-147" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **CDISC ADaM listings** <span class="pp">|</span> Custom PROC PRINT + ODS <span class="pp">|</span> <span class="in">`rtables`</span> or <span class="in">`flextable`</span> <span class="pp">|</span> Subject-level data listings <span class="pp">|</span></span>
+<span id="cb6-148"><a href="#cb6-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-149"><a href="#cb6-149" aria-hidden="true" tabindex="-1"></a>**Quick example:**</span>
+<span id="cb6-150"><a href="#cb6-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-151"><a href="#cb6-151" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
+<span id="cb6-152"><a href="#cb6-152" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(gtsummary)</span>
+<span id="cb6-153"><a href="#cb6-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-154"><a href="#cb6-154" aria-hidden="true" tabindex="-1"></a><span class="co"># SAS equivalent: PROC MEANS + PROC FREQ for baseline table</span></span>
+<span id="cb6-155"><a href="#cb6-155" aria-hidden="true" tabindex="-1"></a>baseline_table <span class="ot">&lt;-</span> trial_data <span class="sc">%&gt;%</span></span>
+<span id="cb6-156"><a href="#cb6-156" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tbl_summary</span>(</span>
+<span id="cb6-157"><a href="#cb6-157" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> arm,</span>
+<span id="cb6-158"><a href="#cb6-158" aria-hidden="true" tabindex="-1"></a>    <span class="at">include =</span> <span class="fu">c</span>(age, sex, grade),</span>
+<span id="cb6-159"><a href="#cb6-159" aria-hidden="true" tabindex="-1"></a>    <span class="at">label =</span> <span class="fu">list</span>(<span class="at">age =</span> <span class="st">"Age (years)"</span>, <span class="at">sex =</span> <span class="st">"Sex"</span>, <span class="at">grade =</span> <span class="st">"Grade"</span>),</span>
+<span id="cb6-160"><a href="#cb6-160" aria-hidden="true" tabindex="-1"></a>    <span class="at">statistic =</span> <span class="fu">list</span>(<span class="fu">all_continuous</span>() <span class="sc">~</span> <span class="st">"{mean} ({sd})"</span>,</span>
+<span id="cb6-161"><a href="#cb6-161" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">all_categorical</span>() <span class="sc">~</span> <span class="st">"{n} ({p}%)"</span>),</span>
+<span id="cb6-162"><a href="#cb6-162" aria-hidden="true" tabindex="-1"></a>    <span class="at">missing =</span> <span class="st">"no"</span></span>
+<span id="cb6-163"><a href="#cb6-163" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb6-164"><a href="#cb6-164" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_overall</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb6-165"><a href="#cb6-165" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_p</span>(<span class="at">test =</span> <span class="fu">everything</span>() <span class="sc">~</span> <span class="st">"t.test"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb6-166"><a href="#cb6-166" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_q</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb6-167"><a href="#cb6-167" aria-hidden="true" tabindex="-1"></a>  <span class="fu">modify_spanning_header</span>(<span class="fu">everything</span>() <span class="sc">~</span> <span class="st">"**Treatment Arm**"</span>)</span>
+<span id="cb6-168"><a href="#cb6-168" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-169"><a href="#cb6-169" aria-hidden="true" tabindex="-1"></a><span class="co"># Save to Word/PDF via flextable integration or Quarto</span></span>
+<span id="cb6-170"><a href="#cb6-170" aria-hidden="true" tabindex="-1"></a>gt<span class="sc">::</span><span class="fu">gtsave</span>(<span class="fu">as_gt</span>(baseline_table), <span class="st">"baseline.docx"</span>)</span>
+<span id="cb6-171"><a href="#cb6-171" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-172"><a href="#cb6-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-173"><a href="#cb6-173" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-174"><a href="#cb6-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-175"><a href="#cb6-175" aria-hidden="true" tabindex="-1"></a><span class="fu">## Common Pitfalls for SAS Programmers Transitioning to R</span></span>
+<span id="cb6-176"><a href="#cb6-176" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-177"><a href="#cb6-177" aria-hidden="true" tabindex="-1"></a><span class="fu">### 1. **Missing Values: `.` vs. `NA`**</span></span>
+<span id="cb6-178"><a href="#cb6-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-179"><a href="#cb6-179" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Situation <span class="pp">|</span> SAS <span class="pp">|</span> R <span class="pp">|</span> Issue <span class="pp">|</span></span>
+<span id="cb6-180"><a href="#cb6-180" aria-hidden="true" tabindex="-1"></a><span class="pp">|-----------|-----|---|-------|</span></span>
+<span id="cb6-181"><a href="#cb6-181" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Check for missing <span class="pp">|</span> <span class="in">`if age = . then ...`</span> <span class="pp">|</span> <span class="in">`if (is.na(age)) { ... }`</span> <span class="pp">|</span> SAS uses <span class="in">`.`</span>; R uses <span class="in">`NA`</span>. Using <span class="in">`age = NA`</span> will always be FALSE <span class="pp">|</span></span>
+<span id="cb6-182"><a href="#cb6-182" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Count missing <span class="pp">|</span> <span class="in">`PROC MEANS NMISS;`</span> <span class="pp">|</span> <span class="in">`sum(is.na(data$age))`</span> <span class="pp">|</span> Be explicit about checking NA <span class="pp">|</span></span>
+<span id="cb6-183"><a href="#cb6-183" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Remove rows with missing <span class="pp">|</span> <span class="in">`data new; set old; if cmiss(of age weight) = 0;`</span> <span class="pp">|</span> <span class="in">`na.omit(data)`</span> or <span class="in">`drop_na(data)`</span> <span class="pp">|</span> Use <span class="in">`tidyr::drop_na()`</span> or <span class="in">`dplyr::filter(!is.na(age), !is.na(weight))`</span> <span class="pp">|</span></span>
+<span id="cb6-184"><a href="#cb6-184" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Impute simple missing <span class="pp">|</span> <span class="in">`if age = . then age = 0;`</span> <span class="pp">|</span> <span class="in">`data$age[is.na(data$age)] &lt;- 0`</span> or <span class="in">`mutate(age = replace_na(age, 0))`</span> <span class="pp">|</span> Use <span class="in">`replace_na()`</span> for readability <span class="pp">|</span></span>
+<span id="cb6-185"><a href="#cb6-185" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-186"><a href="#cb6-186" aria-hidden="true" tabindex="-1"></a><span class="fu">### 2. **1-Based Indexing Confusion**</span></span>
+<span id="cb6-187"><a href="#cb6-187" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-188"><a href="#cb6-188" aria-hidden="true" tabindex="-1"></a>Both SAS and R use 1-based indexing for row/column numbers, BUT subsetting works differently:</span>
+<span id="cb6-189"><a href="#cb6-189" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-190"><a href="#cb6-190" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Operation <span class="pp">|</span> SAS <span class="pp">|</span> R <span class="pp">|</span> Example <span class="pp">|</span></span>
+<span id="cb6-191"><a href="#cb6-191" aria-hidden="true" tabindex="-1"></a><span class="pp">|-----------|-----|---|---------|</span></span>
+<span id="cb6-192"><a href="#cb6-192" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> First 5 rows <span class="pp">|</span> <span class="in">`data new; set old(obs=5); run;`</span> <span class="pp">|</span> <span class="in">`slice(1:5, data)`</span> or <span class="in">`head(data, 5)`</span> <span class="pp">|</span> <span class="in">`data[1:5, ]`</span> also works <span class="pp">|</span></span>
+<span id="cb6-193"><a href="#cb6-193" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Rows 10-20 <span class="pp">|</span> <span class="in">`data new; set old(firstobs=10 obs=20); run;`</span> <span class="pp">|</span> <span class="in">`slice(10:20, data)`</span> <span class="pp">|</span> Not intuitive: <span class="in">`obs=20`</span> means "stop at row 20" <span class="pp">|</span></span>
+<span id="cb6-194"><a href="#cb6-194" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Nth column <span class="pp">|</span> <span class="in">`array x{*} _numeric_; x{5}`</span> <span class="pp">|</span> <span class="in">`data[[5]]`</span> or <span class="in">`data[, 5]`</span> <span class="pp">|</span> Use column names instead: <span class="in">`data$sbp`</span> or <span class="in">`data[["sbp"]]`</span> <span class="pp">|</span></span>
+<span id="cb6-195"><a href="#cb6-195" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> By condition <span class="pp">|</span> <span class="in">`where age &gt; 30;`</span> <span class="pp">|</span> <span class="in">`filter(age &gt; 30)`</span> <span class="pp">|</span> Don't use row indices; use logical conditions <span class="pp">|</span></span>
+<span id="cb6-196"><a href="#cb6-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-197"><a href="#cb6-197" aria-hidden="true" tabindex="-1"></a>**Common mistake:**</span>
+<span id="cb6-198"><a href="#cb6-198" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
+<span id="cb6-199"><a href="#cb6-199" aria-hidden="true" tabindex="-1"></a><span class="co"># SAS thinking: "Give me columns 1, 3, 5"</span></span>
+<span id="cb6-200"><a href="#cb6-200" aria-hidden="true" tabindex="-1"></a>data[, <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">5</span>)]  <span class="co"># This works!</span></span>
+<span id="cb6-201"><a href="#cb6-201" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-202"><a href="#cb6-202" aria-hidden="true" tabindex="-1"></a><span class="co"># But better practice in R:</span></span>
+<span id="cb6-203"><a href="#cb6-203" aria-hidden="true" tabindex="-1"></a>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(col1, col3, col5)  <span class="co"># More readable</span></span>
+<span id="cb6-204"><a href="#cb6-204" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-205"><a href="#cb6-205" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-206"><a href="#cb6-206" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3. **No Implicit Data Step Loop**</span></span>
+<span id="cb6-207"><a href="#cb6-207" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-208"><a href="#cb6-208" aria-hidden="true" tabindex="-1"></a>SAS loops through every observation automatically in the DATA step. R does not.</span>
+<span id="cb6-209"><a href="#cb6-209" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-210"><a href="#cb6-210" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> SAS <span class="pp">|</span> R <span class="pp">|</span> Explanation <span class="pp">|</span></span>
+<span id="cb6-211"><a href="#cb6-211" aria-hidden="true" tabindex="-1"></a><span class="pp">|-----|---|-------------|</span></span>
+<span id="cb6-212"><a href="#cb6-212" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`data new; set old; newvar = oldvar * 2; run;`</span> <span class="pp">|</span> <span class="in">`new &lt;- old %&gt;% mutate(newvar = oldvar * 2)`</span> <span class="pp">|</span> R's <span class="in">`mutate()`</span> is vectorized; apply to all rows at once <span class="pp">|</span></span>
+<span id="cb6-213"><a href="#cb6-213" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`data new; set old; newvar = lag(oldvar); run;`</span> <span class="pp">|</span> <span class="in">`new &lt;- old %&gt;% mutate(newvar = lag(oldvar))`</span> <span class="pp">|</span> Use <span class="in">`lag()`</span>, <span class="in">`lead()`</span>, or <span class="in">`cumsum()`</span> <span class="pp">|</span></span>
+<span id="cb6-214"><a href="#cb6-214" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`DO i = 1 TO nobs; ... END;`</span> <span class="pp">|</span> <span class="in">`for (i in 1:nrow(data)) { ... }`</span> <span class="pp">|</span> Avoid loops! Use vectorized operations when possible <span class="pp">|</span></span>
+<span id="cb6-215"><a href="#cb6-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-216"><a href="#cb6-216" aria-hidden="true" tabindex="-1"></a>**Better R practice:**</span>
+<span id="cb6-217"><a href="#cb6-217" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
+<span id="cb6-218"><a href="#cb6-218" aria-hidden="true" tabindex="-1"></a><span class="co"># Don't do this:</span></span>
+<span id="cb6-219"><a href="#cb6-219" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(data)) {</span>
+<span id="cb6-220"><a href="#cb6-220" aria-hidden="true" tabindex="-1"></a>  data<span class="sc">$</span>newvar[i] <span class="ot">&lt;-</span> data<span class="sc">$</span>oldvar[i] <span class="sc">*</span> <span class="dv">2</span></span>
+<span id="cb6-221"><a href="#cb6-221" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-222"><a href="#cb6-222" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-223"><a href="#cb6-223" aria-hidden="true" tabindex="-1"></a><span class="co"># Do this instead:</span></span>
+<span id="cb6-224"><a href="#cb6-224" aria-hidden="true" tabindex="-1"></a>data <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">newvar =</span> oldvar <span class="sc">*</span> <span class="dv">2</span>)</span>
+<span id="cb6-225"><a href="#cb6-225" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-226"><a href="#cb6-226" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-227"><a href="#cb6-227" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4. **Subsetting: Syntax Differences**</span></span>
+<span id="cb6-228"><a href="#cb6-228" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-229"><a href="#cb6-229" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Task <span class="pp">|</span> SAS <span class="pp">|</span> R (Bad) <span class="pp">|</span> R (Good) <span class="pp">|</span> Reason <span class="pp">|</span></span>
+<span id="cb6-230"><a href="#cb6-230" aria-hidden="true" tabindex="-1"></a><span class="pp">|------|-----|---------|----------|--------|</span></span>
+<span id="cb6-231"><a href="#cb6-231" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Filter rows AND columns <span class="pp">|</span> <span class="in">`PROC PRINT where=(age &gt; 30); var subjid age;`</span> <span class="pp">|</span> <span class="in">`data[data$age &gt; 30, c(1, 3)]`</span> <span class="pp">|</span> <span class="in">`data %&gt;% filter(age &gt; 30) %&gt;% select(subjid, age)`</span> <span class="pp">|</span> Piping is cleaner; use names not indices <span class="pp">|</span></span>
+<span id="cb6-232"><a href="#cb6-232" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Keep one column as vector <span class="pp">|</span> <span class="in">`PROC MEANS var=age;`</span> <span class="pp">|</span> <span class="in">`data[, "age"]`</span> <span class="pp">|</span> <span class="in">`data$age`</span> or <span class="in">`pull(data, age)`</span> <span class="pp">|</span> <span class="in">`[,]`</span> returns data frame; <span class="in">`$`</span> or <span class="in">`pull()`</span> returns vector <span class="pp">|</span></span>
+<span id="cb6-233"><a href="#cb6-233" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Conditional assignment <span class="pp">|</span> <span class="in">`if age &gt; 30 then agegroup=1; else agegroup=0;`</span> <span class="pp">|</span> <span class="in">`ifelse(age &gt; 30, 1, 0)`</span> <span class="pp">|</span> <span class="in">`case_when(age &gt; 30 ~ 1, TRUE ~ 0)`</span> <span class="pp">|</span> <span class="in">`case_when()`</span> handles multiple conditions <span class="pp">|</span></span>
+<span id="cb6-234"><a href="#cb6-234" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-235"><a href="#cb6-235" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5. **Data Frame vs. Vector Confusion**</span></span>
+<span id="cb6-236"><a href="#cb6-236" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-237"><a href="#cb6-237" aria-hidden="true" tabindex="-1"></a>SAS doesn't distinguish; R does.</span>
+<span id="cb6-238"><a href="#cb6-238" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-239"><a href="#cb6-239" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Operation <span class="pp">|</span> SAS <span class="pp">|</span> R <span class="pp">|</span> Gotcha <span class="pp">|</span></span>
+<span id="cb6-240"><a href="#cb6-240" aria-hidden="true" tabindex="-1"></a><span class="pp">|-----------|-----|---|--------|</span></span>
+<span id="cb6-241"><a href="#cb6-241" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Create variable <span class="pp">|</span> <span class="in">`varname = value;`</span> <span class="pp">|</span> <span class="in">`data$varname &lt;- value`</span> <span class="pp">|</span> In R, <span class="in">`data["varname"]`</span> returns a 1-column data frame; <span class="in">`data$varname`</span> returns a vector <span class="pp">|</span></span>
+<span id="cb6-242"><a href="#cb6-242" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Access variable <span class="pp">|</span> Reference by name in PROC <span class="pp">|</span> <span class="in">`data$varname`</span> or <span class="in">`data[["varname"]]`</span> or <span class="in">`pull(data, varname)`</span> <span class="pp">|</span> Using <span class="in">`[["name"]]`</span> is pedantic but safe <span class="pp">|</span></span>
+<span id="cb6-243"><a href="#cb6-243" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Check length <span class="pp">|</span> <span class="in">`%LET nobs = &amp;sysnobs;`</span> <span class="pp">|</span> <span class="in">`nrow(data)`</span> <span class="pp">|</span> For vector length, use <span class="in">`length(vector)`</span> not <span class="in">`nrow()`</span> <span class="pp">|</span></span>
+<span id="cb6-244"><a href="#cb6-244" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Combine variables <span class="pp">|</span> Arrays + DO loop <span class="pp">|</span> <span class="in">`c(var1, var2, var3)`</span> <span class="pp">|</span> <span class="in">`c()`</span> combines into vector; data frame requires <span class="in">`data.frame()`</span> <span class="pp">|</span></span>
+<span id="cb6-245"><a href="#cb6-245" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-246"><a href="#cb6-246" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-247"><a href="#cb6-247" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-248"><a href="#cb6-248" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary: SAS to R Mindset Shift</span></span>
+<span id="cb6-249"><a href="#cb6-249" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-250"><a href="#cb6-250" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> SAS Concept <span class="pp">|</span> R Equivalent <span class="pp">|</span> Mindset Shift <span class="pp">|</span></span>
+<span id="cb6-251"><a href="#cb6-251" aria-hidden="true" tabindex="-1"></a><span class="pp">|-------------|--------------|---------------|</span></span>
+<span id="cb6-252"><a href="#cb6-252" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> PROC SORT + PROC MEANS <span class="pp">|</span> <span class="in">`arrange()`</span> + <span class="in">`group_by()`</span> + <span class="in">`summarise()`</span> <span class="pp">|</span> From separate steps to chained operations <span class="pp">|</span></span>
+<span id="cb6-253"><a href="#cb6-253" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Macro variables <span class="pp">|</span> Function arguments <span class="pp">|</span> From text substitution to functional programming <span class="pp">|</span></span>
+<span id="cb6-254"><a href="#cb6-254" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> DATA step loops <span class="pp">|</span> <span class="in">`mutate()`</span>, <span class="in">`map()`</span>, vectorized operations <span class="pp">|</span> From explicit loops to implicit broadcasting <span class="pp">|</span></span>
+<span id="cb6-255"><a href="#cb6-255" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> KEEP/DROP/RENAME <span class="pp">|</span> <span class="in">`select()`</span>, <span class="in">`rename()`</span> <span class="pp">|</span> From statement-based to function-based <span class="pp">|</span></span>
+<span id="cb6-256"><a href="#cb6-256" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> BY variables <span class="pp">|</span> <span class="in">`group_by()`</span> <span class="pp">|</span> From automatic iteration to explicit grouping <span class="pp">|</span></span>
+<span id="cb6-257"><a href="#cb6-257" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> ODS output <span class="pp">|</span> <span class="in">`gtsummary`</span>, <span class="in">`flextable`</span>, Quarto <span class="pp">|</span> From monolithic ODS to modular packages <span class="pp">|</span></span>
+<span id="cb6-258"><a href="#cb6-258" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> PROC PHREG, PROC GLM <span class="pp">|</span> <span class="in">`survival::coxph()`</span>, <span class="in">`lm()`</span>, <span class="in">`glm()`</span> <span class="pp">|</span> From built-in procs to function-based models <span class="pp">|</span></span>
+<span id="cb6-259"><a href="#cb6-259" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-260"><a href="#cb6-260" aria-hidden="true" tabindex="-1"></a>The good news: **SAS knowledge translates directly.** You already understand statistics; R is just a new way to express it.</span>
+<span id="cb6-261"><a href="#cb6-261" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-262"><a href="#cb6-262" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-263"><a href="#cb6-263" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-264"><a href="#cb6-264" aria-hidden="true" tabindex="-1"></a><span class="fu">## Additional Resources</span></span>
+<span id="cb6-265"><a href="#cb6-265" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-266"><a href="#cb6-266" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Base R vs. Tidyverse**: This guide emphasizes tidyverse (<span class="in">`dplyr`</span>, <span class="in">`ggplot2`</span>) because it's more readable. Base R equivalents exist but are often less elegant.</span>
+<span id="cb6-267"><a href="#cb6-267" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Package documentation**: Visit <span class="in">`?function_name`</span> in R for help, e.g., <span class="in">`?dplyr::left_join`</span></span>
+<span id="cb6-268"><a href="#cb6-268" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**RStudio Cheat Sheets**: https://posit.co/resources/cheatsheets/ includes dplyr, tidyr, and ggplot2 cheat sheets.</span>
+<span id="cb6-269"><a href="#cb6-269" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Statistical methods**: ICH E9(R1) and FDA guidance documents use statistical language, not software. The concepts are identical; syntax differs.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p><em>R for Clinical Data Analysis</em> by Divakaran, Sreedharan &amp; Singh</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/r4clinical/book/edit/main/appendices/appendix-a.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/r4clinical/book/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+<p>Built with <a href="https://quarto.org/">Quarto</a>.</p>
+</div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

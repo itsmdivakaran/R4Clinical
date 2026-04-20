@@ -1,6 +1,3 @@
----
-title: "Chapter 11: Regression Models"
----
 
 # Chapter 11: Regression Models
 
@@ -286,8 +283,8 @@ library(car)
 # Shapiro-Wilk test for normality
 shapiro.test(residuals(fit_simple))
 
-# Breusch-Pagan test for homoscedasticity
-bptest(fit_simple)
+# Breusch-Pagan test for homoscedasticity (lmtest package)
+lmtest::bptest(fit_simple)
 
 # Durbin-Watson test for independence (relevant for time-series)
 durbinWatsonTest(fit_simple)

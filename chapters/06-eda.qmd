@@ -1,10 +1,5 @@
----
-title: "Chapter 6: Exploratory Data Analysis (EDA)"
-subtitle: "Understanding Your Data Before Analysis"
-author: "Mahesh Divakaran, Jayadevan Sreedharan, Gunjan Singh"
----
 
-# Chapter 6: Exploratory Data Analysis (EDA)
+# Chapter 6: Exploratory Data Analysis (EDA): Understanding Your Data Before Analysis
 
 ## Learning Objectives
 
@@ -103,7 +98,7 @@ data(vs)
 
 # Extract systolic blood pressure at baseline
 sbp_baseline <- vs %>%
-  filter(VSTESTCD == "SYSBP", VISITNUM == 0) %>%
+  filter(VSTESTCD == "SYSBP", VISITNUM == 1) %>%
   pull(VSSTRESN) %>%
   as.numeric()
 
@@ -271,36 +266,39 @@ Where: r ranges from -1 (perfect negative) to +1 (perfect positive); r = 0 (no l
 # Load lab data
 data(lb)
 
-# Extract baseline lab values for multiple tests
+# Extract baseline lab values (first non-NA observation per subject × test)
+# SDTM lb does not carry LBBLFL; we derive the baseline as the earliest visit
 baseline_labs <- lb %>%
-  filter(LBBLFL == "Y") %>%  # Baseline flag
+  filter(!is.na(LBSTRESN)) %>%
+  group_by(USUBJID, LBTESTCD) %>%
+  slice_min(VISITNUM, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
   select(USUBJID, LBTESTCD, LBSTRESN) %>%
   pivot_wider(
-    names_from = LBTESTCD,
+    names_from  = LBTESTCD,
     values_from = LBSTRESN,
-    values_fn = mean  # In case of multiple baseline records
+    values_fn   = mean
   ) %>%
-  # Select key lab tests
-  select(USUBJID,
-         ALB = ALB,  # Albumin (g/dL)
-         CREAT = CREAT,  # Creatinine (mg/dL)
-         GLU = GLU)  # Glucose (mg/dL)
+  # Use tests available in pharmaversesdtm: ALB, CREAT, ALT
+  select(USUBJID, any_of(c("ALB", "CREAT", "ALT", "AST")))
 
-# Remove rows with missing values
-baseline_labs_complete <- baseline_labs %>%
-  filter(complete.cases(.))
+# Compute Pearson correlations (pairwise — robust to sparse data)
+lab_mat <- baseline_labs %>% select(-USUBJID) %>% select(where(is.numeric))
 
-# Compute Pearson correlations
-cor_matrix <- cor(baseline_labs_complete[, -1], method = "pearson")
+if (ncol(lab_mat) >= 2 && nrow(lab_mat) >= 5) {
+  cor_matrix <- cor(lab_mat, use = "pairwise.complete.obs", method = "pearson")
+  cat("Pearson Correlation Matrix (Baseline Labs)\n")
+  print(round(cor_matrix, 3))
 
-cat("Pearson Correlation Matrix (Baseline Labs)\n")
-print(cor_matrix)
-
-# Test for significance
-library(corrplot)
-# cor_pval function to get p-values
-cor_test <- Hmisc::rcorr(as.matrix(baseline_labs_complete[, -1]))
-print(cor_test$P)  # P-value matrix
+  # P-value for the first available pair
+  col_pairs <- combn(colnames(lab_mat), 2)
+  c1 <- col_pairs[1, 1]; c2 <- col_pairs[2, 1]
+  ct <- cor.test(lab_mat[[c1]], lab_mat[[c2]], method = "pearson")
+  cat(sprintf("\nPearson p-values (%s vs %s): r = %.3f, p = %.4f\n",
+              c1, c2, ct$estimate, ct$p.value))
+} else {
+  cat("Insufficient data for correlation analysis.\n")
+}
 ```
 
 ### Spearman Correlation (Non-Normal Data)
@@ -313,15 +311,22 @@ Where: $d_i$ = difference in ranks for each pair
 
 ```{r}
 # Spearman correlation (rank-based, robust to non-normality)
-spearman_matrix <- cor(baseline_labs_complete[, -1], method = "spearman")
+lab_mat2 <- baseline_labs %>% select(-USUBJID) %>% select(where(is.numeric))
+spearman_matrix <- cor(lab_mat2, use = "pairwise.complete.obs", method = "spearman")
 
 cat("\nSpearman Correlation Matrix (Baseline Labs)\n")
-print(spearman_matrix)
+print(round(spearman_matrix, 3))
 
 # Pearson vs. Spearman comparison
 cat("\nComparison:\n")
-cat("Pearson r (ALB vs CREAT) =", round(cor_matrix["ALB", "CREAT"], 3), "\n")
-cat("Spearman rho (ALB vs CREAT) =", round(spearman_matrix["ALB", "CREAT"], 3), "\n")
+if (exists("cor_matrix") &&
+    "ALB" %in% rownames(cor_matrix) && "CREAT" %in% rownames(cor_matrix) &&
+    "ALB" %in% rownames(spearman_matrix) && "CREAT" %in% rownames(spearman_matrix)) {
+  cat("Pearson r (ALB vs CREAT) =",   round(cor_matrix["ALB",     "CREAT"], 3), "\n")
+  cat("Spearman rho (ALB vs CREAT) =", round(spearman_matrix["ALB","CREAT"], 3), "\n")
+} else {
+  cat("Correlation comparison: see matrices above\n")
+}
 ```
 
 ---
@@ -381,7 +386,7 @@ data(lb)
 baseline_data <- dm %>%
   left_join(
     vs %>%
-      filter(VSTESTCD == "SYSBP", VISITNUM == 0) %>%
+      filter(VSTESTCD == "SYSBP", VISITNUM == 1) %>%
       select(USUBJID, VSSTRESN) %>%
       mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
       rename(SBP_Baseline = VSSTRESN),
@@ -389,7 +394,10 @@ baseline_data <- dm %>%
   ) %>%
   left_join(
     lb %>%
-      filter(LBTESTCD == "CREAT", LBBLFL == "Y") %>%
+      filter(LBTESTCD == "CREAT", !is.na(LBSTRESN)) %>%
+      group_by(USUBJID) %>%
+      slice_min(VISITNUM, n = 1, with_ties = FALSE) %>%
+      ungroup() %>%
       select(USUBJID, LBSTRESN) %>%
       rename(CREATININE = LBSTRESN),
     by = "USUBJID"
@@ -501,15 +509,19 @@ print(demo_summary)
 cat("\n=== BASELINE VITALS BY ARM ===\n\n")
 
 baseline_vitals <- vs %>%
-  filter(VISITNUM == 0, VSTESTCD %in% c("SYSBP", "DIABP", "HR")) %>%
+  filter(VISITNUM == 1, VSTESTCD %in% c("SYSBP", "DIABP", "PULSE"),
+         !is.na(VSSTRESN)) %>%
   select(USUBJID, VSTESTCD, VSSTRESN) %>%
   mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
+  # Average if multiple records per subject × parameter (avoids list columns)
+  group_by(USUBJID, VSTESTCD) %>%
+  summarise(VSSTRESN = mean(VSSTRESN, na.rm = TRUE), .groups = "drop") %>%
   pivot_wider(
-    names_from = VSTESTCD,
+    names_from  = VSTESTCD,
     values_from = VSSTRESN
   ) %>%
   left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
-  select(ARM, SYSBP, DIABP, HR)
+  select(ARM, any_of(c("SYSBP", "DIABP", "PULSE")))
 
 baseline_vitals %>%
   tbl_summary(
@@ -521,7 +533,7 @@ baseline_vitals %>%
     label = list(
       SYSBP ~ "Systolic BP (mmHg)",
       DIABP ~ "Diastolic BP (mmHg)",
-      HR ~ "Heart Rate (bpm)"
+      PULSE ~ "Heart Rate (bpm)"
     ),
     missing = "no"
   ) %>%
@@ -532,7 +544,7 @@ baseline_vitals %>%
 cat("\n=== NORMALITY TESTS (SHAPIRO-WILK) ===\n\n")
 
 sbp_by_arm <- vs %>%
-  filter(VISITNUM == 0, VSTESTCD == "SYSBP") %>%
+  filter(VISITNUM == 1, VSTESTCD == "SYSBP") %>%
   select(USUBJID, VSSTRESN) %>%
   mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
   left_join(dm %>% select(USUBJID, ARM), by = "USUBJID")
@@ -551,7 +563,7 @@ for (arm in unique(sbp_by_arm$ARM)) {
 cat("\n=== OUTLIER DETECTION (IQR METHOD) ===\n\n")
 
 sbp_all <- vs %>%
-  filter(VISITNUM == 0, VSTESTCD == "SYSBP") %>%
+  filter(VISITNUM == 1, VSTESTCD == "SYSBP") %>%
   pull(VSSTRESN) %>%
   as.numeric()
 
@@ -568,21 +580,31 @@ cat(sprintf("Number of outliers: %d\n", outlier_count))
 # ========== STEP 5: BASELINE LAB CORRELATIONS ==========
 cat("\n=== BASELINE LAB CORRELATIONS ===\n\n")
 
+# Select a handful of well-populated tests to ensure enough complete pairs
+common_tests <- c("ALT", "AST", "CREAT", "ALB", "BILI")
+
 baseline_labs_corr <- lb %>%
-  filter(LBBLFL == "Y") %>%
+  filter(!is.na(LBSTRESN), LBTESTCD %in% common_tests) %>%
+  group_by(USUBJID, LBTESTCD) %>%
+  slice_min(VISITNUM, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
   select(USUBJID, LBTESTCD, LBSTRESN) %>%
   pivot_wider(
-    names_from = LBTESTCD,
+    names_from  = LBTESTCD,
     values_from = LBSTRESN,
-    values_fn = mean
+    values_fn   = mean
   ) %>%
-  # Select numeric labs only
   select(-USUBJID) %>%
   select(where(is.numeric))
 
-cor_matrix <- cor(baseline_labs_corr, use = "complete.obs", method = "pearson")
-cat("Pearson Correlation Matrix:\n")
-print(round(cor_matrix, 2))
+# pairwise.complete.obs uses all available pairs — robust to sparse data
+if (ncol(baseline_labs_corr) >= 2) {
+  cor_matrix <- cor(baseline_labs_corr, use = "pairwise.complete.obs", method = "pearson")
+  cat("Pearson Correlation Matrix (key liver/renal labs):\n")
+  print(round(cor_matrix, 2))
+} else {
+  cat("Insufficient lab columns for correlation analysis.\n")
+}
 
 # ========== STEP 6: ADVERSE EVENTS OVERVIEW ==========
 cat("\n=== ADVERSE EVENTS OVERVIEW ===\n\n")
@@ -648,7 +670,7 @@ In clinical trials, EDA is not a "nice-to-have"—it's essential due diligence.
 
 **6.1 Summary Statistics**
 
-Using the pharmaversesdtm::vs dataset, filter to VSTESTCD == "SYSBP" and VISITNUM == 0 (baseline), then calculate:
+Using the pharmaversesdtm::vs dataset, filter to VSTESTCD == "SYSBP" and VISITNUM == 1 (baseline), then calculate:
 1. Mean
 2. Median
 3. Standard Deviation
@@ -659,7 +681,7 @@ Using the pharmaversesdtm::vs dataset, filter to VSTESTCD == "SYSBP" and VISITNU
 ```{r}
 data(vs)
 sbp <- vs %>%
-  filter(VSTESTCD == "SYSBP", VISITNUM == 0) %>%
+  filter(VSTESTCD == "SYSBP", VISITNUM == 1) %>%
   pull(VSSTRESN) %>%
   as.numeric()
 

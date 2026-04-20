@@ -1,6 +1,3 @@
----
-title: "Chapter 15: Safety Analysis in Clinical Trials"
----
 
 # Safety Analysis in Clinical Trials
 
@@ -123,12 +120,12 @@ Report the **worst grade** experienced by each subject, not total count.
 ```r
 # Compute maximum grade per subject per PT
 ae_max_grade <- ae_data %>%
-  group_by(USUBJID, TRTA, AEPT) %>%
+  group_by(USUBJID, ARM, AEDECOD) %>%
   summarise(
     max_grade = max(AESEV, na.rm = TRUE),
     .groups = "drop"
   ) %>%
-  group_by(AEPT, TRTA, max_grade) %>%
+  group_by(AEDECOD, ARM, max_grade) %>%
   summarise(
     n = n_distinct(USUBJID),
     .groups = "drop"
@@ -174,42 +171,42 @@ data(ae)
 # Prepare AE data
 ae_summary <- ae %>%
   filter(AESER == "N") %>%  # Non-serious AEs
-  select(USUBJID, TRTA, AESOC, AEPT, AEGRAD = AEGRADE) %>%
+  select(USUBJID, ARM, AESOC, AEDECOD, AEGRAD = AEGRADE) %>%
   distinct() %>%  # One row per subject per PT
-  group_by(AEPT, AESOC, TRTA) %>%
+  group_by(AEDECOD, AESOC, ARM) %>%
   summarise(
     n = n_distinct(USUBJID),
     .groups = "drop"
   ) %>%
-  arrange(AESOC, AEPT)
+  arrange(AESOC, AEDECOD)
 
 # Count total subjects by treatment
 n_subjects <- ae %>%
-  group_by(TRTA) %>%
+  group_by(ARM) %>%
   summarise(N = n_distinct(USUBJID), .groups = "drop")
 
 # Create summary table
 ae_table <- ae_summary %>%
-  left_join(n_subjects, by = "TRTA") %>%
+  left_join(n_subjects, by = "ARM") %>%
   mutate(
     Pct = 100 * n / N,
     `n (%)` = sprintf("%d (%.1f%%)", n, Pct)
   ) %>%
-  select(AESOC, AEPT, TRTA, `n (%)`) %>%
+  select(AESOC, AEDECOD, ARM, `n (%)`) %>%
   pivot_wider(
-    names_from = TRTA,
+    names_from = ARM,
     values_from = `n (%)`
   ) %>%
-  arrange(AESOC, AEPT)
+  arrange(AESOC, AEDECOD)
 
 print(ae_table)
 
 # Using gtsummary for formatted output
 ae_gt <- ae_summary %>%
   tbl_summary(
-    by = TRTA,
-    type = list(AEPT ~ "categorical"),
-    label = list(AEPT ~ "Adverse Event")
+    by = ARM,
+    type = list(AEDECOD ~ "categorical"),
+    label = list(AEDECOD ~ "Adverse Event")
   ) %>%
   add_overall() %>%
   bold_labels() %>%
@@ -225,7 +222,7 @@ library(gt)
 
 ae_gt_table <- ae_summary %>%
   pivot_wider(
-    names_from = TRTA,
+    names_from = ARM,
     values_from = n,
     values_fill = 0
   ) %>%
@@ -234,16 +231,16 @@ ae_gt_table <- ae_summary %>%
     title = "Adverse Events by System Organ Class and Preferred Term",
     subtitle = "All Grade Adverse Events (Safety Population)"
   ) %>%
-  cols_label(
-    AEPT = "Preferred Term",
-    `Drug A` = "Drug A (N=100)",
-    Placebo = "Placebo (N=100)"
-  ) %>%
+  { ae_table_gt <- .
+    arm_cols <- setdiff(names(ae_table_gt[["_data"]]), c("AEDECOD", "AESOC", "Total"))
+    col_labels_list <- setNames(as.list(arm_cols), arm_cols)
+    col_labels_list[["AEDECOD"]] <- "Adverse Event"
+    ae_table_gt %>% gt::cols_label(.list = col_labels_list) } %>%
   tab_style(
     style = cell_text(weight = "bold"),
     locations = cells_row_groups()
   ) %>%
-  fmt_number(columns = c(`Drug A`, Placebo), decimals = 0) %>%
+  fmt_number(columns = where(is.numeric), decimals = 0) %>%
   tab_footnote(
     footnote = "Safety population includes all subjects with ≥1 dose of study drug"
   )
@@ -263,16 +260,16 @@ library(ggsurvfit)
 
 # Prepare data: time to first occurrence of specific AE
 ae_first <- ae %>%
-  filter(AEPT == "Headache") %>%
-  group_by(USUBJID, TRTA) %>%
+  filter(AEDECOD == "Headache") %>%
+  group_by(USUBJID, ARM) %>%
   slice(1) %>%  # First occurrence only
   ungroup() %>%
-  select(USUBJID, TRTA, AESTDY) %>%
+  select(USUBJID, ARM, AESTDY) %>%
   distinct()
 
 # Add censoring for subjects without the AE
 ae_censored <- ae %>%
-  select(USUBJID, TRTA) %>%
+  select(USUBJID, ARM) %>%
   distinct() %>%
   anti_join(ae_first, by = "USUBJID") %>%
   mutate(
@@ -286,25 +283,27 @@ ae_first <- ae_first %>%
 
 # Fit Kaplan-Meier for AE onset
 km_ae <- survfit(
-  Surv(AESTDY, event) ~ TRTA,
+  Surv(AESTDY, event) ~ ARM,
   data = ae_first
 )
 
 # Plot
-gg_ae <- ggsurvfit(km_ae) +
-  labs(
-    title = "Time to Onset of Headache",
-    x = "Days from Treatment Start",
-    y = "Probability of Remaining Free from Headache",
-    caption = "Kaplan-Meier curve for first occurrence"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.position = "inside",
-    legend.position.inside = c(0.75, 0.25)
-  )
+if (requireNamespace("ggsurvfit", quietly = TRUE)) {
+  gg_ae <- ggsurvfit::ggsurvfit(km_ae) +
+    labs(
+      title = "Time to Onset of Headache",
+      x = "Days from Treatment Start",
+      y = "Probability of Remaining Free from Headache",
+      caption = "Kaplan-Meier curve for first occurrence"
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "inside",
+      legend.position.inside = c(0.75, 0.25)
+    )
 
-print(gg_ae)
+  print(gg_ae)
+}
 
 # Median time to onset
 summary(km_ae, times = c(30, 60, 90))
@@ -337,19 +336,32 @@ Total               49        16        34         99
 
 ```r
 # Prepare baseline and final visit lab values
-lb_shift <- lb %>%
-  filter(LBTESTCD == "HGB") %>%
-  select(USUBJID, TRTA, LBDY, LBSTRESN, LBNRIND) %>%
-  arrange(USUBJID, LBDY) %>%
+lb_alt <- lb %>%
+  filter(LBTESTCD == "ALT", !is.na(LBNRIND)) %>%
+  select(USUBJID, VISITNUM, LBNRIND) %>%
+  arrange(USUBJID, VISITNUM)
+
+lb_baseline <- lb_alt %>%
   group_by(USUBJID) %>%
+  slice_min(VISITNUM, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(USUBJID, Baseline = LBNRIND)
+
+lb_final <- lb_alt %>%
+  group_by(USUBJID) %>%
+  slice_max(VISITNUM, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(USUBJID, Final = LBNRIND)
+
+lb_shift <- lb_baseline %>%
+  inner_join(lb_final, by = "USUBJID") %>%
+  filter(!(is.na(Baseline) | is.na(Final))) %>%
   mutate(
-    visit = if_else(LBDY <= 7, "Baseline", "Final"),
-    LBNRIND = factor(LBNRIND, levels = c("N", "L", "H"),
-                     labels = c("Normal", "Low", "High"))
-  ) %>%
-  filter(visit %in% c("Baseline", "Final")) %>%
-  select(USUBJID, visit, LBNRIND) %>%
-  pivot_wider(names_from = visit, values_from = LBNRIND)
+    Baseline = factor(Baseline, levels = c("N", "L", "H"),
+                      labels = c("Normal", "Low", "High")),
+    Final    = factor(Final,    levels = c("N", "L", "H"),
+                      labels = c("Normal", "Low", "High"))
+  )
 
 # Count transitions
 shift_table <- lb_shift %>%
@@ -384,33 +396,41 @@ Summarize AE severity distribution per PT and treatment.
 ```r
 # Compute maximum grade per subject per PT
 ae_max <- ae %>%
-  group_by(USUBJID, TRTA, AEPT) %>%
+  left_join(dm %>% filter(!is.na(ARM), ARM != "") %>% select(USUBJID, ARM), by = "USUBJID") %>%
+  mutate(
+    grade_num = case_match(AESEV,
+      "MILD" ~ 1L, "MODERATE" ~ 2L, "SEVERE" ~ 3L,
+      .default = NA_integer_)
+  ) %>%
+  group_by(USUBJID, ARM, AEDECOD) %>%
   summarise(
-    max_grade = max(AEGRADE, na.rm = TRUE),
+    max_grade = max(grade_num, na.rm = TRUE),
     .groups = "drop"
-  )
+  ) %>%
+  filter(is.finite(max_grade))
 
 # Create table: PT x Grade distribution
 grade_table <- ae_max %>%
-  count(AEPT, TRTA, max_grade) %>%
+  count(AEDECOD, ARM, max_grade) %>%
   pivot_wider(
     names_from = max_grade,
     values_from = n,
     names_prefix = "Grade_",
     values_fill = 0
   ) %>%
+  { df <- .; for (g in c("Grade_3","Grade_4")) if (!g %in% names(df)) df[[g]] <- 0L; df } %>%
   arrange(desc(Grade_3 + Grade_4))  # Sort by severe AEs
 
 print(grade_table)
 
 # Visualization: Stacked bar chart
 ae_grade_plot <- ae_max %>%
-  count(TRTA, AEPT, max_grade) %>%
+  count(ARM, AEDECOD, max_grade) %>%
   filter(n > 0) %>%
-  arrange(AEPT, max_grade) %>%
-  ggplot(aes(x = reorder(AEPT, -n), y = n, fill = factor(max_grade))) +
+  arrange(AEDECOD, max_grade) %>%
+  ggplot(aes(x = reorder(AEDECOD, -n), y = n, fill = factor(max_grade))) +
   geom_col(position = "stack") +
-  facet_wrap(~TRTA) +
+  facet_wrap(~ARM) +
   scale_fill_brewer(palette = "RdYlGn_r", name = "Grade") +
   labs(
     title = "Distribution of Adverse Event Severity",
@@ -433,17 +453,17 @@ Critical safety analyses focus on high-impact events.
 # SAE incidence by treatment
 sae_summary <- ae %>%
   filter(AESER == "Y") %>%  # Serious AEs only
-  group_by(TRTA) %>%
+  group_by(ARM) %>%
   summarise(
     n_subjects = n_distinct(USUBJID),
     n_events = n(),
     .groups = "drop"
   ) %>%
   left_join(
-    ae %>% select(USUBJID, TRTA) %>% distinct() %>%
-      group_by(TRTA) %>%
+    ae %>% select(USUBJID, ARM) %>% distinct() %>%
+      group_by(ARM) %>%
       summarise(N_total = n_distinct(USUBJID), .groups = "drop"),
-    by = "TRTA"
+    by = "ARM"
   ) %>%
   mutate(
     pct_subjects = 100 * n_subjects / N_total,
@@ -455,7 +475,7 @@ print(sae_summary)
 # List all SAEs with details
 sae_list <- ae %>%
   filter(AESER == "Y") %>%
-  select(USUBJID, TRTA, AEPT, AEGRAD, AEACN, AEREL) %>%
+  select(any_of(c("USUBJID", "ARM", "AEDECOD", "AETOXGR", "AEACN", "AEREL"))) %>%
   arrange(USUBJID)
 
 print(sae_list)
@@ -467,26 +487,26 @@ print(sae_list)
 # Count discontinuations by treatment
 disc_summary <- ae %>%
   filter(AEACN %in% c("DRUG DISCONTINUED", "DOSE REDUCED")) %>%
-  group_by(USUBJID, TRTA) %>%
+  group_by(USUBJID, ARM) %>%
   slice(1) %>%  # First such event per subject
   ungroup() %>%
-  group_by(TRTA) %>%
+  group_by(ARM) %>%
   summarise(
     n_discontinued = n_distinct(USUBJID),
     .groups = "drop"
   ) %>%
   left_join(
-    ae %>% select(USUBJID, TRTA) %>% distinct() %>%
-      group_by(TRTA) %>%
+    ae %>% select(USUBJID, ARM) %>% distinct() %>%
+      group_by(ARM) %>%
       summarise(N_total = n_distinct(USUBJID), .groups = "drop"),
-    by = "TRTA"
+    by = "ARM"
   ) %>%
   mutate(
     pct_discontinued = 100 * n_discontinued / N_total,
     `n (%)` = sprintf("%d (%.1f%%)", n_discontinued, pct_discontinued)
   )
 
-print(disc_summary %>% select(TRTA, `n (%)`))
+print(disc_summary %>% select(ARM, `n (%)`))
 ```
 
 ## Adverse Event Dot Plots
@@ -498,18 +518,18 @@ library(ggplot2)
 
 # Compute AE incidence by PT and treatment
 ae_incidence <- ae %>%
-  select(USUBJID, TRTA, AEPT) %>%
+  select(USUBJID, ARM, AEDECOD) %>%
   distinct() %>%
-  group_by(AEPT, TRTA) %>%
+  group_by(AEDECOD, ARM) %>%
   summarise(
     n = n_distinct(USUBJID),
     .groups = "drop"
   ) %>%
   left_join(
-    ae %>% select(USUBJID, TRTA) %>% distinct() %>%
-      group_by(TRTA) %>%
+    ae %>% select(USUBJID, ARM) %>% distinct() %>%
+      group_by(ARM) %>%
       summarise(N_total = n_distinct(USUBJID), .groups = "drop"),
-    by = "TRTA"
+    by = "ARM"
   ) %>%
   mutate(pct = 100 * n / N_total) %>%
   filter(n > 0)  # Only AEs that occurred
@@ -517,11 +537,11 @@ ae_incidence <- ae %>%
 # Forest plot style
 ae_forest <- ae_incidence %>%
   filter(pct >= 3) %>%  # Focus on more common AEs
-  arrange(AEPT) %>%
-  ggplot(aes(x = AEPT, y = pct, color = TRTA, shape = TRTA)) +
+  arrange(AEDECOD) %>%
+  ggplot(aes(x = AEDECOD, y = pct, color = ARM, shape = ARM)) +
   geom_point(size = 3) +
   coord_flip() +
-  facet_wrap(~TRTA) +
+  facet_wrap(~ARM) +
   labs(
     title = "Incidence of Adverse Events (≥3% in Either Arm)",
     x = "Preferred Term",
@@ -539,7 +559,7 @@ print(ae_forest)
 ae_comparison <- ae_incidence %>%
   filter(pct >= 2) %>%
   pivot_wider(
-    names_from = TRTA,
+    names_from = ARM,
     values_from = pct,
     values_fill = 0
   ) %>%
@@ -548,7 +568,7 @@ ae_comparison <- ae_incidence %>%
     higher_arm = if_else(`Drug A` > Placebo, "Drug A", "Placebo")
   ) %>%
   arrange(diff) %>%
-  ggplot(aes(x = reorder(AEPT, diff), y = diff, fill = higher_arm)) +
+  ggplot(aes(x = reorder(AEDECOD, diff), y = diff, fill = higher_arm)) +
   geom_col() +
   coord_flip() +
   labs(
@@ -577,29 +597,29 @@ data(ex)  # Exposure for calculating EAIR
 # 1. Basic AE incidence
 ae_summary <- ae %>%
   filter(AESER == "N") %>%
-  select(USUBJID, TRTA, AEPT, AEGRADE) %>%
+  select(USUBJID, ARM, AEDECOD, AEGRADE) %>%
   distinct() %>%
-  group_by(AEPT, TRTA) %>%
+  group_by(AEDECOD, ARM) %>%
   summarise(
     n = n_distinct(USUBJID),
     .groups = "drop"
   ) %>%
   left_join(
-    ae %>% select(USUBJID, TRTA) %>% distinct() %>%
-      group_by(TRTA) %>%
+    ae %>% select(USUBJID, ARM) %>% distinct() %>%
+      group_by(ARM) %>%
       summarise(N = n_distinct(USUBJID), .groups = "drop"),
-    by = "TRTA"
+    by = "ARM"
   ) %>%
   mutate(`n (%)` = sprintf("%d (%.1f%%)", n, 100 * n / N)) %>%
-  select(AEPT, TRTA, `n (%)`) %>%
-  pivot_wider(names_from = TRTA, values_from = `n (%)`) %>%
-  arrange(desc(AEPT))
+  select(AEDECOD, ARM, `n (%)`) %>%
+  pivot_wider(names_from = ARM, values_from = `n (%)`) %>%
+  arrange(desc(AEDECOD))
 
 print(ae_summary)
 
 # 2. Calculate EAIR
 exposure <- ex %>%
-  group_by(USUBJID, TRTA) %>%
+  group_by(USUBJID, ARM) %>%
   summarise(
     exposure_days = max(EXENDY, na.rm = TRUE),
     exposure_years = exposure_days / 365.25,
@@ -607,71 +627,71 @@ exposure <- ex %>%
   )
 
 ae_events <- ae %>%
-  group_by(TRTA) %>%
+  group_by(ARM) %>%
   summarise(total_ae_events = n(), .groups = "drop")
 
 eair_calc <- exposure %>%
-  group_by(TRTA) %>%
+  group_by(ARM) %>%
   summarise(
     total_exposure_years = sum(exposure_years, na.rm = TRUE),
     n_subjects = n_distinct(USUBJID),
     .groups = "drop"
   ) %>%
-  left_join(ae_events, by = "TRTA") %>%
+  left_join(ae_events, by = "ARM") %>%
   mutate(
     EAIR = (total_ae_events / total_exposure_years) * 100,
     EAIR_text = sprintf("%.2f per 100 person-years", EAIR)
   )
 
-print(eair_calc %>% select(TRTA, EAIR_text))
+print(eair_calc %>% select(ARM, EAIR_text))
 
 # 3. SAE summary
 sae_summary <- ae %>%
   filter(AESER == "Y") %>%
-  group_by(TRTA) %>%
+  group_by(ARM) %>%
   summarise(
     n_sae_subjects = n_distinct(USUBJID),
     n_sae_events = n(),
     .groups = "drop"
   ) %>%
   left_join(
-    ae %>% select(USUBJID, TRTA) %>% distinct() %>%
-      group_by(TRTA) %>%
+    ae %>% select(USUBJID, ARM) %>% distinct() %>%
+      group_by(ARM) %>%
       summarise(N_total = n_distinct(USUBJID), .groups = "drop"),
-    by = "TRTA"
+    by = "ARM"
   ) %>%
   mutate(
     `SAE subjects n (%)` = sprintf("%d (%.1f%%)", n_sae_subjects,
                                      100 * n_sae_subjects / N_total),
     `SAE rate` = sprintf("%.2f per 100 subjects", 100 * n_sae_events / N_total)
   ) %>%
-  select(TRTA, `SAE subjects n (%)`, `SAE rate`)
+  select(ARM, `SAE subjects n (%)`, `SAE rate`)
 
 print(sae_summary)
 
 # 4. Discontinuation due to AE
 disc_ae <- ae %>%
   filter(AEACN == "DRUG DISCONTINUED") %>%
-  group_by(USUBJID, TRTA) %>%
+  group_by(USUBJID, ARM) %>%
   slice(1) %>%
   ungroup()
 
 disc_summary <- ae %>%
-  select(USUBJID, TRTA) %>%
+  select(USUBJID, ARM) %>%
   distinct() %>%
-  group_by(TRTA) %>%
+  group_by(ARM) %>%
   summarise(N = n_distinct(USUBJID), .groups = "drop") %>%
   left_join(
     disc_ae %>%
-      group_by(TRTA) %>%
+      group_by(ARM) %>%
       summarise(n_disc = n_distinct(USUBJID), .groups = "drop"),
-    by = "TRTA"
+    by = "ARM"
   ) %>%
   mutate(
     n_disc = coalesce(n_disc, 0),
     `Discontinued n (%)` = sprintf("%d (%.1f%%)", n_disc, 100 * n_disc / N)
   ) %>%
-  select(TRTA, `Discontinued n (%)`)
+  select(ARM, `Discontinued n (%)`)
 
 print(disc_summary)
 

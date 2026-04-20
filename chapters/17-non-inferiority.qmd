@@ -1,6 +1,7 @@
----
-title: "Chapter 17: Non-Inferiority and Equivalence Trials"
----
+
+
+# Non-Inferiority and Equivalence Trials
+
 
 ## Introduction
 

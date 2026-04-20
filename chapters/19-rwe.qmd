@@ -1,6 +1,5 @@
----
-title: "Chapter 19: Real-World Evidence (RWE)"
----
+# Real-World Evidence (RWE)
+
 
 ## Introduction
 
@@ -513,10 +512,10 @@ cat("- At least", round(e_value, 2), "x association with mortality\n")
 cat("(Or some combination, e.g., 2.0x and 1.5x, whose product is e-value)\n\n")
 
 # Check clinical plausibility
-if (e_value > 3.0) {
+if (isTRUE(e_value > 3.0)) {
   cat("REASSURING: An unmeasured confounder would need implausibly strong associations\n")
   cat("to explain away the treatment effect.\n")
-} else if (e_value > 1.5) {
+} else if (isTRUE(e_value > 1.5)) {
   cat("MODERATE: An unmeasured confounder with moderate-to-strong associations\n")
   cat("could plausibly explain the treatment effect.\n")
 } else {

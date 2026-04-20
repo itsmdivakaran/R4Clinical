@@ -1,6 +1,3 @@
----
-title: "Chapter 8: Descriptive Statistics"
----
 
 # Chapter 8: Descriptive Statistics
 

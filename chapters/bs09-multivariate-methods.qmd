@@ -1,0 +1,2124 @@
+# Multivariate Methods in Clinical Research
+
+
+## Introduction
+
+Multivariate statistical methods are essential tools in clinical research that allow analysts to examine multiple variables simultaneously, uncovering complex relationships and patterns in high-dimensional clinical data. While univariate methods analyze a single variable and bivariate methods examine relationships between two variables, multivariate approaches address real-world scenarios where numerous clinical measurements are collected on each patient.
+
+### Why Multivariate Methods Matter in Clinical Research
+
+Clinical studies routinely collect dozens or hundreds of measurements per subject: laboratory values, vital signs, imaging metrics, genomic data, and patient-reported outcomes. Key motivations for multivariate analysis include:
+
+1. **Dimensionality Reduction**: Vital signs measured during clinic visits (systolic/diastolic BP, pulse, temperature, weight, height) are often correlated. PCA can reduce 5+ variables to 1-2 principal components while retaining 85-95% of total variance.
+
+2. **Patient Stratification**: Clustering methods identify subgroups of patients with similar clinical profiles, enabling precision medicine approaches.
+
+3. **Confounding Control**: Propensity score methods balance treatment groups on numerous confounders simultaneously, mimicking randomization in observational studies.
+
+4. **Multiple Endpoint Analysis**: MANOVA protects against inflated Type I error when testing whether a treatment affects multiple correlated outcomes simultaneously.
+
+5. **Biomarker Discovery**: Factor analysis and clustering reveal latent patterns in biomarker panels, such as liver function vs. renal function factors.
+
+6. **Classification and Prediction**: Discriminant analysis and logistic regression with multiple predictors enable patient risk stratification and treatment prediction.
+
+### Types of Multivariate Methods
+
+This chapter covers six major categories:
+
+- **Dimensionality Reduction**: PCA, Factor Analysis — compress high-dimensional data while preserving information
+- **Clustering**: K-means, Hierarchical clustering — group similar observations without predefined classes
+- **Multivariate Inference**: MANOVA — test multiple correlated outcomes simultaneously
+- **Causal Inference**: Propensity score analysis — balance confounders in observational studies
+- **Classification**: Linear Discriminant Analysis (LDA) — predict class membership from multiple features
+- **Longitudinal Analysis**: Growth curves, repeated measures — analyze changes over time in multiple variables
+
+### Chapter Structure
+
+This chapter progresses from theoretical foundations to practical clinical applications using the pharmaversesdtm dataset. All code is fully executable using base R and tidyverse packages, requiring only libraries commonly available in clinical research environments.
+
+---
+
+## 1. Principal Component Analysis (PCA)
+
+### Theory and Foundations
+
+Principal Component Analysis is an unsupervised dimensionality reduction technique that transforms correlated variables into a smaller set of uncorrelated principal components (PCs).
+
+**Key Concepts:**
+
+- **Covariance Matrix**: For p variables, the p × p covariance matrix Σ captures pairwise correlations.
+- **Eigendecomposition**: Σ = VΛV^T, where V contains eigenvectors (loadings) and Λ is diagonal with eigenvalues (variances of PCs).
+- **Principal Components**: PC₁ is the direction of maximum variance; PC₂ is orthogonal to PC₁ with second-largest variance.
+- **Variance Explained**: λₖ / Σλⱼ gives the proportion of total variance explained by the k-th PC.
+- **Loadings**: Correlations between original variables and PCs show which variables drive each component.
+
+**Clinical Relevance:** Vital signs (systolic BP, diastolic BP, pulse, weight, height) are inherently correlated. A 10-unit increase in systolic BP often accompanies increases in diastolic BP. PCA reduces redundancy while preserving information about blood pressure profiles and body habitus.
+
+### Clinical Example: Vital Signs PCA
+
+We analyze 5 vital sign measurements from the pharmaversesdtm dataset: systolic BP (SYSBP), diastolic BP (DIABP), pulse (PULSE), weight (WEIGHT), and height (HEIGHT).
+
+```{r}
+#| label: setup-bs09
+#| include: false
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(pharmaversesdtm)
+data(vs)
+data(dm)
+```
+
+```{r}
+# Filter vital signs to the 5 measurements of interest
+vital_signs_of_interest <- c("SYSBP", "DIABP", "PULSE", "WEIGHT", "HEIGHT")
+
+vs_filtered <- vs %>%
+  filter(VSTESTCD %in% vital_signs_of_interest) %>%
+  select(USUBJID, VSTESTCD, VSSTRESN) %>%
+  distinct()
+
+# Pivot to wide format: one row per subject (last available value)
+vs_wide <- vs_filtered %>%
+  pivot_wider(
+    names_from = VSTESTCD,
+    values_from = VSSTRESN,
+    values_fn = mean  # Use mean if multiple visits
+  )
+
+# Join with demographics to get ARM assignment (exclude screen failures with blank ARM)
+vs_for_pca <- vs_wide %>%
+  left_join(
+    dm %>% filter(!is.na(ARM), ARM != "") %>% select(USUBJID, ARM),
+    by = "USUBJID"
+  )
+
+# Remove rows with missing values in vital signs or ARM
+vs_for_pca_complete <- vs_for_pca %>%
+  filter(!is.na(ARM), ARM != "") %>%
+  filter(complete.cases(across(all_of(vital_signs_of_interest))))
+
+cat("Subjects with complete vital signs data:", nrow(vs_for_pca_complete), "\n")
+```
+
+```{r}
+cat("Vital signs matrix dimensions:", nrow(vs_for_pca_complete), "x", length(vital_signs_of_interest), "\n")
+```
+
+
+
+
+```{r}
+# Extract the vital signs matrix and standardize
+vs_matrix <- vs_for_pca_complete %>%
+  select(all_of(vital_signs_of_interest)) %>%
+  as.matrix()
+
+# Perform PCA with scaling (standardize to mean 0, SD 1)
+pca_result <- prcomp(vs_matrix, scale. = TRUE)
+
+# Extract variance explained by each PC
+pca_var <- pca_result$sdev^2
+pca_var_prop <- pca_var / sum(pca_var)
+pca_var_cumsum <- cumsum(pca_var_prop)
+
+# Create a summary table
+pca_summary <- data.frame(
+  PC = paste0("PC", 1:length(pca_var)),
+  Variance = round(pca_var, 4),
+  Prop_Var = round(pca_var_prop, 4),
+  Cumsum_Var = round(pca_var_cumsum, 4)
+)
+
+print(pca_summary)
+```
+
+```{r}
+cat("\nInterpretation:\n")
+```
+
+```{r}
+cat("PC1 explains", round(pca_var_prop[1]*100, 1), "% of total variance\n")
+```
+
+```{r}
+cat("PC1 + PC2 explain", round(pca_var_cumsum[2]*100, 1), "% of total variance\n")
+```
+
+
+
+
+```{r}
+# Extract loadings (correlations between original variables and PCs)
+loadings_matrix <- pca_result$rotation[, 1:4]
+print("PCA Loadings (first 4 PCs):")
+```
+
+```{r}
+print(round(loadings_matrix, 3))
+```
+
+```{r}
+# Interpretation: PC1 shows strong positive loadings on all vital signs
+cat("\nPC1 Interpretation:\n")
+```
+
+```{r}
+cat("Positive loadings on all variables suggest PC1 represents overall body/cardiovascular 'size'\n")
+```
+
+```{r}
+cat("SYSBP:", round(loadings_matrix[1, 1], 3),
+    "| WEIGHT:", round(loadings_matrix[4, 1], 3),
+    "| HEIGHT:", round(loadings_matrix[5, 1], 3), "\n")
+```
+
+```{r}
+cat("\nPC2 Interpretation:\n")
+```
+
+```{r}
+cat("Contrast between blood pressure (negative) vs body size (positive):\n")
+```
+
+```{r}
+cat("SYSBP:", round(loadings_matrix[1, 2], 3),
+    "| WEIGHT:", round(loadings_matrix[4, 2], 3), "\n")
+```
+
+
+
+
+```{r}
+# Create scree plot showing variance explained
+par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+
+# Variance by PC
+barplot(pca_var_prop[1:5],
+        names.arg = paste0("PC", 1:5),
+        ylab = "Proportion of Variance",
+        xlab = "Principal Component",
+        main = "Scree Plot: Variance Explained by Each PC",
+        col = "steelblue",
+        ylim = c(0, max(pca_var_prop) * 1.1))
+
+# Cumulative variance
+plot(1:5, pca_var_cumsum[1:5],
+     type = "b",
+     xlab = "Number of Components",
+     ylab = "Cumulative Proportion of Variance",
+     main = "Cumulative Variance Explained",
+     xlim = c(1, 5),
+     ylim = c(0, 1),
+     pch = 19,
+     col = "darkred")
+abline(h = 0.85, lty = 2, col = "gray")
+text(3, 0.87, "85% threshold", col = "gray", cex = 0.9)
+```
+
+```{r}
+par(mfrow = c(1, 1))
+```
+
+
+
+
+```{r}
+# Extract PC scores for plotting
+pc_scores <- pca_result$x[, 1:2]
+pc_scores_df <- data.frame(
+  PC1 = pc_scores[, 1],
+  PC2 = pc_scores[, 2],
+  ARM = vs_for_pca_complete$ARM
+)
+
+# Base R biplot: show loadings and scores simultaneously
+par(mar = c(4, 4, 2, 1))
+
+# Plot PC1 vs PC2 scores colored by ARM
+plot(pc_scores[, 1], pc_scores[, 2],
+     pch = 19,
+     cex = 1.5,
+     xlab = paste0("PC1 (", round(pca_var_prop[1]*100, 1), "%)"),
+     ylab = paste0("PC2 (", round(pca_var_prop[2]*100, 1), "%)"),
+     main = "PCA Biplot: Vital Signs",
+     col = c("blue", "red", "green")[as.factor(vs_for_pca_complete$ARM)],
+     xlim = c(-3, 3),
+     ylim = c(-3, 3))
+
+# Add legend for ARM
+legend("topright",
+       legend = unique(vs_for_pca_complete$ARM),
+       col = c("blue", "red", "green"),
+       pch = 19)
+
+# Overlay loading arrows
+arrows(0, 0,
+       loadings_matrix[, 1] * 2,
+       loadings_matrix[, 2] * 2,
+       col = "darkgray",
+       lwd = 2,
+       length = 0.1)
+
+# Label loading arrows
+text(loadings_matrix[, 1] * 2.3,
+     loadings_matrix[, 2] * 2.3,
+     vital_signs_of_interest,
+     col = "black",
+     cex = 0.9,
+     font = 2)
+
+# Add grid
+abline(h = 0, v = 0, lty = 3, col = "gray", alpha = 0.5)
+```
+
+
+
+
+```{r}
+# Summary statistics by ARM
+pca_by_arm <- pc_scores_df %>%
+  group_by(ARM) %>%
+  summarise(
+    N = n(),
+    PC1_mean = mean(PC1),
+    PC1_sd = sd(PC1),
+    PC2_mean = mean(PC2),
+    PC2_sd = sd(PC2),
+    .groups = "drop"
+  )
+
+print("PCA Scores by Treatment Arm:")
+```
+
+```{r}
+print(pca_by_arm)
+```
+
+```{r}
+cat("\nClinical Interpretation:\n")
+```
+
+```{r}
+cat("PC1 separates subjects by overall cardiovascular/body 'size'\n")
+```
+
+```{r}
+cat("PC2 separates based on blood pressure control vs body composition\n")
+```
+
+```{r}
+cat("Treatment arms may cluster differently on these components\n")
+```
+
+
+
+---
+
+## 2. Factor Analysis
+
+### Theory and Foundations
+
+Factor Analysis attempts to explain correlations among observed variables using a smaller number of unobserved latent factors. Unlike PCA (which maximizes variance), factor analysis assumes correlations arise from common latent factors.
+
+**Key Concepts:**
+
+- **Common Factors**: k << p latent variables that drive correlations among p observed variables
+- **Factor Loadings**: Weight (correlation) between observed variable and latent factor
+- **Communalities**: Proportion of variance in each variable explained by common factors
+- **Specific Variance**: Variance unique to each variable (not explained by common factors)
+- **Rotations**: Varimax (uncorrelated factors), promax (correlated factors) improve interpretability
+
+**Clinical Example:** Lab values often cluster into functional groups: liver function (ALT, AST, BILI), renal function (CREAT, K). Factor analysis reveals these latent physiological patterns.
+
+### Clinical Example: Lab Values Factor Analysis
+
+
+```{r}
+# Filter lab tests of interest
+lab_tests <- c("ALT", "AST", "BILI", "CREAT", "K")
+
+lb_filtered <- lb %>%
+  filter(LBTESTCD %in% lab_tests) %>%
+  select(USUBJID, LBTESTCD, LBSTRESN) %>%
+  distinct()
+
+# Pivot to wide format
+lb_wide <- lb_filtered %>%
+  pivot_wider(
+    names_from = LBTESTCD,
+    values_from = LBSTRESN,
+    values_fn = mean
+  )
+
+# Join with ARM (exclude screen failures with blank ARM)
+lb_for_fa <- lb_wide %>%
+  left_join(
+    dm %>% filter(!is.na(ARM), ARM != "") %>% select(USUBJID, ARM),
+    by = "USUBJID"
+  )
+
+# Complete cases (drop rows with missing lab values or missing ARM)
+lb_for_fa_complete <- lb_for_fa %>%
+  filter(!is.na(ARM), ARM != "") %>%
+  filter(complete.cases(across(all_of(lab_tests))))
+
+cat("Subjects with complete lab data:", nrow(lb_for_fa_complete), "\n")
+```
+
+```{r}
+# Extract lab matrix
+lb_matrix <- lb_for_fa_complete %>%
+  select(all_of(lab_tests)) %>%
+  as.matrix()
+
+# Examine correlation structure
+cat("\nCorrelation matrix of lab values:\n")
+```
+
+```{r}
+if (nrow(lb_matrix) > 1 && ncol(lb_matrix) > 0) {
+  cor_matrix <- tryCatch(
+    cor(lb_matrix),
+    error = function(e) {
+      cat("Warning: Correlation matrix computation failed. Check for constant columns.\n")
+      return(NA)
+    }
+  )
+  if (!is.na(cor_matrix[1])) {
+    print(round(cor_matrix, 3))
+  }
+} else {
+  cat("Insufficient data for correlation matrix.\n")
+}
+```
+
+
+
+
+```{r}
+# Perform factor analysis with 2 factors (exploratory)
+# factanal() from stats package
+fa_result <- factanal(lb_matrix, factors = 2, rotation = "varimax", na.action = na.omit)
+
+cat("Factor Analysis Results:\n")
+```
+
+```{r}
+print(fa_result)
+```
+
+```{r}
+# Extract loadings
+loadings_fa <- fa_result$loadings[, 1:2]
+print("\nFactor Loadings (rotated):")
+```
+
+```{r}
+print(round(loadings_fa, 3))
+```
+
+```{r}
+# Extract communalities: factanal() stores uniquenesses; communality = 1 - uniqueness
+communalities <- 1 - fa_result$uniquenesses
+print("\nCommunalities (variance explained for each variable):")
+```
+
+```{r}
+print(round(communalities, 3))
+```
+
+```{r}
+# Interpretation (use row names from loadings for safety)
+cat("\nInterpretation:\n")
+```
+
+```{r}
+rn <- rownames(loadings_fa)
+cat("Factor 1 (Liver Function):\n")
+```
+
+```{r}
+for (v in intersect(c("ALT", "AST", "BILI"), rn)) {
+  cat(" ", v, ":", round(loadings_fa[v, 1], 3))
+}
+```
+
+```{r}
+cat("\n")
+```
+
+```{r}
+cat("Factor 2 (Renal Function):\n")
+```
+
+```{r}
+for (v in intersect(c("CREAT", "K"), rn)) {
+  cat(" ", v, ":", round(loadings_fa[v, 2], 3))
+}
+```
+
+```{r}
+cat("\n")
+```
+
+
+
+
+```{r}
+# Biplot of factor loadings
+par(mar = c(4, 4, 2, 1))
+
+plot(loadings_fa[, 1], loadings_fa[, 2],
+     pch = 19,
+     cex = 2,
+     xlab = "Factor 1 (Liver Function)",
+     ylab = "Factor 2 (Renal Function)",
+     main = "Factor Loadings Biplot",
+     xlim = c(-1, 1),
+     ylim = c(-1, 1),
+     col = "steelblue")
+
+# Add labels
+text(loadings_fa[, 1], loadings_fa[, 2],
+     lab_tests,
+     pos = 3,
+     offset = 0.1,
+     cex = 0.9,
+     font = 2)
+
+# Add grid and reference lines
+abline(h = 0, v = 0, lty = 3, col = "gray")
+```
+
+
+
+---
+
+## 3. Cluster Analysis
+
+### 3A. K-Means Clustering
+
+#### Theory and Foundations
+
+K-means partitions n observations into k clusters by minimizing within-cluster sum of squared deviations from cluster centroids. The algorithm iterates between:
+
+1. **Assignment**: Assign each observation to nearest centroid
+2. **Update**: Recompute centroids as cluster means
+
+**Challenges:**
+- Choosing k (addressed via elbow method, silhouette analysis)
+- Local optima (mitigated by multiple random starts)
+- Assumes spherical clusters of similar size
+
+#### Choosing k: Elbow Method
+
+
+```{r}
+# Use PCA scores from previous section for clustering
+pc_scores_for_clustering <- pca_result$x[, 1:2]
+
+# Compute within-cluster sum of squares (WCSS) for k = 1 to 8
+wcss_values <- numeric(8)
+
+for (k in 1:8) {
+  km <- kmeans(pc_scores_for_clustering, centers = k, nstart = 25, iter.max = 100)
+  wcss_values[k] <- km$tot.withinss
+}
+
+# Plot elbow curve
+par(mar = c(4, 4, 2, 1))
+
+plot(1:8, wcss_values,
+     type = "b",
+     pch = 19,
+     cex = 1.5,
+     xlab = "Number of Clusters (k)",
+     ylab = "Within-Cluster Sum of Squares",
+     main = "Elbow Method for Optimal k",
+     col = "darkblue")
+
+# Elbow appears at k = 3
+points(3, wcss_values[3], pch = 21, cex = 3, col = "red")
+text(3, wcss_values[3] + 20, "Elbow at k=3", col = "red", font = 2)
+```
+
+
+
+#### K-Means with k = 3
+
+
+```{r}
+# Perform k-means with k = 3
+km_result <- kmeans(pc_scores_for_clustering,
+                     centers = 3,
+                     nstart = 25,
+                     iter.max = 100)
+
+# Add cluster assignments to data
+cluster_data <- data.frame(
+  PC1 = pc_scores_for_clustering[, 1],
+  PC2 = pc_scores_for_clustering[, 2],
+  Cluster = km_result$cluster,
+  ARM = vs_for_pca_complete$ARM
+)
+
+cat("Cluster sizes:\n")
+```
+
+```{r}
+print(table(cluster_data$Cluster))
+```
+
+```{r}
+cat("\nCluster characteristics:\n")
+```
+
+```{r}
+cluster_summary <- cluster_data %>%
+  group_by(Cluster) %>%
+  summarise(
+    N = n(),
+    PC1_mean = mean(PC1),
+    PC2_mean = mean(PC2),
+    .groups = "drop"
+  )
+print(cluster_summary)
+```
+
+
+
+#### Silhouette Analysis
+
+
+```{r}
+# Manual silhouette calculation
+silhouette_manual <- function(data, clusters) {
+  n <- nrow(data)
+  k <- length(unique(clusters))
+  silhouette_scores <- numeric(n)
+
+  for (i in 1:n) {
+    current_cluster <- clusters[i]
+
+    # Within-cluster distance: average distance to other points in same cluster
+    within_cluster_points <- which(clusters == current_cluster)
+
+    if (length(within_cluster_points) > 1) {
+      a_i <- mean(dist(rbind(data[i, ], data[within_cluster_points, ]))[-1])
+    } else {
+      a_i <- 0
+    }
+
+    # Nearest-cluster distance: average distance to points in nearest other cluster
+    b_i <- Inf
+    for (j in setdiff(1:k, current_cluster)) {
+      other_cluster_points <- which(clusters == j)
+      if (length(other_cluster_points) > 0) {
+        d_ij <- mean(dist(rbind(data[i, ], data[other_cluster_points, ]))[-1])
+        b_i <- min(b_i, d_ij)
+      }
+    }
+
+    # Silhouette coefficient: avoid division by zero
+    denominator <- max(a_i, b_i)
+    if (denominator > 0) {
+      silhouette_scores[i] <- (b_i - a_i) / denominator
+    } else {
+      silhouette_scores[i] <- 0
+    }
+  }
+
+  return(silhouette_scores)
+}
+
+silhouette_scores <- silhouette_manual(pc_scores_for_clustering, km_result$cluster)
+
+# Summary by cluster
+cat("Silhouette Scores by Cluster:\n")
+```
+
+```{r}
+for (cl in 1:3) {
+  scores_in_cluster <- silhouette_scores[km_result$cluster == cl]
+  cat("Cluster", cl, ": Mean =", round(mean(scores_in_cluster), 3),
+      "| Range = [", round(min(scores_in_cluster), 3), ",",
+      round(max(scores_in_cluster), 3), "]\n")
+}
+```
+
+```{r}
+cat("Overall Mean Silhouette Score:", round(mean(silhouette_scores), 3), "\n")
+```
+
+```{r}
+cat("Interpretation: Scores near 1 = well-separated clusters; near 0 = overlapping\n")
+```
+
+
+
+#### Visualizing K-Means Results
+
+
+```{r}
+# Define colors for clusters and arms
+cluster_colors <- c("cluster1" = "orange", "cluster2" = "purple", "cluster3" = "cyan")
+arm_shapes <- c("Placebo" = 1, "Xanomeline Low Dose" = 2, "Xanomeline High Dose" = 3)
+
+par(mar = c(4, 4, 2, 1))
+
+# Plot clusters
+plot(cluster_data$PC1, cluster_data$PC2,
+     col = c("orange", "purple", "cyan")[cluster_data$Cluster],
+     pch = c(1, 2, 3)[as.factor(cluster_data$ARM)],
+     cex = 2,
+     xlab = paste0("PC1 (", round(pca_var_prop[1]*100, 1), "%)"),
+     ylab = paste0("PC2 (", round(pca_var_prop[2]*100, 1), "%)"),
+     main = "K-Means Clustering (k=3) with ARM Overlay")
+
+# Add cluster centroids
+points(km_result$centers[, 1], km_result$centers[, 2],
+       pch = 8,
+       cex = 3,
+       col = c("orange", "purple", "cyan"),
+       lwd = 2)
+
+# Add legend for clusters
+legend("topright",
+       legend = c("Cluster 1", "Cluster 2", "Cluster 3"),
+       col = c("orange", "purple", "cyan"),
+       pch = 19,
+       cex = 0.9)
+
+# Add legend for arms
+legend("topleft",
+       legend = unique(cluster_data$ARM),
+       pch = c(1, 2, 3)[1:length(unique(cluster_data$ARM))],
+       cex = 0.9)
+```
+
+
+
+
+```{r}
+# Cross-tabulation: Cluster vs ARM
+cat("Cluster Membership by Treatment Arm:\n\n")
+```
+
+```{r}
+cluster_arm_table <- table(cluster_data$Cluster, cluster_data$ARM)
+print(cluster_arm_table)
+```
+
+```{r}
+# Proportions within each arm
+cat("\nProportions within each ARM:\n")
+```
+
+```{r}
+print(round(prop.table(cluster_arm_table, margin = 2), 3))
+```
+
+```{r}
+cat("\nClinical Interpretation:\n")
+```
+
+```{r}
+cat("Are certain patient clusters preferentially in specific treatment arms?\n")
+```
+
+```{r}
+cat("This could indicate differential response profiles or baseline imbalances.\n")
+```
+
+
+
+### 3B. Hierarchical Clustering
+
+#### Theory and Foundations
+
+Hierarchical clustering builds a dendrogram showing nested cluster structure. Key linkage methods:
+
+- **Complete Linkage**: Maximum distance between clusters
+- **Average Linkage**: Mean distance between clusters
+- **Ward's Method**: Minimizes within-cluster variance (useful for continuous data)
+
+#### Hierarchical Clustering on Lab Values
+
+
+```{r}
+# Standardize lab values before clustering
+lb_matrix_scaled <- scale(lb_matrix)
+
+# Compute Euclidean distance
+dist_matrix <- dist(lb_matrix_scaled, method = "euclidean")
+
+# Perform hierarchical clustering with Ward's method
+hclust_result <- hclust(dist_matrix, method = "ward.D2")
+
+cat("Hierarchical Clustering Summary:\n")
+```
+
+```{r}
+cat("Distance method: Euclidean\n")
+```
+
+```{r}
+cat("Linkage method: Ward.D2\n")
+```
+
+```{r}
+cat("Number of observations:", nrow(lb_matrix_scaled), "\n")
+```
+
+
+
+
+```{r}
+# Plot full dendrogram
+par(mar = c(4, 4, 2, 1))
+
+plot(hclust_result,
+     main = "Hierarchical Clustering Dendrogram (Lab Values)",
+     xlab = "Subject Index",
+     ylab = "Distance",
+     hang = -1)
+
+# Add horizontal line to suggest cutting into 3 clusters
+cut_height <- 8
+abline(h = cut_height, col = "red", lty = 2, lwd = 2)
+text(1, cut_height + 0.5, "Cut threshold", col = "red", cex = 0.9)
+```
+
+
+
+
+```{r}
+# Cut the dendrogram into 3 clusters
+hclust_clusters <- cutree(hclust_result, k = 3)
+
+cat("Hierarchical Cluster Sizes:\n")
+```
+
+```{r}
+print(table(hclust_clusters))
+```
+
+```{r}
+# Create data frame with clusters and ARM information
+hclust_data <- data.frame(
+  SubjectID = 1:nrow(lb_matrix),
+  Cluster = hclust_clusters,
+  ARM = lb_for_fa_complete$ARM
+)
+
+# Cross-tabulation
+cat("\nCluster by ARM:\n")
+```
+
+```{r}
+print(table(hclust_data$Cluster, hclust_data$ARM))
+```
+
+
+
+
+```{r}
+# Examine mean lab values by cluster
+cluster_profiles <- data.frame(lb_matrix) %>%
+  mutate(Cluster = hclust_clusters) %>%
+  group_by(Cluster) %>%
+  summarise(
+    N = n(),
+    ALT = mean(ALT),
+    AST = mean(AST),
+    BILI = mean(BILI),
+    CREAT = mean(CREAT),
+    K = mean(K),
+    .groups = "drop"
+  )
+
+cat("Mean Lab Values by Hierarchical Cluster:\n")
+```
+
+```{r}
+print(round(cluster_profiles, 2))
+```
+
+```{r}
+cat("\nClinical Interpretation:\n")
+```
+
+```{r}
+cat("Cluster 1: Normal liver and renal function baseline\n")
+```
+
+```{r}
+cat("Cluster 2: Elevated liver enzymes (ALT, AST)\n")
+```
+
+```{r}
+cat("Cluster 3: Elevated renal markers (CREAT, K)\n")
+```
+
+
+
+---
+
+## 4. Multivariate Analysis of Variance (MANOVA)
+
+### Theory and Foundations
+
+MANOVA tests whether group means differ on multiple correlated dependent variables simultaneously. It controls family-wise Type I error better than multiple univariate ANOVAs.
+
+**Test Statistics:**
+
+- **Pillai's Trace**: Σ(λᵢ / (1 + λᵢ)); 0 to p, robust to violations
+- **Wilks' Lambda**: Π(1 / (1 + λᵢ)); 0 to 1, most common
+- **Hotelling-Lawley Trace**: Σλᵢ; 0 to ∞
+- **Roy's Greatest Root**: Max(λᵢ); 0 to ∞
+
+**Assumptions:** Multivariate normality, homogeneity of covariance matrices (Levene's test, Box's M-test)
+
+### Clinical Example: Testing Treatment Effect on Blood Pressure and Pulse
+
+
+```{r}
+# Filter vital signs: SYSBP, DIABP, PULSE
+vital_signs_manova <- c("SYSBP", "DIABP", "PULSE")
+
+vs_manova <- vs %>%
+  filter(VSTESTCD %in% vital_signs_manova) %>%
+  select(USUBJID, VSTESTCD, VSSTRESN) %>%
+  distinct() %>%
+  pivot_wider(
+    names_from = VSTESTCD,
+    values_from = VSSTRESN,
+    values_fn = mean
+  ) %>%
+  left_join(
+    dm %>% filter(!is.na(ARM), ARM != "") %>% select(USUBJID, ARM),
+    by = "USUBJID"
+  ) %>%
+  filter(!is.na(ARM), ARM != "") %>%
+  filter(complete.cases(across(all_of(vital_signs_manova))))
+
+cat("MANOVA Dataset Summary:\n")
+```
+
+```{r}
+cat("Subjects:", nrow(vs_manova), "\n")
+```
+
+```{r}
+cat("Variables:", vital_signs_manova, "\n")
+```
+
+```{r}
+cat("Groups:", unique(vs_manova$ARM), "\n")
+```
+
+```{r}
+# Summary statistics by ARM
+cat("\nDescriptive Statistics by Treatment Arm:\n")
+```
+
+```{r}
+summary_manova <- vs_manova %>%
+  group_by(ARM) %>%
+  summarise(
+    N = n(),
+    SYSBP_mean = mean(SYSBP),
+    DIABP_mean = mean(DIABP),
+    PULSE_mean = mean(PULSE),
+    .groups = "drop"
+  )
+print(summary_manova)
+```
+
+
+
+
+```{r}
+# Perform MANOVA
+# manova() function from base stats package
+manova_result <- manova(cbind(SYSBP, DIABP, PULSE) ~ ARM, data = vs_manova)
+
+# Summary with Pillai's test (default)
+cat("MANOVA Results (Pillai's Test):\n")
+```
+
+```{r}
+print(summary(manova_result, test = "Pillai"))
+```
+
+```{r}
+# Also show Wilks' Lambda
+cat("\n\nMANOVA Results (Wilks' Lambda):\n")
+```
+
+```{r}
+summary_wilks <- summary(manova_result, test = "Wilks")
+print(summary_wilks)
+```
+
+```{r}
+# Test Interpretation
+cat("\n\nInterpretation:\n")
+```
+
+```{r}
+cat("Test Statistics for multivariate differences among treatment arms\n")
+```
+
+```{r}
+cat("Null hypothesis: All group means are equal across all variables\n")
+```
+
+```{r}
+cat("If p-value < 0.05: Significant multivariate effect of ARM\n")
+```
+
+
+
+
+```{r}
+# Follow-up univariate ANOVAs
+cat("Follow-up Univariate ANOVAs (if MANOVA significant):\n\n")
+```
+
+```{r}
+# ANOVA for SYSBP
+aov_sysbp <- aov(SYSBP ~ ARM, data = vs_manova)
+cat("SYSBP ANOVA:\n")
+```
+
+```{r}
+print(summary(aov_sysbp))
+```
+
+```{r}
+# ANOVA for DIABP
+aov_diabp <- aov(DIABP ~ ARM, data = vs_manova)
+cat("\nDIABP ANOVA:\n")
+```
+
+```{r}
+print(summary(aov_diabp))
+```
+
+```{r}
+# ANOVA for PULSE
+aov_pulse <- aov(PULSE ~ ARM, data = vs_manova)
+cat("\nPULSE ANOVA:\n")
+```
+
+```{r}
+print(summary(aov_pulse))
+```
+
+```{r}
+# Bonferroni correction for multiple comparisons
+cat("\n\nBonferroni-Corrected Alpha Level:\n")
+```
+
+```{r}
+alpha_uncorrected <- 0.05
+alpha_bonferroni <- alpha_uncorrected / 3  # 3 comparisons
+cat("Original alpha:", alpha_uncorrected, "\n")
+```
+
+```{r}
+cat("Bonferroni-corrected alpha:", round(alpha_bonferroni, 4), "\n")
+```
+
+
+
+
+```{r}
+# Check homogeneity of variance (Levene's test)
+cat("Homogeneity of Variance (Levene's Test for each variable):\n\n")
+```
+
+```{r}
+for (var in vital_signs_manova) {
+  formula <- as.formula(paste(var, "~ ARM"))
+  data_for_test <- vs_manova[[var]]
+  group_for_test <- vs_manova$ARM
+
+  # Levene's test (using median)
+  grand_median <- median(data_for_test, na.rm = TRUE)
+  abs_deviations <- abs(data_for_test - grand_median)
+
+  levene_result <- tryCatch(
+    summary(aov(abs_deviations ~ group_for_test)),
+    error = function(e) {
+      cat(var, ": Levene's test failed\n")
+      return(NULL)
+    }
+  )
+
+  if (!is.null(levene_result)) {
+    p_value <- levene_result[[1]][1, "Pr(>F)"]
+    if (!is.na(p_value)) {
+      cat(var, ": F-statistic p-value =", round(p_value, 4), "\n")
+    } else {
+      cat(var, ": p-value unavailable\n")
+    }
+  }
+}
+```
+
+```{r}
+cat("\nInterpretation: p > 0.05 suggests homogeneous variances (assumption satisfied)\n")
+```
+
+
+
+---
+
+## 5. Propensity Score Analysis
+
+### Theory and Foundations
+
+Propensity score is the conditional probability of treatment assignment given baseline covariates: P(T = 1 | X). In observational studies, propensity score methods balance treatment groups on confounders, mimicking randomization.
+
+**Key Methods:**
+
+1. **Matching**: Pair treated and control subjects with similar propensity scores
+2. **Stratification**: Create subgroups based on PS quintiles
+3. **Weighting**: IPTW (inverse probability of treatment weighting)
+
+**Assumptions:**
+- **Unconfoundedness**: No unmeasured confounders (conditional on X)
+- **Overlap**: 0 < P(T=1|X) < 1 for all X (common support)
+- **Consistency**: SUTVA (stable unit treatment value assumption)
+
+### Clinical Example: Propensity Score Matching
+
+We estimate propensity of receiving active treatment (High Dose) vs Placebo based on baseline demographics (AGE, SEX, RACE).
+
+
+```{r}
+# Prepare data: focus on two arms (Placebo vs High Dose)
+dm_ps <- dm %>%
+  filter(ARM %in% c("Placebo", "Xanomeline High Dose")) %>%
+  select(USUBJID, ARM, AGE, SEX, RACE) %>%
+  filter(complete.cases(across(all_of(c("AGE", "SEX", "RACE"))))) %>%
+  mutate(
+    Treatment = as.numeric(ARM == "Xanomeline High Dose"),  # 1 = High Dose, 0 = Placebo
+    SEX_numeric = as.numeric(SEX == "M"),  # 1 = Male, 0 = Female
+    RACE_numeric = as.numeric(RACE == "WHITE")  # 1 = White, 0 = Other
+  )
+
+cat("Propensity Score Analysis Dataset:\n")
+```
+
+```{r}
+cat("Treated (High Dose):", sum(dm_ps$Treatment), "\n")
+```
+
+```{r}
+cat("Control (Placebo):", sum(dm_ps$Treatment == 0), "\n")
+```
+
+```{r}
+cat("Total:", nrow(dm_ps), "\n")
+```
+
+```{r}
+# Baseline characteristics
+cat("\nBaseline Characteristics by Treatment:\n")
+```
+
+```{r}
+baseline_comp <- dm_ps %>%
+  group_by(ARM) %>%
+  summarise(
+    N = n(),
+    Age_mean = mean(AGE),
+    Age_sd = sd(AGE),
+    Male_pct = round(mean(SEX == "M") * 100, 1),
+    White_pct = round(mean(RACE == "WHITE") * 100, 1),
+    .groups = "drop"
+  )
+print(baseline_comp)
+```
+
+
+
+
+```{r}
+# Estimate propensity score using logistic regression
+# glm() from base R
+ps_model <- glm(Treatment ~ AGE + SEX_numeric + RACE_numeric,
+                family = binomial(link = "logit"),
+                data = dm_ps)
+
+cat("Propensity Score Model Summary:\n")
+```
+
+```{r}
+print(summary(ps_model))
+```
+
+```{r}
+# Extract propensity scores
+dm_ps$propensity_score <- predict(ps_model, type = "response")
+
+# Check overlap assumption
+cat("\n\nPropensity Score Summary:\n")
+```
+
+```{r}
+cat("Overall range:",
+    round(min(dm_ps$propensity_score), 3), "-",
+    round(max(dm_ps$propensity_score), 3), "\n")
+```
+
+```{r}
+cat("In Treated group:\n")
+```
+
+```{r}
+treated_ps <- dm_ps$propensity_score[dm_ps$Treatment == 1]
+cat("  Mean =", round(mean(treated_ps), 3),
+    "| Range = [", round(min(treated_ps), 3), ",", round(max(treated_ps), 3), "]\n")
+```
+
+```{r}
+cat("In Control group:\n")
+```
+
+```{r}
+control_ps <- dm_ps$propensity_score[dm_ps$Treatment == 0]
+cat("  Mean =", round(mean(control_ps), 3),
+    "| Range = [", round(min(control_ps), 3), ",", round(max(control_ps), 3), "]\n")
+```
+
+
+
+
+```{r}
+# Plot propensity score distribution by treatment group
+if (length(control_ps) > 1 && length(treated_ps) > 1 &&
+    all(is.finite(control_ps)) && all(is.finite(treated_ps))) {
+
+  par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+
+  # Histograms
+  hist(control_ps,
+       col = "#0000FF80",       # blue with transparency (avoid par alpha warning)
+       breaks = 15,
+       xlab = "Propensity Score",
+       main = "PS Distribution: Overlap Check",
+       xlim = c(0, 1))
+  hist(treated_ps,
+       col = "#FF000080",
+       breaks = 15,
+       add = TRUE)
+  legend("topright",
+         legend = c("Control (Placebo)", "Treated (Xanomeline High Dose)"),
+         col = c("blue", "red"),
+         pch = 19)
+
+  # Density plot
+  plot(density(control_ps),
+       col = "blue",
+       lwd = 2,
+       main = "PS Density by Treatment",
+       xlab = "Propensity Score",
+       xlim = c(0, 1))
+  lines(density(treated_ps),
+        col = "red",
+        lwd = 2)
+  legend("topright",
+         legend = c("Control", "Treated"),
+         col = c("blue", "red"),
+         lwd = 2)
+
+  par(mfrow = c(1, 1))
+
+  cat("\nOverlap Assessment:\n")
+  cat("Minimum treated PS:", round(min(treated_ps), 3), "\n")
+  cat("Maximum control PS:", round(max(control_ps), 3), "\n")
+  cat("Common support region: [",
+      round(max(min(treated_ps), min(control_ps)), 3), ",",
+      round(min(max(treated_ps), max(control_ps)), 3), "]\n")
+} else {
+  cat("Insufficient data in one or both groups for overlap plot.\n")
+  cat("Control PS n =", length(control_ps),
+      "| Treated PS n =", length(treated_ps), "\n")
+}
+```
+
+
+
+
+```{r}
+# Manual 1:1 Nearest Neighbor Matching without replacement
+# For each treated unit, find closest control by propensity score
+
+matched_data <- data.frame()
+control_pool <- which(dm_ps$Treatment == 0)
+treated_indices <- which(dm_ps$Treatment == 1)
+matched_control_indices <- numeric()
+
+for (t_idx in treated_indices) {
+  # Find closest control not yet matched
+  remaining_controls <- setdiff(control_pool, matched_control_indices)
+
+  if (length(remaining_controls) > 0) {
+    ps_distances <- abs(dm_ps$propensity_score[t_idx] - dm_ps$propensity_score[remaining_controls])
+    closest_control_idx <- remaining_controls[which.min(ps_distances)]
+
+    # Add both to matched data
+    matched_data <- rbind(matched_data,
+                         dm_ps[t_idx, ],
+                         dm_ps[closest_control_idx, ])
+    matched_control_indices <- c(matched_control_indices, closest_control_idx)
+  }
+}
+
+cat("Matching Results:\n")
+```
+
+```{r}
+cat("Treated units matched:", length(treated_indices), "\n")
+```
+
+```{r}
+cat("Control units matched:", length(unique(matched_control_indices)), "\n")
+```
+
+```{r}
+cat("Total matched pairs:", nrow(matched_data) / 2, "\n")
+```
+
+```{r}
+# Check overlap in matched sample
+if (nrow(matched_data) > 0) {
+  cat("\n\nPropensity Score Balance after Matching:\n")
+  matched_treated <- matched_data$propensity_score[matched_data$Treatment == 1]
+  matched_control <- matched_data$propensity_score[matched_data$Treatment == 0]
+
+  if (length(matched_treated) > 0 && length(matched_control) > 0) {
+    cat("Treated PS: mean =", round(mean(matched_treated), 3),
+        "| sd =", round(sd(matched_treated), 3), "\n")
+    cat("Control PS: mean =", round(mean(matched_control), 3),
+        "| sd =", round(sd(matched_control), 3), "\n")
+    cat("Difference in means:",
+        round(mean(matched_treated) - mean(matched_control), 4), "\n")
+  } else {
+    cat("Warning: Insufficient matched data for balance assessment.\n")
+  }
+} else {
+  cat("Warning: No matched pairs produced. Check treatment/control distributions.\n")
+}
+```
+
+
+
+
+```{r}
+# Compare baseline covariate balance before and after matching
+balance_comparison <- function(data, treated_idx) {
+  results <- data.frame()
+
+  for (var in c("AGE", "SEX_numeric", "RACE_numeric")) {
+    # Use [[ ]] to extract a plain numeric vector (not a tibble column)
+    vals_treated <- as.numeric(data[[var]][data$Treatment == 1])
+    vals_control <- as.numeric(data[[var]][data$Treatment == 0])
+
+    treated_mean_before <- mean(vals_treated, na.rm = TRUE)
+    control_mean_before <- mean(vals_control, na.rm = TRUE)
+
+    var_treated <- var(vals_treated, na.rm = TRUE)
+    var_control <- var(vals_control, na.rm = TRUE)
+    pooled_var <- (var_treated + var_control) / 2
+
+    # Avoid division by zero if pooled variance is zero or NA
+    if (isTRUE(!is.na(pooled_var) && pooled_var > 0)) {
+      smd_before <- (treated_mean_before - control_mean_before) / sqrt(pooled_var)
+    } else {
+      smd_before <- NA
+    }
+
+    results <- rbind(results,
+                    data.frame(
+                      Variable = var,
+                      Before_Treated = round(treated_mean_before, 3),
+                      Before_Control = round(control_mean_before, 3),
+                      Before_SMD = round(smd_before, 3),
+                      Status = "Before"
+                    ))
+  }
+
+  return(results)
+}
+
+balance_before <- balance_comparison(dm_ps, TRUE)
+balance_after <- if (nrow(matched_data) > 0) {
+  balance_comparison(matched_data, TRUE)
+} else {
+  data.frame()
+}
+
+cat("Standardized Mean Difference (SMD) Before Matching:\n")
+```
+
+```{r}
+print(balance_before[, c("Variable", "Before_Treated", "Before_Control", "Before_SMD")])
+```
+
+```{r}
+cat("\n\nStandardized Mean Difference (SMD) After Matching:\n")
+```
+
+```{r}
+balance_after_calc <- data.frame()
+
+if (nrow(matched_data) > 0) {
+  for (var in c("AGE", "SEX_numeric", "RACE_numeric")) {
+    vals_trt <- as.numeric(matched_data[[var]][matched_data$Treatment == 1])
+    vals_ctl <- as.numeric(matched_data[[var]][matched_data$Treatment == 0])
+
+    treated_mean_after <- mean(vals_trt, na.rm = TRUE)
+    control_mean_after <- mean(vals_ctl, na.rm = TRUE)
+
+    var_treated <- var(vals_trt, na.rm = TRUE)
+    var_control <- var(vals_ctl, na.rm = TRUE)
+    pooled_var <- (var_treated + var_control) / 2
+
+    # Avoid division by zero if pooled variance is zero or NA
+    if (isTRUE(!is.na(pooled_var) && pooled_var > 0)) {
+      smd_after <- (treated_mean_after - control_mean_after) / sqrt(pooled_var)
+    } else {
+      smd_after <- NA
+    }
+
+    balance_after_calc <- rbind(balance_after_calc,
+                               data.frame(
+                                 Variable = var,
+                                 After_Treated = round(treated_mean_after, 3),
+                                 After_Control = round(control_mean_after, 3),
+                                 After_SMD = round(smd_after, 3)
+                               ))
+  }
+  print(balance_after_calc)
+  cat("\nInterpretation: SMD < 0.1 generally indicates good balance\n")
+} else {
+  cat("Warning: No matched data available for balance assessment.\n")
+}
+```
+
+
+
+---
+
+## 6. Linear Discriminant Analysis (LDA)
+
+### Theory and Foundations
+
+Linear Discriminant Analysis finds linear combinations of features that best separate predefined groups. It maximizes between-group variance relative to within-group variance.
+
+**Key Concepts:**
+
+- **Fisher's Linear Discriminant**: Direction w that maximizes (μ₁ - μ₂)² / (σ₁² + σ₂²)
+- **Multivariate Extension**: Multiple discriminant functions from covariance matrices
+- **Classification**: Assign observation to group with highest posterior probability
+
+**Clinical Use:** Classify patients into disease stages or treatment response categories based on biomarker profiles.
+
+### Clinical Example: Predicting Treatment Arm from Vital Signs and Labs
+
+
+```{r}
+# Combine vital signs and lab data for LDA
+# Focus on Placebo, Low Dose, High Dose (3-class problem)
+
+lda_data <- vs_for_pca_complete %>%
+  select(USUBJID, SYSBP, DIABP, PULSE, WEIGHT, HEIGHT, ARM) %>%
+  left_join(
+    lb_for_fa_complete %>% select(USUBJID, ALT, AST, BILI, CREAT, K),
+    by = "USUBJID"
+  ) %>%
+  filter(complete.cases(.))
+
+cat("LDA Dataset:\n")
+```
+
+```{r}
+cat("Observations:", nrow(lda_data), "\n")
+```
+
+```{r}
+cat("Features:", 10, "(5 vital signs + 5 labs)\n")
+```
+
+```{r}
+cat("Classes:", nlevels(as.factor(lda_data$ARM)), "\n")
+```
+
+```{r}
+cat("Class distribution:\n")
+```
+
+```{r}
+print(table(lda_data$ARM))
+```
+
+```{r}
+# Extract features for LDA
+lda_features <- c("SYSBP", "DIABP", "PULSE", "WEIGHT", "HEIGHT", "ALT", "AST", "BILI", "CREAT", "K")
+```
+
+
+
+
+```{r}
+# Fit LDA using MASS::lda()
+if (!requireNamespace("MASS", quietly = TRUE)) stop("MASS package required for LDA")
+lda_result <- MASS::lda(as.factor(ARM) ~ SYSBP + DIABP + PULSE + WEIGHT + HEIGHT + ALT + AST + BILI + CREAT + K,
+                        data = lda_data)
+
+cat("LDA Results Summary:\n")
+```
+
+```{r}
+print(lda_result)
+```
+
+```{r}
+# Extract and display discriminant function coefficients
+cat("\nLDA Coefficients:\n")
+```
+
+```{r}
+coefficients <- lda_result$scaling
+print(round(coefficients, 4))
+```
+
+```{r}
+# Interpretation: Which features contribute most to each LD?
+cat("\nInterpretation of Linear Discriminants:\n")
+```
+
+```{r}
+cat("LD1 shows contrast between treatment groups\n")
+```
+
+```{r}
+cat("LD2 provides secondary separation\n")
+```
+
+
+
+
+```{r}
+# Predict on same data (training set)
+lda_predictions <- predict(lda_result, newdata = lda_data)
+
+# Extract predicted classes and posterior probabilities
+predicted_class <- lda_predictions$class
+posterior_probs <- lda_predictions$posterior
+
+# Confusion matrix
+cat("Confusion Matrix (LDA predictions vs actual ARM):\n")
+```
+
+```{r}
+confusion_matrix <- table(Predicted = predicted_class, Actual = lda_data$ARM)
+print(confusion_matrix)
+```
+
+```{r}
+# Accuracy
+correct_predictions <- sum(diag(confusion_matrix))
+total_predictions <- sum(confusion_matrix)
+accuracy <- correct_predictions / total_predictions
+cat("\nOverall Accuracy:", round(accuracy, 4), "\n")
+```
+
+```{r}
+# Per-class accuracy
+cat("\nPer-Class Accuracy:\n")
+```
+
+```{r}
+for (cl in colnames(confusion_matrix)) {
+  class_accuracy <- confusion_matrix[cl, cl] / sum(confusion_matrix[, cl])
+  cat(cl, ":", round(class_accuracy, 4), "\n")
+}
+```
+
+
+
+
+```{r}
+# Extract LD scores (linear discriminant scores)
+ld_scores <- lda_predictions$x
+
+# Plot LD1 vs LD2
+par(mar = c(4, 4, 2, 1))
+
+arm_colors <- c("Placebo" = "blue", "Xanomeline Low Dose" = "red", "Xanomeline High Dose" = "green")
+arm_numeric <- as.numeric(as.factor(lda_data$ARM))
+arm_pch <- c(16, 17, 18)[arm_numeric]
+
+plot(ld_scores[, 1], ld_scores[, 2],
+     pch = arm_pch,
+     cex = 1.5,
+     col = unname(arm_colors[lda_data$ARM]),
+     xlab = "LD1",
+     ylab = "LD2",
+     main = "LDA Score Plot by Treatment Arm")
+
+legend("topright",
+       legend = names(arm_colors),
+       col = unname(arm_colors),
+       pch = c(16, 17, 18),
+       cex = 0.9)
+
+# Add grid
+abline(h = 0, v = 0, lty = 3, col = "gray")
+```
+
+
+
+---
+
+## 7. Repeated Measures and Multivariate Longitudinal Data
+
+### Theory and Foundations
+
+Repeated measures designs collect multiple outcomes on same subjects over time. Multivariate approaches model:
+
+- **Compound Symmetry**: All correlations equal, homogeneous variances
+- **Unstructured**: Unrestricted covariance (most flexible, fewest assumptions)
+- **Growth Curves**: Polynomial trends over time with individual random effects
+
+### Clinical Example: Blood Pressure Trajectories by Treatment Arm
+
+
+```{r}
+# Get SYSBP measurements across visits
+vs_sysbp <- vs %>%
+  filter(VSTESTCD == "SYSBP") %>%
+  select(USUBJID, VSSTRESN, VISITNUM) %>%
+  left_join(
+    dm %>% filter(!is.na(ARM), ARM != "") %>% select(USUBJID, ARM),
+    by = "USUBJID"
+  ) %>%
+  filter(!is.na(ARM), ARM != "") %>%
+  filter(complete.cases(.)) %>%
+  arrange(USUBJID, VISITNUM)
+
+# Calculate mean SYSBP by ARM and visit
+sysbp_trajectory <- vs_sysbp %>%
+  group_by(ARM, VISITNUM) %>%
+  summarise(
+    N = n(),
+    Mean_SYSBP = mean(VSSTRESN),
+    SD_SYSBP = sd(VSSTRESN),
+    SE_SYSBP = sd(VSSTRESN) / sqrt(n()),
+    .groups = "drop"
+  )
+
+cat("Blood Pressure Trajectories by Visit and ARM:\n")
+```
+
+```{r}
+print(sysbp_trajectory)
+```
+
+
+
+
+```{r}
+# Spaghetti plot: individual trajectories with mean overlay
+par(mar = c(4, 4, 2, 1))
+
+# Initialize empty plot
+plot(NULL, NULL,
+     xlim = c(0.5, max(vs_sysbp$VISITNUM) + 0.5),
+     ylim = c(100, 160),
+     xlab = "Visit Number",
+     ylab = "Systolic Blood Pressure (mmHg)",
+     main = "SysBP Trajectories by Treatment Arm")
+
+# Define colors for treatment arms
+arm_colors_long <- c("Placebo" = "blue", "Xanomeline Low Dose" = "red", "Xanomeline High Dose" = "green")
+
+# Plot individual trajectories
+for (arm in unique(vs_sysbp$ARM)) {
+  arm_data <- vs_sysbp %>% filter(ARM == arm)
+
+  for (subj in unique(arm_data$USUBJID)) {
+    subj_data <- arm_data %>% filter(USUBJID == subj) %>% arrange(VISITNUM)
+    lines(subj_data$VISITNUM, subj_data$VSSTRESN,
+          col = adjustcolor(arm_colors_long[arm], alpha.f = 0.3),
+          type = "l",
+          lwd = 1)
+  }
+}
+
+# Overlay mean trajectories (thicker lines)
+for (arm in unique(sysbp_trajectory$ARM)) {
+  arm_mean_data <- sysbp_trajectory %>% filter(ARM == arm)
+  lines(arm_mean_data$VISITNUM, arm_mean_data$Mean_SYSBP,
+        col = arm_colors_long[arm],
+        type = "b",
+        lwd = 3,
+        pch = 19,
+        cex = 1.5)
+}
+
+# Add legend
+legend("topright",
+       legend = names(arm_colors_long),
+       col = unname(arm_colors_long),
+       lwd = 2,
+       cex = 0.9)
+```
+
+
+
+
+```{r}
+# Fit polynomial growth curve model
+# Model: SYSBP ~ VISITNUM + ARM + VISITNUM*ARM + VISITNUM^2 + VISITNUM^2*ARM
+
+# Prepare data for lm()
+vs_sysbp_poly <- vs_sysbp %>%
+  mutate(
+    Visit = VISITNUM,
+    Visit_Squared = VISITNUM^2,
+    Arm_LD = as.numeric(ARM == "Xanomeline Low Dose"),
+    Arm_HD = as.numeric(ARM == "Xanomeline High Dose")
+  )
+
+# Fit model with error handling
+growth_model <- tryCatch(
+  lm(VSSTRESN ~ Visit + Arm_LD + Arm_HD + Visit:Arm_LD + Visit:Arm_HD +
+     Visit_Squared + Visit_Squared:Arm_LD + Visit_Squared:Arm_HD,
+    data = vs_sysbp_poly),
+  error = function(e) {
+    cat("Warning: Growth curve model fitting failed:", e$message, "\n")
+    return(NULL)
+  }
+)
+
+if (!is.null(growth_model)) {
+  cat("Growth Curve Model Results:\n")
+  print(summary(growth_model))
+
+  # Extract model coefficients
+  coefs <- coef(growth_model)
+  cat("\nInterpretation:\n")
+  cat("Intercept (Placebo at Visit 1):", round(coefs[1], 2), "\n")
+  cat("Visit (linear trend for Placebo):", round(coefs[2], 4), "\n")
+  if (length(coefs) >= 8) {
+    cat("Visit^2 (quadratic trend for Placebo):", round(coefs[8], 4), "\n")
+  }
+} else {
+  cat("Growth curve model not fitted due to errors.\n")
+}
+```
+
+
+
+
+```{r}
+# Generate fitted curves for visualization (only if model was fitted successfully)
+if (!is.null(growth_model)) {
+  visit_range <- seq(1, max(vs_sysbp$VISITNUM), length.out = 50)
+
+  # Predict for each arm
+  placebo_pred <- predict(growth_model,
+                         newdata = data.frame(
+                           Visit = visit_range,
+                           Visit_Squared = visit_range^2,
+                           Arm_LD = 0,
+                           Arm_HD = 0
+                         ))
+
+  ld_pred <- predict(growth_model,
+                    newdata = data.frame(
+                      Visit = visit_range,
+                      Visit_Squared = visit_range^2,
+                      Arm_LD = 1,
+                      Arm_HD = 0
+                    ))
+
+  hd_pred <- predict(growth_model,
+                    newdata = data.frame(
+                      Visit = visit_range,
+                      Visit_Squared = visit_range^2,
+                      Arm_LD = 0,
+                      Arm_HD = 1
+                    ))
+
+  # Plot fitted curves
+  par(mar = c(4, 4, 2, 1))
+
+  plot(NULL, NULL,
+       xlim = c(0.5, max(vs_sysbp$VISITNUM) + 0.5),
+       ylim = c(100, 160),
+       xlab = "Visit Number",
+       ylab = "Systolic Blood Pressure (mmHg)",
+       main = "Growth Curve Model: Fitted SysBP Trajectories")
+
+  # Mean observed data
+  for (arm in unique(sysbp_trajectory$ARM)) {
+    arm_mean_data <- sysbp_trajectory %>% filter(ARM == arm)
+    points(arm_mean_data$VISITNUM, arm_mean_data$Mean_SYSBP,
+           col = arm_colors_long[arm],
+           pch = 19,
+           cex = 1.2)
+  }
+
+  # Fitted curves
+  lines(visit_range, placebo_pred, col = arm_colors_long["Placebo"], lwd = 2.5, lty = 1)
+  lines(visit_range, ld_pred, col = arm_colors_long["Xanomeline Low Dose"], lwd = 2.5, lty = 1)
+  lines(visit_range, hd_pred, col = arm_colors_long["Xanomeline High Dose"], lwd = 2.5, lty = 1)
+
+  legend("topright",
+         legend = names(arm_colors_long),
+         col = unname(arm_colors_long),
+         lwd = 2,
+         cex = 0.9)
+} else {
+  cat("Skipping fitted curves plot: Growth curve model not available.\n")
+}
+```
+
+
+
+---
+
+## 8. Multiple Testing in Multivariate Settings
+
+### Background: The Multiple Comparisons Problem
+
+When performing k statistical tests independently, the family-wise error rate (FWER) inflates:
+
+FWER = 1 - (1 - α)^k
+
+For 5 tests at α = 0.05: FWER = 1 - (0.95)^5 ≈ 0.226 (22.6% chance of any false positive!)
+
+### Multiple Testing Corrections
+
+
+```{r}
+# Simulate p-values from a study with 20 independent tests
+# Assume true null for all tests (no real effects)
+
+n_tests <- 20
+n_simulations <- 1000
+
+# Generate random p-values under null hypothesis
+pvalues_matrix <- matrix(runif(n_tests * n_simulations),
+                        nrow = n_simulations,
+                        ncol = n_tests)
+
+# Apply different correction methods
+uncorrected_reject <- apply(pvalues_matrix < 0.05, 1, sum)
+bonferroni_reject <- apply(pvalues_matrix < 0.05/n_tests, 1, sum)
+holm_rejected <- numeric(n_simulations)
+fdr_rejected <- numeric(n_simulations)
+
+for (i in 1:n_simulations) {
+  # Holm-Bonferroni
+  holm_corrected <- p.adjust(pvalues_matrix[i, ], method = "holm")
+  holm_rejected[i] <- sum(holm_corrected < 0.05)
+
+  # Benjamini-Hochberg (FDR)
+  fdr_corrected <- p.adjust(pvalues_matrix[i, ], method = "BH")
+  fdr_rejected[i] <- sum(fdr_corrected < 0.05)
+}
+
+# Summary statistics
+cat("Multiple Testing Simulation Results\n")
+```
+
+```{r}
+cat("(n_tests =", n_tests, ", n_simulations =", n_simulations, ")\n\n")
+```
+
+```{r}
+cat("Uncorrected (α = 0.05):\n")
+```
+
+```{r}
+cat("  Any rejection rate:", round(sum(uncorrected_reject > 0) / n_simulations, 4), "\n")
+```
+
+```{r}
+cat("  Mean rejections per sim:", round(mean(uncorrected_reject), 2), "\n")
+```
+
+```{r}
+cat("\nBonferroni (α = 0.05/k):\n")
+```
+
+```{r}
+cat("  Any rejection rate:", round(sum(bonferroni_reject > 0) / n_simulations, 4), "\n")
+```
+
+```{r}
+cat("  Mean rejections per sim:", round(mean(bonferroni_reject), 2), "\n")
+```
+
+```{r}
+cat("\nHolm-Bonferroni:\n")
+```
+
+```{r}
+cat("  Any rejection rate:", round(sum(holm_rejected > 0) / n_simulations, 4), "\n")
+```
+
+```{r}
+cat("  Mean rejections per sim:", round(mean(holm_rejected), 2), "\n")
+```
+
+```{r}
+cat("\nBenjamini-Hochberg (FDR = 0.05):\n")
+```
+
+```{r}
+cat("  Any rejection rate:", round(sum(fdr_rejected > 0) / n_simulations, 4), "\n")
+```
+
+```{r}
+cat("  Mean rejections per sim:", round(mean(fdr_rejected), 2), "\n")
+```
+
+```{r}
+cat("\nInterpretation:\n")
+```
+
+```{r}
+cat("Uncorrected: High false positive rate (not recommended)\n")
+```
+
+```{r}
+cat("Bonferroni: Conservative, controls FWER strictly\n")
+```
+
+```{r}
+cat("Holm: More powerful than Bonferroni, still controls FWER\n")
+```
+
+```{r}
+cat("FDR: Controls expected proportion of false discoveries (less conservative)\n")
+```
+
+
+
+
+```{r}
+# Real clinical example: Test if treatment differs from control on 10 variables
+# Suppose 2 true effects, 8 nulls
+
+set.seed(42)
+
+# Simulate p-values: 2 significant, 8 null
+pvalues_clinical <- c(
+  0.001, 0.002,              # True positives
+  runif(8, 0.1, 0.95)        # Null hypotheses
+)
+
+# Apply corrections
+uncorrected_sig <- pvalues_clinical < 0.05
+bonferroni_sig <- pvalues_clinical < (0.05 / 10)
+holm_sig <- p.adjust(pvalues_clinical, method = "holm") < 0.05
+bh_sig <- p.adjust(pvalues_clinical, method = "BH") < 0.05
+
+# Summary table
+results_summary <- data.frame(
+  Test = paste0("Variable_", 1:10),
+  P_value = round(pvalues_clinical, 4),
+  Uncorrected = uncorrected_sig,
+  Bonferroni = bonferroni_sig,
+  Holm = holm_sig,
+  FDR_BH = bh_sig
+)
+
+cat("Multiple Testing Correction Comparison:\n")
+```
+
+```{r}
+print(results_summary)
+```
+
+```{r}
+cat("\nNumber of Significant Tests (α = 0.05):\n")
+```
+
+```{r}
+cat("Uncorrected:", sum(uncorrected_sig), "\n")
+```
+
+```{r}
+cat("Bonferroni:", sum(bonferroni_sig), "\n")
+```
+
+```{r}
+cat("Holm:", sum(holm_sig), "\n")
+```
+
+```{r}
+cat("Benjamini-Hochberg (FDR):", sum(bh_sig), "\n")
+```
+
+```{r}
+cat("\nRecommendation for Clinical Studies:\n")
+```
+
+```{r}
+cat("- Pre-specify primary endpoints (no correction needed)\n")
+```
+
+```{r}
+cat("- For secondary endpoints: Use Holm-Bonferroni or FDR control\n")
+```
+
+```{r}
+cat("- Genome-wide association: Use FDR control for power\n")
+```
+
+
+
+---
+
+## 9. Summary: Choosing the Right Multivariate Method
+
+| **Problem** | **Method** | **Use Case** | **Key Assumption** |
+|---|---|---|---|
+| Reduce 10 correlated variables to 3 principal components | PCA | Exploratory data analysis, data compression | None (unsupervised) |
+| Identify latent factors explaining correlations | Factor Analysis | Biomarker discovery, construct validation | Multivariate normality |
+| Group subjects into homogeneous clusters | K-Means or Hierarchical | Patient stratification, phenotyping | Spherical clusters (K-means) |
+| Test treatment effect on 3 correlated outcomes | MANOVA | Multiple related endpoints | Multivariate normality |
+| Balance confounders in observational study | Propensity Scoring | Causal inference without RCT | Unconfoundedness, overlap |
+| Classify subjects into predefined groups | LDA | Risk stratification, diagnosis prediction | Multivariate normality, equal covariances |
+| Model outcome trends over multiple visits | Growth Curves / MANOVA repeated measures | Longitudinal analysis | Appropriate covariance structure |
+| Control false positive rate across 20 biomarkers | Multiple testing correction (Holm, FDR) | Biomarker discovery, panel testing | Depends on method |
+
+---
+
+## 10. Key Takeaways
+
+1. **Dimensionality Reduction** (PCA, Factor Analysis): Simplify high-dimensional data while preserving structure. PCA is unsupervised and variance-focused; FA explains correlations via latent factors.
+
+2. **Clustering** (K-Means, Hierarchical): Partition subjects into similar groups. Use elbow method or silhouette analysis to choose k. Hierarchical clustering provides a dendrogram for visual exploration.
+
+3. **Multivariate Inference** (MANOVA): Test multiple correlated endpoints simultaneously, controlling family-wise Type I error better than separate ANOVAs.
+
+4. **Causal Inference** (Propensity Scores): Balance treatment groups on confounders in observational studies. Check overlap assumption and assess covariate balance before/after matching.
+
+5. **Classification** (LDA): Assign new observations to predefined classes based on multiple features. Provides interpretable linear discriminant scores.
+
+6. **Longitudinal Analysis** (Growth Curves): Model trends over time by treatment group. Use polynomial models or more complex mixed-effects approaches.
+
+7. **Multiple Testing**: Account for inflated false positive rate when testing many hypotheses. Use Bonferroni for strict FWER control or FDR (Benjamini-Hochberg) for exploratory studies.
+
+---
+
+## 11. Exercises
+
+### Exercise 1: PCA on Lab Values
+
+Using the lb dataset from pharmaversesdtm, perform PCA on the five lab tests (ALT, AST, BILI, CREAT, K).
+
+a) How much variance do the first two principal components explain?
+b) Create a biplot showing subjects colored by ARM.
+c) Interpret the loadings for PC1 and PC2. Which lab values drive each component?
+d) Are there visual differences between treatment arms on the PC1-PC2 plane?
+
+### Exercise 2: Optimal Clustering for Vital Signs
+
+Perform both K-means and hierarchical clustering on the vital signs data (SYSBP, DIABP, PULSE, WEIGHT, HEIGHT).
+
+a) Use the elbow method to determine the optimal number of clusters.
+b) Compute silhouette scores for k = 2, 3, 4 and recommend the best k.
+c) Create a contingency table showing cluster membership vs treatment ARM.
+d) Are certain clusters preferentially represented in specific treatment arms?
+
+### Exercise 3: Propensity Score Analysis for Two-Arm Comparison
+
+Extend the propensity score analysis to include a third arm (Low Dose vs Placebo) or modify the confounders to include AGE, SEX, RACE, and baseline WEIGHT.
+
+a) Estimate propensity scores using logistic regression.
+b) Check the overlap assumption visually.
+c) Perform 1:1 nearest-neighbor matching.
+d) Compare standardized mean differences before and after matching for all confounders.
+e) What is your conclusion about balance?
+
+### Exercise 4: MANOVA with Lab Values
+
+Test whether treatment ARM affects three liver function markers (ALT, AST, BILI) simultaneously using MANOVA.
+
+a) Fit the MANOVA model and report Wilks' Lambda test statistic and p-value.
+b) If MANOVA is significant, perform follow-up univariate ANOVAs with Bonferroni correction.
+c) Check assumptions: multivariate normality, homogeneity of covariance matrices.
+d) Interpret clinical significance of any differences found.
+
+---
+
+## References and Further Reading
+
+1. **Principal Component Analysis**: Jolliffe, I. T. (2002). Principal Component Analysis (2nd ed.). Springer.
+
+2. **Cluster Analysis**: Everitt, B. S., Landau, S., Leese, M., & Stahl, D. (2011). Cluster Analysis (5th ed.). Wiley.
+
+3. **Propensity Scores**: Rosenbaum, P. R., & Rubin, D. B. (1983). The central role of the propensity score in observational studies. Biometrika, 70(1), 41-55.
+
+4. **MANOVA**: Johnson, R. A., & Wichern, D. W. (2007). Applied Multivariate Statistical Analysis (6th ed.). Pearson.
+
+5. **Clinical Trial Analysis**: Rosenberger, W. F., & Lachin, J. M. (2015). Randomization in Clinical Trials: Theory and Practice (2nd ed.). Wiley.
+
+6. **Multiple Testing**: Benjamini, Y., & Hochberg, Y. (1995). Controlling the false discovery rate. Journal of the Royal Statistical Society: Series B, 57(1), 289-300.
+
+---
+
+**End of Chapter BS9**
+
+---
+
+## Session Information
+
+
+```{r}
+cat("R Version:", as.character(getRversion()), "\n")
+```
+
+```{r}
+cat("Session Date:", format(Sys.Date(), "%Y-%m-%d"), "\n")
+```
+
+```{r}
+cat("\nLoaded Packages:\n")
+```
+
+```{r}
+cat("  - dplyr:", as.character(packageVersion("dplyr")), "\n")
+```
+
+```{r}
+cat("  - tidyr:", as.character(packageVersion("tidyr")), "\n")
+```
+
+```{r}
+cat("  - ggplot2:", as.character(packageVersion("ggplot2")), "\n")
+```
+
+```{r}
+cat("  - MASS:", as.character(packageVersion("MASS")), "\n")
+```
+
+```{r}
+cat("  - pharmaversesdtm:", as.character(packageVersion("pharmaversesdtm")), "\n")
+```
+
+

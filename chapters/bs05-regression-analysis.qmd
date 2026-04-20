@@ -1,0 +1,549 @@
+
+# Regression Analysis in Clinical Trials {#sec-regression}
+
+Regression models are among the most widely used statistical tools in clinical research. They allow us to quantify relationships between a response variable and one or more predictors, adjust for confounders, and make predictions. This chapter covers linear regression, logistic regression, and Poisson regression, all illustrated with the `pharmaversesdtm` clinical datasets.
+
+---
+
+## Setup and Data Loading
+
+```{r setup}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(pharmaversesdtm)
+
+data("dm")
+data("ae")
+data("vs")
+data("lb")
+
+# Clean ARM variable throughout
+dm_clean <- dm |>
+  filter(!is.na(ARM), ARM != "", ARM != "Screen Failure") |>
+  mutate(ARM = factor(ARM,
+                      levels = c("Placebo",
+                                 "Xanomeline Low Dose",
+                                 "Xanomeline High Dose")))
+
+cat("Subjects in dm_clean:", nrow(dm_clean), "\n")
+cat("ARM distribution:\n")
+print(table(dm_clean$ARM))
+```
+
+---
+
+## 1. Simple Linear Regression {#sec-simple-lm}
+
+We predict systolic blood pressure (SBP) from subject age. SBP is stored in the `vs` dataset where `VSTESTCD == "SYSBP"`.
+
+### 1.1 Preparing the SBP Dataset
+
+```{r sbp-data}
+library(dplyr)
+
+# Extract baseline SBP values (VISIT == "BASELINE" or first available)
+sbp_data <- vs |>
+  filter(VSTESTCD == "SYSBP", !is.na(VSSTRESN)) |>
+  group_by(USUBJID) |>
+  slice_min(order_by = VISITNUM, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  select(USUBJID, SBP = VSSTRESN)
+
+# Join to demographics
+analysis_df <- dm_clean |>
+  inner_join(sbp_data, by = "USUBJID") |>
+  filter(!is.na(AGE), !is.na(SBP)) |>
+  mutate(SEX = factor(SEX),
+         RACE = factor(RACE))
+
+cat("Analytic dataset rows:", nrow(analysis_df), "\n")
+cat("SBP range:", range(analysis_df$SBP), "\n")
+cat("AGE range:", range(analysis_df$AGE), "\n")
+```
+
+### 1.2 Fitting the Simple Linear Model
+
+```{r simple-lm}
+model_simple <- lm(SBP ~ AGE, data = analysis_df)
+summary(model_simple)
+```
+
+**Interpretation:** The slope coefficient for AGE represents the expected change in SBP (mmHg) for each additional year of age. A positive coefficient indicates SBP tends to rise with age, consistent with known physiology.
+
+### 1.3 Visualising the Relationship
+
+```{r simple-lm-plot}
+library(ggplot2)
+
+ggplot(analysis_df, aes(x = AGE, y = SBP)) +
+  geom_point(alpha = 0.5, colour = "#2166ac") +
+  geom_smooth(method = "lm", se = TRUE, colour = "#d6604d") +
+  labs(title = "Systolic Blood Pressure vs Age",
+       subtitle = "Simple linear regression with 95% confidence band",
+       x = "Age (years)",
+       y = "Systolic Blood Pressure (mmHg)") +
+  theme_bw(base_size = 13)
+```
+
+---
+
+## 2. Multiple Linear Regression {#sec-multiple-lm}
+
+Adding SEX, RACE, and treatment ARM as additional predictors provides an adjusted estimate of the age effect and allows us to test whether these variables are independently associated with SBP.
+
+### 2.1 Fitting the Multiple Regression Model
+
+```{r multiple-lm}
+model_multi <- lm(SBP ~ AGE + SEX + RACE + ARM, data = analysis_df)
+summary(model_multi)
+```
+
+### 2.2 Extracting Coefficients and Confidence Intervals
+
+```{r multi-coef}
+coef_tbl <- as.data.frame(confint(model_multi))
+coef_tbl$Estimate <- coef(model_multi)
+coef_tbl <- coef_tbl[, c("Estimate", "2.5 %", "97.5 %")]
+names(coef_tbl) <- c("Estimate", "Lower_95", "Upper_95")
+print(round(coef_tbl, 3))
+```
+
+### 2.3 Comparing Models with ANOVA
+
+```{r anova-compare}
+anova(model_simple, model_multi)
+```
+
+A significant F-test indicates that adding the extra predictors improves model fit beyond what chance would produce.
+
+---
+
+## 3. Regression Diagnostics {#sec-diagnostics}
+
+Before drawing conclusions, we must verify that the four key assumptions of linear regression hold:
+
+1. **Linearity** – the relationship is approximately linear.
+2. **Independence** – residuals are not correlated.
+3. **Homoscedasticity** – residuals have constant variance.
+4. **Normality** – residuals are approximately normally distributed.
+
+### 3.1 Residual Plots
+
+```{r diagnostic-plots, fig.height=8, fig.width=9}
+par(mfrow = c(2, 2))
+plot(model_multi, which = 1:4)
+par(mfrow = c(1, 1))
+```
+
+- **Residuals vs Fitted**: checks linearity and homoscedasticity — a random scatter around zero is ideal.
+- **Normal Q-Q**: checks normality — points should lie close to the diagonal.
+- **Scale-Location**: another view of homoscedasticity.
+- **Cook's Distance / Residuals vs Leverage**: identifies influential observations.
+
+### 3.2 Cook's Distance — Identifying Influential Points
+
+```{r cooks}
+library(dplyr)
+
+cooks_d <- cooks.distance(model_multi)
+influential_threshold <- 4 / nrow(analysis_df)
+
+influential_df <- data.frame(
+  USUBJID = analysis_df$USUBJID,
+  CooksD   = cooks_d
+) |>
+  filter(CooksD > influential_threshold) |>
+  arrange(desc(CooksD))
+
+cat("Number of potentially influential observations:", nrow(influential_df), "\n")
+if (nrow(influential_df) > 0) print(head(influential_df, 10))
+```
+
+### 3.3 Cook's Distance Plot
+
+```{r cooks-plot}
+library(ggplot2)
+
+data.frame(
+  Index  = seq_along(cooks_d),
+  CooksD = cooks_d
+) |>
+  ggplot(aes(x = Index, y = CooksD)) +
+  geom_segment(aes(xend = Index, yend = 0), colour = "grey60") +
+  geom_point(aes(colour = CooksD > influential_threshold), size = 2) +
+  scale_colour_manual(values = c("FALSE" = "#2166ac", "TRUE" = "#d6604d"),
+                      name = "Influential") +
+  geom_hline(yintercept = influential_threshold, linetype = "dashed",
+             colour = "#d6604d") +
+  labs(title = "Cook's Distance — Multiple Regression Model",
+       x = "Observation Index",
+       y = "Cook's Distance") +
+  theme_bw(base_size = 13)
+```
+
+---
+
+## 4. Model Selection {#sec-model-selection}
+
+### 4.1 AIC Comparison
+
+AIC (Akaike Information Criterion) penalises model complexity. Lower AIC indicates a better balance between fit and parsimony.
+
+```{r aic}
+models <- list(
+  "Age only"       = lm(SBP ~ AGE, data = analysis_df),
+  "Age + Sex"      = lm(SBP ~ AGE + SEX, data = analysis_df),
+  "Age + Sex + Race" = lm(SBP ~ AGE + SEX + RACE, data = analysis_df),
+  "Full model"     = model_multi
+)
+
+aic_tbl <- data.frame(
+  Model = names(models),
+  AIC   = sapply(models, AIC),
+  BIC   = sapply(models, BIC),
+  R2    = sapply(models, \(m) summary(m)$r.squared)
+)
+aic_tbl <- aic_tbl[order(aic_tbl$AIC), ]
+aic_tbl[, -1] <- round(aic_tbl[, -1], 3)
+print(aic_tbl)
+```
+
+### 4.2 Stepwise Variable Selection
+
+```{r stepwise}
+# Start from full model; step() uses AIC by default
+full_model <- lm(SBP ~ AGE + SEX + RACE + ARM, data = analysis_df)
+step_model  <- step(full_model, direction = "both", trace = 0)
+cat("Selected model formula:\n")
+print(formula(step_model))
+summary(step_model)$coefficients |> round(4)
+```
+
+---
+
+## 5. Polynomial Regression — Quadratic Age Effect {#sec-polynomial}
+
+A quadratic term allows for a curved (non-linear) relationship between age and SBP.
+
+```{r poly-lm}
+model_poly <- lm(SBP ~ poly(AGE, 2, raw = TRUE), data = analysis_df)
+summary(model_poly)
+```
+
+### 5.1 Comparing Linear vs Quadratic Fits
+
+```{r poly-compare}
+anova(model_simple, model_poly)
+```
+
+```{r poly-plot}
+library(ggplot2)
+
+age_seq <- data.frame(AGE = seq(min(analysis_df$AGE),
+                                 max(analysis_df$AGE),
+                                 length.out = 100))
+
+age_seq$Linear    <- predict(model_simple, newdata = age_seq)
+age_seq$Quadratic <- predict(model_poly,   newdata = age_seq)
+
+pred_long <- tidyr::pivot_longer(age_seq, cols = c("Linear", "Quadratic"),
+                                  names_to = "Model", values_to = "SBP")
+
+ggplot() +
+  geom_point(data = analysis_df, aes(x = AGE, y = SBP),
+             alpha = 0.35, colour = "grey50") +
+  geom_line(data = pred_long, aes(x = AGE, y = SBP, colour = Model),
+            linewidth = 1.2) +
+  scale_colour_manual(values = c("Linear" = "#2166ac",
+                                  "Quadratic" = "#d6604d")) +
+  labs(title = "Linear vs Quadratic Age Effect on SBP",
+       x = "Age (years)", y = "Systolic BP (mmHg)") +
+  theme_bw(base_size = 13)
+```
+
+---
+
+## 6. Logistic Regression — Predicting AE Occurrence {#sec-logistic}
+
+Logistic regression models the probability of a binary outcome. Here, we ask: which baseline characteristics predict whether a subject experienced any adverse event?
+
+### 6.1 Creating the Binary Outcome
+
+```{r ae-binary}
+library(dplyr)
+
+# Subjects with at least one AE
+ae_flag <- ae |>
+  filter(!is.na(USUBJID)) |>
+  distinct(USUBJID) |>
+  mutate(ANY_AE = 1L)
+
+# Join to analysis dataset
+logit_df <- dm_clean |>
+  left_join(ae_flag, by = "USUBJID") |>
+  mutate(ANY_AE = if_else(is.na(ANY_AE), 0L, ANY_AE)) |>
+  filter(!is.na(AGE)) |>
+  mutate(SEX  = factor(SEX),
+         RACE = factor(RACE),
+         ANY_AE = factor(ANY_AE, levels = c(0, 1),
+                         labels = c("No AE", "AE")))
+
+cat("AE occurrence:\n")
+print(table(logit_df$ANY_AE, logit_df$ARM))
+```
+
+### 6.2 Fitting the Logistic Regression Model
+
+```{r logit-fit}
+model_logit <- glm(ANY_AE ~ AGE + SEX + ARM,
+                   data   = logit_df,
+                   family = binomial(link = "logit"))
+summary(model_logit)
+```
+
+### 6.3 Odds Ratios and Confidence Intervals
+
+Exponentiate the log-odds coefficients to obtain odds ratios (OR). An OR > 1 means increased odds of AE occurrence.
+
+```{r odds-ratios}
+or_tbl <- data.frame(
+  OR       = exp(coef(model_logit)),
+  Lower_95 = exp(confint.default(model_logit)[, 1]),
+  Upper_95 = exp(confint.default(model_logit)[, 2])
+)
+print(round(or_tbl, 3))
+```
+
+### 6.4 Forest Plot of Odds Ratios
+
+```{r or-forest-plot}
+library(ggplot2)
+
+or_plot_df <- or_tbl[-1, ]   # drop intercept
+or_plot_df$Term <- rownames(or_plot_df)
+
+ggplot(or_plot_df, aes(x = OR, y = reorder(Term, OR))) +
+  geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
+  geom_errorbarh(aes(xmin = Lower_95, xmax = Upper_95),
+                 height = 0.25, colour = "#2166ac") +
+  geom_point(size = 3, colour = "#d6604d") +
+  labs(title = "Odds Ratios for AE Occurrence",
+       x = "Odds Ratio (95% CI)",
+       y = NULL) +
+  theme_bw(base_size = 13)
+```
+
+---
+
+## 7. Model Evaluation {#sec-evaluation}
+
+### 7.1 Confusion Matrix
+
+We use a 0.5 probability threshold to classify predictions.
+
+```{r confusion-matrix}
+pred_probs <- predict(model_logit, newdata = logit_df, type = "response")
+pred_class <- factor(if_else(pred_probs >= 0.5, "AE", "No AE"),
+                     levels = c("No AE", "AE"))
+actual     <- factor(as.character(logit_df$ANY_AE), levels = c("No AE", "AE"))
+
+conf_mat <- table(
+  Predicted = pred_class,
+  Actual    = actual
+)
+print(conf_mat)
+
+# Derived metrics (with safe fallbacks for zero cells)
+tp <- conf_mat["AE", "AE"]
+tn <- conf_mat["No AE", "No AE"]
+fp <- conf_mat["AE", "No AE"]
+fn <- conf_mat["No AE", "AE"]
+
+sensitivity <- if ((tp + fn) > 0) tp / (tp + fn) else NA_real_
+specificity  <- if ((tn + fp) > 0) tn / (tn + fp) else NA_real_
+accuracy     <- (tp + tn) / sum(conf_mat)
+
+cat(sprintf("\nSensitivity : %.3f\n", sensitivity))
+cat(sprintf("Specificity : %.3f\n", specificity))
+cat(sprintf("Accuracy    : %.3f\n", accuracy))
+```
+
+### 7.2 ROC Curve Concept
+
+The ROC curve plots sensitivity vs (1 - specificity) across all classification thresholds. Here we build it manually without additional packages.
+
+```{r roc-manual}
+library(dplyr)
+library(ggplot2)
+
+roc_df <- data.frame(
+  prob   = pred_probs,
+  actual = logit_df$ANY_AE == "AE"
+) |>
+  arrange(desc(prob))
+
+thresholds <- sort(unique(roc_df$prob), decreasing = TRUE)
+
+roc_points <- lapply(thresholds, function(thr) {
+  pred_pos <- roc_df$prob >= thr
+  tp_i  <- sum( pred_pos &  roc_df$actual)
+  fp_i  <- sum( pred_pos & !roc_df$actual)
+  fn_i  <- sum(!pred_pos &  roc_df$actual)
+  tn_i  <- sum(!pred_pos & !roc_df$actual)
+  data.frame(
+    TPR = tp_i / (tp_i + fn_i),
+    FPR = fp_i / (fp_i + tn_i)
+  )
+}) |>
+  dplyr::bind_rows()
+
+# Add (0,0) and (1,1)
+roc_curve <- rbind(data.frame(TPR = 0, FPR = 0),
+                    roc_points,
+                    data.frame(TPR = 1, FPR = 1))
+
+ggplot(roc_curve, aes(x = FPR, y = TPR)) +
+  geom_line(colour = "#2166ac", linewidth = 1.1) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed",
+              colour = "grey60") +
+  labs(title = "ROC Curve — Logistic Regression (AE Occurrence)",
+       x = "1 - Specificity (False Positive Rate)",
+       y = "Sensitivity (True Positive Rate)") +
+  coord_equal() +
+  theme_bw(base_size = 13)
+```
+
+---
+
+## 8. Poisson Regression — Count of AEs per Subject {#sec-poisson}
+
+When the outcome is a count (e.g., number of AEs), Poisson regression is appropriate.
+
+### 8.1 Building the Count Outcome
+
+```{r ae-count}
+library(dplyr)
+
+ae_counts <- ae |>
+  filter(!is.na(USUBJID)) |>
+  group_by(USUBJID) |>
+  summarise(N_AE = n(), .groups = "drop")
+
+poisson_df <- dm_clean |>
+  left_join(ae_counts, by = "USUBJID") |>
+  mutate(N_AE = if_else(is.na(N_AE), 0L, as.integer(N_AE)),
+         SEX  = factor(SEX),
+         RACE = factor(RACE)) |>
+  filter(!is.na(AGE))
+
+cat("AE count summary:\n")
+print(summary(poisson_df$N_AE))
+```
+
+### 8.2 Fitting the Poisson Model
+
+```{r poisson-fit}
+model_poisson <- glm(N_AE ~ AGE + SEX + ARM,
+                     data   = poisson_df,
+                     family = poisson(link = "log"))
+summary(model_poisson)
+```
+
+### 8.3 Incidence Rate Ratios
+
+Exponentiating Poisson coefficients gives Incidence Rate Ratios (IRR).
+
+```{r irr}
+irr_tbl <- data.frame(
+  IRR      = exp(coef(model_poisson)),
+  Lower_95 = exp(confint.default(model_poisson)[, 1]),
+  Upper_95 = exp(confint.default(model_poisson)[, 2])
+)
+print(round(irr_tbl, 3))
+```
+
+### 8.4 Checking for Overdispersion
+
+A key assumption of Poisson regression is that the mean equals the variance. We test for overdispersion by computing the ratio of residual deviance to degrees of freedom.
+
+```{r overdispersion}
+disp_ratio <- model_poisson$deviance / model_poisson$df.residual
+cat(sprintf("Dispersion ratio: %.3f\n", disp_ratio))
+cat("A ratio >> 1 suggests overdispersion; consider negative binomial model.\n")
+```
+
+### 8.5 AE Count Distribution by ARM
+
+```{r ae-count-plot}
+library(ggplot2)
+
+ggplot(poisson_df, aes(x = ARM, y = N_AE, fill = ARM)) +
+  geom_boxplot(alpha = 0.7, outlier.alpha = 0.4) +
+  scale_fill_manual(values = c("Placebo"               = "#4393c3",
+                                "Xanomeline Low Dose"   = "#f4a582",
+                                "Xanomeline High Dose"  = "#d6604d")) +
+  labs(title = "Distribution of AE Counts by Treatment Arm",
+       x = NULL, y = "Number of Adverse Events") +
+  theme_bw(base_size = 13) +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+---
+
+## 9. Coefficient Interpretation Reference {#sec-interpretation}
+
+| Model | Coefficient | Interpretation |
+|---|---|---|
+| Linear | `beta` | Change in mean outcome per 1-unit increase in predictor |
+| Logistic | `exp(beta)` | Odds ratio: multiplicative change in odds of outcome |
+| Poisson | `exp(beta)` | Incidence rate ratio: multiplicative change in rate |
+
+```{r interp-summary}
+# Collect all key estimates in one table
+cat("=== Linear Regression: AGE coefficient ===\n")
+cat(sprintf("  Beta = %.4f (per year of age, SBP in mmHg)\n",
+            coef(model_multi)["AGE"]))
+
+cat("\n=== Logistic Regression: AGE odds ratio ===\n")
+cat(sprintf("  OR = %.4f (per year of age, odds of any AE)\n",
+            exp(coef(model_logit)["AGE"])))
+
+cat("\n=== Poisson Regression: AGE incidence rate ratio ===\n")
+cat(sprintf("  IRR = %.4f (per year of age, AE count rate)\n",
+            exp(coef(model_poisson)["AGE"])))
+```
+
+---
+
+## Summary
+
+This chapter demonstrated:
+
+- **Simple and multiple linear regression** to explain SBP variation using age, sex, race and treatment arm.
+- **Model diagnostics** including residual plots, Q-Q plots, and Cook's distance.
+- **Model selection** via AIC and stepwise procedures.
+- **Polynomial regression** to capture non-linear age effects.
+- **Logistic regression** to predict binary AE occurrence, with odds ratios and a manually constructed ROC curve.
+- **Poisson regression** to model count outcomes (AE frequency per subject) with incidence rate ratios.
+
+---
+
+## Exercises {#sec-exercises-bs05}
+
+1. Fit a simple linear regression of diastolic blood pressure (`VSTESTCD == "DIABP"`) on AGE. Compare the slope to the SBP result.
+
+2. Extend the multiple linear regression for SBP by including a RACE × SEX interaction term. Does the interaction improve model fit (use `anova()`)? Interpret any significant interaction.
+
+3. Examine the Cook's distance plot for the multiple regression model. Remove the most influential observation and refit the model. How do the coefficients change?
+
+4. Using `step()`, perform forward stepwise selection starting from an intercept-only model for SBP. Do you arrive at the same model as backward selection?
+
+5. Fit a logistic regression predicting serious AEs (`AESER == "Y"` in the `ae` dataset) from age and ARM. Compute and interpret the odds ratio for the Xanomeline High Dose arm relative to Placebo.
+
+6. The Poisson dispersion ratio you computed may exceed 1. Refit the AE-count model using `glm.nb()` from the `MASS` package (call it as `MASS::glm.nb()`). Compare AIC values to decide which model is preferable.
+
+7. Add `WEIGHTBL` (baseline weight) as a covariate to the SBP multiple regression if that variable is available in `dm`. Interpret its coefficient.
+
+8. Construct a calibration plot for the logistic regression model: bin subjects by predicted probability (e.g., deciles), compute the observed proportion of AEs in each bin, and plot observed vs predicted. Does the model appear well calibrated?

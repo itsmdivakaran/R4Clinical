@@ -1,6 +1,6 @@
----
-title: "Chapter 16: Bioequivalence Studies"
----
+
+# Bioequivalence Studies
+
 
 ## Introduction
 
@@ -276,7 +276,7 @@ be_conclusion_auc <- (ci_lower_ratio >= be_lower) && (ci_upper_ratio <= be_upper
 
 cat("\nBE Criteria: [0.80, 1.25]\n")
 cat("CI within BE range?", be_conclusion_auc, "\n")
-if (be_conclusion_auc) {
+if (isTRUE(be_conclusion_auc)) {
   cat("CONCLUSION: Bioequivalence ESTABLISHED for AUC\n")
 } else {
   cat("CONCLUSION: Bioequivalence NOT established for AUC\n")
@@ -308,7 +308,7 @@ cat("90% CI for GMR (ratio-scale):",
 
 be_conclusion_cmax <- (ci_lower_ratio_cmax >= be_lower) && (ci_upper_ratio_cmax <= be_upper)
 
-if (be_conclusion_cmax) {
+if (isTRUE(be_conclusion_cmax)) {
   cat("CONCLUSION: Bioequivalence ESTABLISHED for Cmax\n")
 } else {
   cat("CONCLUSION: Bioequivalence NOT established for Cmax\n")
@@ -353,6 +353,8 @@ ggplot(ci_data, aes(x = parameter, y = gmr)) +
 For regulatory submissions, it is standard to show mean (or median) concentration-time curves for both formulations.
 
 ```{r}
+library(dplyr)
+
 # Simulate concentration-time data for visualization
 set.seed(42)
 

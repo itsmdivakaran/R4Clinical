@@ -1,8 +1,3 @@
----
-title: "Chapter 5: CDISC Standards (SDTM & ADaM)"
-subtitle: "Regulatory Standards for Clinical Data Organization and Analysis"
-author: "Mahesh Divakaran, Jayadevan Sreedharan, Gunjan Singh"
----
 
 # Chapter 5: CDISC Standards (SDTM & ADaM)
 
@@ -225,7 +220,6 @@ Let's work with real CDISC data. We'll use the **pharmaversesdtm** package (cont
 library(pharmaversesdtm)
 library(dplyr)
 library(lubridate)
-library(admiral)
 
 # Load SDTM domains
 data(dm)    # Demographics
@@ -465,7 +459,6 @@ The **admiral** package (Analysis Data Model in R Asset Library) automates commo
 
 ```{r}
 # Example: Using admiral to add analysis flags
-library(admiral)
 
 # admiral contains functions like:
 # - derive_vars_dt() : Add date variables
@@ -571,7 +564,7 @@ adsl_complete <- dm %>%
 # 3. Build ADLB (vital signs as lab analogue)
 adlb_complete <- vs %>%
   # Filter to key parameters
-  filter(VSTESTCD %in% c("SYSBP", "DIABP", "HR")) %>%
+  filter(VSTESTCD %in% c("SYSBP", "DIABP", "PULSE")) %>%
   # SDTM VS: VSSTRESU = standardised unit; VSDTC = date of measurement
   select(STUDYID, USUBJID, VSTESTCD, VSTEST, VSSTRESN, VSSTRESU,
          VISITNUM, VISIT, VSDTC) %>%
@@ -586,7 +579,7 @@ adlb_complete <- vs %>%
   # Add baseline values
   left_join(
     vs %>%
-      filter(VSTESTCD %in% c("SYSBP", "DIABP", "HR"),
+      filter(VSTESTCD %in% c("SYSBP", "DIABP", "PULSE"),
              VISITNUM == 0) %>%
       select(USUBJID, VSTESTCD, VSSTRESN) %>%
       mutate(VSSTRESN = as.numeric(VSSTRESN)) %>%
@@ -694,7 +687,7 @@ Using the pharmaversesdtm package:
 3. Validate: How many subjects are in ADSL? How many are in EFFFL?
 
 **Hint code:**
-```{r}
+```{r, eval=FALSE}
 # Load data
 data(dm); data(ex)
 

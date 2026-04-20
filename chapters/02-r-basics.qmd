@@ -1,6 +1,3 @@
----
-title: "Chapter 2: R Fundamentals and Data Structures"
----
 
 # R Fundamentals and Data Structures
 
@@ -14,7 +11,6 @@ Numeric values are decimal numbers used for measurements, lab values, and contin
 
 ```{r}
 #| label: numeric-data-type
-#| eval: false
 
 # Define a numeric value (systolic blood pressure)
 systolic_bp <- 145.3
@@ -47,7 +43,6 @@ Integers are whole numbers without decimal places. They occupy less memory than 
 
 ```{r}
 #| label: integer-data-type
-#| eval: false
 
 # Define an integer explicitly using the L suffix
 subject_id <- 101L
@@ -74,7 +69,6 @@ Character data represents text: names, identifiers, categorical values, and desc
 
 ```{r}
 #| label: character-data-type
-#| eval: false
 
 # Character strings use double or single quotes
 subject_id <- "001-101"
@@ -103,7 +97,6 @@ Logical values are TRUE or FALSE. They result from comparisons and conditional t
 
 ```{r}
 #| label: logical-data-type
-#| eval: false
 
 # Logical values from comparisons
 glucose <- 165  # mg/dL
@@ -136,7 +129,6 @@ Factors are categorical variables where levels have a specific order or meaning.
 
 ```{r}
 #| label: factor-data-type
-#| eval: false
 
 # Define a factor: treatment group with two levels
 treatment <- factor(c("Active", "Placebo", "Active", "Placebo"),
@@ -182,7 +174,6 @@ Dates are specialized data types that handle temporal data correctly.
 
 ```{r}
 #| label: date-data-type
-#| eval: false
 
 # Create a date using as.Date() with a standard format
 screening_date <- as.Date("2024-03-15", format = "%Y-%m-%d")
@@ -224,7 +215,6 @@ A vector is a sequence of values of the same type. Vectors are the fundamental b
 
 ```{r}
 #| label: vectors-intro
-#| eval: false
 
 # Numeric vector: hemoglobin values for 5 subjects
 hemoglobin <- c(13.5, 12.8, 14.2, 11.9, 13.1)
@@ -263,7 +253,6 @@ Named vectors associate each element with a meaningful label.
 
 ```{r}
 #| label: named-vectors
-#| eval: false
 
 # Create a vector of baseline vital signs
 vitals <- c(
@@ -295,7 +284,6 @@ A matrix is a two-dimensional collection of values (all the same type).
 
 ```{r}
 #| label: matrices
-#| eval: false
 
 # Create a matrix: 5 subjects, 3 lab measurements
 lab_values <- matrix(
@@ -339,7 +327,6 @@ A list can contain elements of different types and structures. Lists are extreme
 
 ```{r}
 #| label: lists
-#| eval: false
 
 # Create a list with diverse content
 subject_data <- list(
@@ -393,7 +380,6 @@ A data frame is a list of vectors (columns) of equal length. This is the standar
 
 ```{r}
 #| label: data-frames
-#| eval: false
 
 # Create a data frame: 5 subjects with demographics and baseline labs
 clinical_data <- data.frame(
@@ -446,7 +432,6 @@ Tibbles (from the {tibble} package, part of tidyverse) are enhanced data frames 
 
 ```{r}
 #| label: tibbles
-#| eval: false
 
 library(tibble)
 
@@ -484,7 +469,6 @@ Operators allow us to perform calculations, comparisons, and logical tests on da
 
 ```{r}
 #| label: arithmetic-operators
-#| eval: false
 
 # Addition
 total_dose <- 100 + 50
@@ -534,7 +518,6 @@ Comparison operators return logical (TRUE/FALSE) values. They're essential for f
 
 ```{r}
 #| label: comparison-operators
-#| eval: false
 
 # Equal to
 glucose <- 125
@@ -580,7 +563,6 @@ Logical operators combine logical conditions.
 
 ```{r}
 #| label: logical-operators
-#| eval: false
 
 # AND (&): Both conditions must be TRUE
 age <- 45
@@ -623,7 +605,6 @@ print(meets_criteria)
 
 ```{r}
 #| label: if-else-statements
-#| eval: false
 
 # Simple if statement
 hemoglobin <- 12.5
@@ -671,7 +652,6 @@ For loops iterate a fixed number of times, processing each element.
 
 ```{r}
 #| label: for-loops
-#| eval: false
 
 # Simple loop: Calculate BMI for each subject
 heights_m <- c(1.75, 1.68, 1.82, 1.70, 1.65)  # meters
@@ -718,7 +698,6 @@ While loops continue as long as a condition is TRUE.
 
 ```{r}
 #| label: while-loops
-#| eval: false
 
 # Simple while loop
 count <- 0
@@ -755,7 +734,6 @@ Functions encapsulate code logic for reuse. In clinical research, functions stan
 
 ```{r}
 #| label: function-creation
-#| eval: false
 
 # Function to calculate BMI
 calculate_bmi <- function(weight_kg, height_m) {
@@ -788,7 +766,6 @@ print(bmi_all)
 
 ```{r}
 #| label: function-multiple-returns
-#| eval: false
 
 # Function to classify lab abnormality by CTCAE
 classify_wbc_grade <- function(wbc_value) {
@@ -834,7 +811,6 @@ Variables defined inside a function are local (exist only within that function).
 
 ```{r}
 #| label: function-scope
-#| eval: false
 
 # Define a global variable
 patient_age <- 50
@@ -871,7 +847,6 @@ The apply family of functions offers vectorized alternatives to loops.
 
 ```{r}
 #| label: apply-family
-#| eval: false
 
 # Create a sample clinical dataset (matrix form)
 lab_matrix <- matrix(
@@ -927,7 +902,6 @@ Let's integrate everything: data types, structures, operators, and functions.
 
 ```{r}
 #| label: complete-patient-record
-#| eval: false
 
 library(lubridate)
 

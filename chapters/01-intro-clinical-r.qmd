@@ -1,6 +1,4 @@
----
-title: "Chapter 1: Introduction to R in Clinical Research"
----
+
 
 # Introduction to R in Clinical Research
 
@@ -233,7 +231,6 @@ Let's load a real SDTM dataset from the pharmaversesdtm package and explore it. 
 
 ```{r}
 #| label: load-pharmaverse-dm
-#| eval: false
 
 # Load the pharmaversesdtm package
 library(pharmaversesdtm)
@@ -263,9 +260,8 @@ The output shows a demographics dataset with columns like:
 
 Understanding your data begins with asking basic questions: *How many rows and columns? What are the data types? Are there missing values?*
 
-```{r}
+```{r,eval=FALSE}
 #| label: inspect-dm-structure
-#| eval: false
 
 # Get dimensions: rows (subjects) and columns (variables)
 dim(dm)
@@ -301,7 +297,6 @@ str(dm)
 
 ```{r}
 #| label: dm-summary
-#| eval: false
 
 # Generate a summary of all variables
 summary(dm)
@@ -331,7 +326,6 @@ Missing data is a critical consideration in clinical analyses. Missing values ca
 
 ```{r}
 #| label: dm-missing-data
-#| eval: false
 
 # Count missing values per column
 colSums(is.na(dm))
@@ -366,7 +360,6 @@ The {dplyr} package (part of tidyverse) provides `glimpse()`, which shows data i
 
 ```{r}
 #| label: dm-glimpse
-#| eval: false
 
 library(dplyr)
 
@@ -392,7 +385,6 @@ The pharmaverse is a collection of R packages maintained collaboratively by majo
 
 ```{r}
 #| label: pharmaverse-datasets
-#| eval: false
 
 library(pharmaversesdtm)
 
@@ -413,23 +405,38 @@ data("ds")  # Disposition
 
 ```{r}
 #| label: admiral-preview
-#| eval: false
 
-library(admiral)
+# admiral provides a grammar for building ADaM datasets from SDTM.
+# Key function families:
+#   derive_vars_*()   – add new variables (dates, flags, duration)
+#   derive_param_*()  – add derived parameters (e.g. BMI, BSA)
+#   compute_*()       – scalar computations (age, duration)
+#   filter_*()        – filter to specific records or windows
 
-# The admiral package includes functions like:
-# - derive_vars_age(): Calculate age from birth date
-# - derive_vars_period_flag(): Flag subjects in analysis periods
-# - derive_var_extremes(): Find min/max values per subject
-# - compute_duration(): Calculate duration between dates
+# Show admiral functions only if the package is installed AND can be attached
+if (requireNamespace("admiral", quietly = TRUE)) {
+  suppressPackageStartupMessages(library(admiral))
+  admiral_fns <- getNamespaceExports("admiral")
+  cat("admiral functions available:", length(admiral_fns), "\n\n")
+  cat("Sample derive_ functions:\n")
+  derive_fns <- sort(grep("^derive_", admiral_fns, value = TRUE))
+  cat(paste0("  ", head(derive_fns, 8)), sep = "\n")
+} else {
+  cat("admiral not installed.\n")
+  cat("Install with: install.packages('admiral')\n")
+}
 
-# Example: derive age from birth date using admiral functions
-dm_with_age <- dm %>%
-  derive_vars_age(
-    age_var = AGE,
-    reference_date = RFSTDTC,
-    age_unit = "YEARS"
-  )
+# Regardless of admiral availability, demonstrate age calculation —
+# the same logic admiral's compute_age_years() wraps internally:
+dm_with_computed_age <- dm |>
+  dplyr::mutate(
+    RFSTDT   = as.Date(substr(RFSTDTC, 1, 10)),
+    BRTHDT   = as.Date(substr(BRTHDTC, 1, 10)),
+    AGE_CALC = as.integer(difftime(RFSTDT, BRTHDT, units = "days") / 365.25)
+  ) |>
+  dplyr::select(USUBJID, AGE, AGE_CALC, RFSTDTC, BRTHDTC)
+
+head(dm_with_computed_age, 5)
 ```
 
 **{tern}**: Provides tabulation and analysis functions for creating the tables and figures typically found in clinical study reports.
@@ -461,7 +468,6 @@ Here's a complete workflow for inspecting a new dataset:
 
 ```{r}
 #| label: inspection-workflow
-#| eval: false
 
 # Step 1: Load and view basic structure
 library(tidyverse)

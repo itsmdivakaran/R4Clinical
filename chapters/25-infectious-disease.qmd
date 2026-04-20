@@ -1,8 +1,5 @@
----
-title: "Chapter 25: Infectious Disease Study"
----
 
-# Chapter 25: Infectious Disease Study
+# Infectious Disease Study
 
 ## 25.1 Background: VACRIN-01 Vaccine Efficacy Trial
 
@@ -368,8 +365,7 @@ seroconv_data <- ab_data %>%
   mutate(
     FOLD_RISE = exp(LOG_TITRE - BASELINE_LOG_TITRE),
     SEROCONVERTED = as.integer(FOLD_RISE >= 4)
-  ) %>%
-  left_join(vaccine_trial[, c("SUBJID", "ARM")], by = "SUBJID")
+  )
 
 seroconv_summary <- seroconv_data %>%
   group_by(ARM) %>%

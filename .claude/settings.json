@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Rscript -e \"requireNamespace\\('rstanarm', quietly=TRUE\\)\")",
+      "Bash(Rscript -e \"pkgs <- c\\('MatchIt','cobalt','WeightIt','lmtest','sandwich'\\); cat\\(sapply\\(pkgs, function\\(p\\) paste\\(p, requireNamespace\\(p, quietly=TRUE\\)\\)\\), '\\\\n'\\)\")",
+      "Bash(Rscript -e \"install.packages\\(c\\('MatchIt','cobalt','WeightIt','sandwich'\\), repos='https://cran.r-project.org', quiet=TRUE\\)\")",
+      "Bash(Rscript -e \"cat\\(requireNamespace\\('MatchIt', quietly=TRUE\\), requireNamespace\\('cobalt', quietly=TRUE\\), requireNamespace\\('WeightIt', quietly=TRUE\\), requireNamespace\\('sandwich', quietly=TRUE\\), '\\\\n'\\)\")",
+      "Bash(Rscript -e \"library\\(pharmaversesdtm\\); data\\(ae\\); cat\\(names\\(ae\\), '\\\\n'\\)\")",
+      "Bash(Rscript -e \"library\\(flextable\\); exists\\('paginate_at_bkpt'\\)\")",
+      "Bash(grep -n \"^demographics_table$\\\\|^demographics_gt$\\\\|^ae_table$\\\\|^sae_listing$\\\\|tbl_summary\\\\|as_gt\\\\|flextable\\(\" /Users/maheshdivakaran/Documents/CLAUDE/Book/R4Clinical/chapters/20-tlfs.qmd)",
+      "Bash(quarto --version)",
+      "Bash(grep -n \"params\\\\$\\\\|targets::\\\\|tarchetypes::\" /Users/maheshdivakaran/Documents/CLAUDE/Book/R4Clinical/chapters/21-reproducible-reporting.qmd)",
+      "Bash(yaml\\\\|)",
+      "Bash(grep -v \"^[0-9]*:#\\\\|```yaml\\\\|```r\\\\|#|\")",
+      "Bash(grep -n \"params\\\\$\" /Users/maheshdivakaran/Documents/CLAUDE/Book/R4Clinical/chapters/21-reproducible-reporting.qmd)",
+      "Bash(python3 -)",
+      "Bash(Rscript -e 'library\\(pharmaversesdtm\\); data\\(vs\\); cat\\(unique\\(vs$VSTESTCD\\), '\\\\''\\\\n'\\\\''\\)')",
+      "Bash(Rscript -e 'library\\(pharmaversesdtm\\); data\\(lb\\); cat\\(unique\\(lb$LBTESTCD\\)[1:20], '\\\\''\\\\n'\\\\''\\)')"
+    ]
+  }
+}

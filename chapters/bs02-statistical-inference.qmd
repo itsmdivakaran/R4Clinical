@@ -1,0 +1,627 @@
+# Statistical Inference in Clinical Research
+
+## Introduction
+
+Statistical inference is the process of drawing conclusions about a population from a sample of data. In clinical research, we rarely have access to every patient who could ever receive a treatment — instead, we study a carefully selected sample and use the results to make inferences about the broader patient population.
+
+This chapter covers:
+
+- **Point estimation**: Using sample statistics to estimate population parameters
+- **Interval estimation**: Constructing confidence intervals to quantify uncertainty
+- **Hypothesis testing**: Formal framework for making decisions under uncertainty
+- **p-Values and effect sizes**: Interpreting and communicating statistical results
+- **Multiple testing**: Controlling error rates when testing many hypotheses
+- **Clinical versus statistical significance**: Connecting numbers to patient outcomes
+
+---
+
+## 1. The Framework of Statistical Inference
+
+### 1.1 Population, Sample, and Parameters
+
+In clinical research, the *population* is the collection of all patients we wish to make statements about (e.g., all adults with moderate-to-severe hypertension). A *sample* is the finite group we actually observe. *Parameters* (Greek letters: $\mu$, $\sigma$, $\pi$) describe population characteristics; *statistics* (Roman letters: $\bar{x}$, $s$, $\hat{p}$) describe sample characteristics.
+
+The fundamental challenge: parameters are unknown and often unknowable. Inference uses sample statistics — and knowledge about their sampling distributions — to make probabilistic statements about parameters.
+
+```{r}
+#| label: inference-setup
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(broom)
+library(gt)
+set.seed(42)
+
+# Simulate a clinical population
+# True population: SBP ~ N(140, 20) for untreated hypertensive patients
+pop_size  <- 100000
+pop_sbp   <- rnorm(pop_size, mean = 140, sd = 20)
+pop_mean  <- mean(pop_sbp)
+pop_sd    <- sd(pop_sbp)
+
+cat("True population mean SBP:", round(pop_mean, 2), "mmHg\n")
+cat("True population SD:      ", round(pop_sd,  2), "mmHg\n")
+```
+
+```{r}
+#| label: sampling-demo
+#| fig-cap: "Sampling variability: 200 sample means (n=50 each) drawn from the hypertensive population"
+
+# Draw many samples and examine the sampling distribution
+n_samples  <- 200
+sample_n   <- 50
+sample_means <- replicate(n_samples, mean(sample(pop_sbp, sample_n)))
+
+tibble(sample_mean = sample_means) |>
+  ggplot(aes(x = sample_mean)) +
+  geom_histogram(bins = 30, fill = "#2C6E9E", colour = "white", alpha = 0.85) +
+  geom_vline(xintercept = pop_mean, colour = "red", linewidth = 1, linetype = "dashed") +
+  annotate("text", x = pop_mean + 0.4, y = 22,
+           label = paste0("Population mean\n", round(pop_mean, 1), " mmHg"),
+           colour = "red", hjust = 0, size = 3.5) +
+  labs(
+    x = "Sample Mean SBP (mmHg)",
+    y = "Count",
+    title = "Sampling Distribution of the Mean",
+    subtitle = paste0(n_samples, " samples of n=", sample_n, " from hypertensive population")
+  ) +
+  theme_bw(base_size = 12)
+```
+
+### 1.2 The Standard Error
+
+The *standard error* (SE) measures the spread of a sampling distribution — it quantifies how much a statistic varies from sample to sample:
+
+$$SE_{\bar{x}} = \frac{\sigma}{\sqrt{n}}$$
+
+When $\sigma$ is unknown (the usual case), we substitute the sample standard deviation $s$:
+
+$$\widehat{SE}_{\bar{x}} = \frac{s}{\sqrt{n}}$$
+
+```{r}
+#| label: se-demo
+
+# One sample from our clinical population
+clinical_sample <- sample(pop_sbp, 50)
+x_bar <- mean(clinical_sample)
+s     <- sd(clinical_sample)
+se    <- s / sqrt(length(clinical_sample))
+
+cat("Sample mean:           ", round(x_bar, 2), "mmHg\n")
+cat("Sample SD:             ", round(s, 2),     "mmHg\n")
+cat("Standard Error (SE):   ", round(se, 2),    "mmHg\n")
+cat("Theoretical SE:        ", round(pop_sd / sqrt(50), 2), "mmHg\n")
+```
+
+---
+
+## 2. Point Estimation
+
+### 2.1 Desirable Properties of Estimators
+
+A good estimator is:
+
+- **Unbiased**: $E[\hat{\theta}] = \theta$ (on average, it hits the target)
+- **Consistent**: converges to $\theta$ as $n \to \infty$
+- **Efficient**: smallest variance among all unbiased estimators
+
+The sample mean $\bar{x}$ is unbiased, consistent, and efficient for the population mean $\mu$ when data are normally distributed.
+
+```{r}
+#| label: estimator-bias
+
+# Demonstrate unbiasedness: average of many sample means ≈ population mean
+bias <- mean(sample_means) - pop_mean
+cat("Mean of 200 sample means:", round(mean(sample_means), 3), "mmHg\n")
+cat("True population mean:    ", round(pop_mean,           3), "mmHg\n")
+cat("Empirical bias:          ", round(bias,               4), "mmHg (≈ 0)\n")
+```
+
+### 2.2 Maximum Likelihood Estimation
+
+Maximum likelihood estimation (MLE) finds parameter values that maximise the likelihood of observing the collected data. For normally distributed data, MLE gives the same result as the method of moments: $\hat{\mu}_{MLE} = \bar{x}$.
+
+```{r}
+#| label: mle-illustration
+#| fig-cap: "Log-likelihood surface for the mean of a normal distribution (σ known)"
+
+# Likelihood of observing our sample under different mean hypotheses
+mu_grid  <- seq(120, 160, by = 0.5)
+log_lik  <- sapply(mu_grid, function(mu) {
+  sum(dnorm(clinical_sample, mean = mu, sd = pop_sd, log = TRUE))
+})
+
+tibble(mu = mu_grid, log_likelihood = log_lik) |>
+  ggplot(aes(x = mu, y = log_likelihood)) +
+  geom_line(colour = "#2C6E9E", linewidth = 1) +
+  geom_vline(xintercept = x_bar, colour = "red",
+             linetype = "dashed", linewidth = 0.9) +
+  annotate("text", x = x_bar + 0.5, y = min(log_lik) + 5,
+           label = paste0("MLE = ", round(x_bar, 1)),
+           colour = "red", hjust = 0, size = 3.5) +
+  labs(
+    x = expression(mu ~ "(Hypothesised Population Mean)"),
+    y = "Log-Likelihood",
+    title = "Log-Likelihood as a Function of the Mean",
+    subtitle = "Peak identifies the maximum likelihood estimate"
+  ) +
+  theme_bw(base_size = 12)
+```
+
+---
+
+## 3. Interval Estimation: Confidence Intervals
+
+### 3.1 The Confidence Interval Concept
+
+A $(1-\alpha) \times 100\%$ confidence interval (CI) is constructed so that, **in repeated sampling**, $(1-\alpha) \times 100\%$ of such intervals contain the true parameter. For $\alpha = 0.05$, we get 95% CIs.
+
+**Critical misconception**: A 95% CI does *not* mean "there is a 95% probability that the true mean lies in this interval." The true mean is fixed (though unknown); it either is or is not in the interval. The 95% refers to the *procedure*, not the interval.
+
+For a single mean with unknown $\sigma$:
+$$\bar{x} \pm t_{\alpha/2, \, n-1} \cdot \frac{s}{\sqrt{n}}$$
+
+```{r}
+#| label: ci-coverage
+#| fig-cap: "95% confidence intervals from 50 repeated samples — approximately 95% contain the true mean (red line)"
+
+set.seed(123)
+n_ci    <- 50
+ci_data <- tibble(
+  sample_id = 1:n_ci,
+  mean      = replicate(n_ci, {
+    s_tmp <- sample(pop_sbp, 50)
+    mean(s_tmp)
+  }),
+  sd_samp   = replicate(n_ci, {
+    s_tmp <- sample(pop_sbp, 50)
+    sd(s_tmp)
+  })
+) |>
+  mutate(
+    se    = sd_samp / sqrt(50),
+    lower = mean - qt(0.975, df = 49) * se,
+    upper = mean + qt(0.975, df = 49) * se,
+    contains_true = lower <= pop_mean & pop_mean <= upper
+  )
+
+coverage <- mean(ci_data$contains_true) * 100
+cat("Empirical coverage:", coverage, "%\n")
+
+ci_data |>
+  ggplot(aes(x = sample_id, y = mean,
+             colour = contains_true, ymin = lower, ymax = upper)) +
+  geom_hline(yintercept = pop_mean, colour = "red",
+             linewidth = 1, linetype = "dashed") +
+  geom_errorbar(width = 0.4, linewidth = 0.6) +
+  geom_point(size = 2) +
+  scale_colour_manual(
+    values = c("FALSE" = "#D32F2F", "TRUE" = "#2C6E9E"),
+    labels = c("FALSE" = "Does not contain µ", "TRUE" = "Contains µ")
+  ) +
+  labs(
+    x = "Sample Number",
+    y = "Sample Mean SBP (mmHg)",
+    colour = NULL,
+    title = "95% Confidence Intervals Across 50 Samples",
+    subtitle = paste0("Coverage: ", coverage, "% (expected ≈ 95%)")
+  ) +
+  theme_bw(base_size = 12) +
+  theme(legend.position = "bottom")
+```
+
+### 3.2 CIs for Common Clinical Estimands
+
+```{r}
+#| label: ci-examples
+
+# Generate a small clinical dataset
+set.seed(7)
+trial_df <- tibble(
+  subject_id = paste0("SUBJ-", sprintf("%03d", 1:80)),
+  arm        = rep(c("Active", "Placebo"), each = 40),
+  sbp_base   = rnorm(80, mean = 145, sd = 15),
+  sbp_chg    = c(rnorm(40, mean = -12, sd = 8),   # Active: mean reduction
+                 rnorm(40, mean =  -3, sd = 8))    # Placebo: small reduction
+)
+
+# CI for a single mean
+active_chg <- trial_df |> filter(arm == "Active") |> pull(sbp_chg)
+ci_single  <- t.test(active_chg)$conf.int
+
+# CI for difference between two means
+tt_result  <- t.test(sbp_chg ~ arm, data = trial_df, var.equal = FALSE)
+ci_diff    <- tt_result$conf.int
+
+# CI for a proportion (adverse events)
+n_ae       <- 12
+n_total    <- 80
+ci_prop    <- prop.test(n_ae, n_total)$conf.int
+
+cat("=== Confidence Intervals ===\n\n")
+cat("Mean SBP change (Active):\n")
+cat("  Estimate:", round(mean(active_chg), 2), "mmHg\n")
+cat("  95% CI: [", round(ci_single[1], 2), ",", round(ci_single[2], 2), "]\n\n")
+
+cat("Difference in SBP change (Active – Placebo):\n")
+cat("  Estimate:", round(tt_result$estimate[1] - tt_result$estimate[2], 2), "mmHg\n")
+cat("  95% CI: [", round(ci_diff[1], 2), ",", round(ci_diff[2], 2), "]\n\n")
+
+cat("AE proportion (12/80):\n")
+cat("  Estimate:", round(n_ae / n_total * 100, 1), "%\n")
+cat("  95% CI: [", round(ci_prop[1] * 100, 1), "%, ", round(ci_prop[2] * 100, 1), "%]\n")
+```
+
+---
+
+## 4. Hypothesis Testing
+
+### 4.1 The Neyman–Pearson Framework
+
+Hypothesis testing provides a formal decision procedure:
+
+1. **State hypotheses**: $H_0$ (null) and $H_1$ (alternative)
+2. **Choose a test statistic** whose distribution under $H_0$ is known
+3. **Set significance level** $\alpha$ (usually 0.05 for Phase III)
+4. **Compute the test statistic** from the data
+5. **Reject $H_0$** if the test statistic exceeds the critical value
+
+**Error types**:
+
+| Decision | $H_0$ true | $H_0$ false |
+|---|---|---|
+| Reject $H_0$ | Type I error ($\alpha$) | Correct (Power = $1-\beta$) |
+| Fail to reject $H_0$ | Correct ($1-\alpha$) | Type II error ($\beta$) |
+
+```{r}
+#| label: error-types
+#| fig-cap: "Type I and Type II errors visualised for a one-sample t-test"
+
+mu0    <- 0       # H0: no change
+mu1    <- -5      # H1: 5 mmHg reduction
+sigma  <- 8
+n_viz  <- 40
+se_viz <- sigma / sqrt(n_viz)
+
+x_range <- seq(-15, 10, length.out = 500)
+df_null <- tibble(x = x_range, y = dnorm(x, mu0, se_viz), dist = "H0: µ = 0")
+df_alt  <- tibble(x = x_range, y = dnorm(x, mu1, se_viz), dist = "H1: µ = -5")
+
+crit_val <- qnorm(0.05, mu0, se_viz)  # one-tailed
+
+bind_rows(df_null, df_alt) |>
+  ggplot(aes(x = x, y = y, colour = dist)) +
+  geom_line(linewidth = 1.1) +
+  # Type I error (alpha)
+  geom_area(data = filter(df_null, x <= crit_val),
+            aes(x = x, y = y), fill = "#D32F2F", alpha = 0.35, inherit.aes = FALSE) +
+  # Type II error (beta)
+  geom_area(data = filter(df_alt, x >= crit_val),
+            aes(x = x, y = y), fill = "#F57C00", alpha = 0.35, inherit.aes = FALSE) +
+  geom_vline(xintercept = crit_val, linetype = "dashed", colour = "black") +
+  annotate("text", x = crit_val - 0.3, y = 0.16,
+           label = paste0("Critical value\n", round(crit_val, 2)),
+           hjust = 1, size = 3) +
+  annotate("text", x = -13, y = 0.05, label = "Power\n(1-β)",
+           colour = "#1565C0", size = 3.5, fontface = "bold") +
+  annotate("text", x = -2.5, y = 0.03, label = "Type I\n(α)",
+           colour = "#D32F2F", size = 3.5, fontface = "bold") +
+  scale_colour_manual(values = c("H0: µ = 0" = "#757575", "H1: µ = -5" = "#1565C0")) +
+  labs(
+    x = "Mean SBP Change (mmHg)",
+    y = "Density",
+    colour = "Distribution",
+    title = "Type I Error, Type II Error, and Power",
+    subtitle = "One-tailed test, α = 0.05, n = 40"
+  ) +
+  theme_bw(base_size = 12) +
+  theme(legend.position = "bottom")
+```
+
+### 4.2 p-Values: Definition and Interpretation
+
+The **p-value** is the probability of observing a test statistic at least as extreme as the one calculated, *assuming $H_0$ is true*.
+
+$$p = P(|T| \geq |t_{obs}| \mid H_0)$$
+
+**Common misinterpretations to avoid**:
+
+- ✗ "p = 0.03 means there is a 3% chance the null is true"
+- ✗ "p = 0.03 means there is a 97% chance the alternative is true"
+- ✓ "If the null were true, we would observe data this extreme 3% of the time"
+
+```{r}
+#| label: pvalue-demo
+
+# Two-sample t-test comparing SBP change between arms
+tt_out <- t.test(sbp_chg ~ arm, data = trial_df, var.equal = FALSE)
+tidy(tt_out) |>
+  select(estimate, estimate1, estimate2, statistic, p.value, conf.low, conf.high) |>
+  mutate(across(where(is.numeric), \(x) round(x, 4))) |>
+  gt() |>
+  tab_header(title = "Two-Sample t-Test: SBP Change Active vs. Placebo") |>
+  cols_label(
+    estimate  = "Difference",
+    estimate1 = "Mean (Active)",
+    estimate2 = "Mean (Placebo)",
+    statistic = "t-statistic",
+    p.value   = "p-value",
+    conf.low  = "95% CI Lower",
+    conf.high = "95% CI Upper"
+  )
+```
+
+### 4.3 One-Tailed vs. Two-Tailed Tests
+
+Two-tailed tests are standard in confirmatory clinical trials because they protect against detecting effects in either direction. One-tailed tests may be pre-specified when there is a directional prior (e.g., superiority trials), but require strong scientific justification and regulatory agreement.
+
+```{r}
+#| label: tails-comparison
+
+# Compare one- and two-tailed p-values
+tt_two <- t.test(sbp_chg ~ arm, data = trial_df,
+                 alternative = "two.sided", var.equal = FALSE)
+tt_one <- t.test(sbp_chg ~ arm, data = trial_df,
+                 alternative = "less", var.equal = FALSE)  # Active < Placebo
+
+cat("Two-tailed p-value:", round(tt_two$p.value, 4), "\n")
+cat("One-tailed p-value:", round(tt_one$p.value,  4), "\n")
+cat("Note: one-tailed p ≈ two-tailed p / 2 when testing in the correct direction\n")
+```
+
+---
+
+## 5. Effect Sizes and Clinical Significance
+
+Statistical significance ($p < 0.05$) and clinical significance are different concepts. A large study can detect trivially small effects as statistically significant; a small study may miss clinically important effects.
+
+### 5.1 Cohen's d
+
+For comparing two means, Cohen's d standardises the difference by the pooled standard deviation:
+
+$$d = \frac{\bar{x}_1 - \bar{x}_2}{s_{pooled}}$$
+
+Benchmarks (Cohen, 1988): small = 0.2, medium = 0.5, large = 0.8.
+
+```{r}
+#| label: effect-sizes
+
+# Compute effect size
+active_mean  <- mean(trial_df$sbp_chg[trial_df$arm == "Active"])
+placebo_mean <- mean(trial_df$sbp_chg[trial_df$arm == "Placebo"])
+pooled_sd    <- sqrt(
+  ((40 - 1) * var(trial_df$sbp_chg[trial_df$arm == "Active"]) +
+   (40 - 1) * var(trial_df$sbp_chg[trial_df$arm == "Placebo"])) / (80 - 2)
+)
+cohens_d <- (active_mean - placebo_mean) / pooled_sd
+
+cat("Mean change (Active): ",  round(active_mean,  2), "mmHg\n")
+cat("Mean change (Placebo):",  round(placebo_mean, 2), "mmHg\n")
+cat("Difference:           ", round(active_mean - placebo_mean, 2), "mmHg\n")
+cat("Pooled SD:            ",  round(pooled_sd,   2), "mmHg\n")
+cat("Cohen's d:            ",  round(cohens_d,    3), "\n")
+cat("Interpretation:        ",
+    ifelse(abs(cohens_d) < 0.2, "negligible",
+    ifelse(abs(cohens_d) < 0.5, "small",
+    ifelse(abs(cohens_d) < 0.8, "medium", "large"))), "\n")
+```
+
+### 5.2 Reporting Both Statistical and Clinical Significance
+
+In clinical trial reports and publications, always present:
+
+1. **Point estimate** with units (e.g., mean difference in mmHg)
+2. **Confidence interval** to convey precision
+3. **p-value** for hypothesis test result
+4. **Effect size** to convey practical magnitude
+5. **Clinical threshold** context (e.g., MCID for patient-reported outcomes)
+
+```{r}
+#| label: full-reporting
+
+# Summary table: complete inferential report
+tibble(
+  Metric    = c("Mean SBP change (Active)", "Mean SBP change (Placebo)",
+                "Difference (Active – Placebo)", "95% CI for Difference",
+                "p-value (two-tailed)", "Cohen's d",
+                "Clinical threshold (MCID ≈ 5 mmHg)"),
+  Value     = c(
+    paste0(round(active_mean, 1), " mmHg"),
+    paste0(round(placebo_mean, 1), " mmHg"),
+    paste0(round(active_mean - placebo_mean, 1), " mmHg"),
+    paste0("[", round(tt_out$conf.int[1], 1), ", ", round(tt_out$conf.int[2], 1), "] mmHg"),
+    formatC(tt_out$p.value, format = "f", digits = 4),
+    round(cohens_d, 2),
+    "Difference exceeds MCID: YES"
+  )
+) |>
+  gt() |>
+  tab_header(title = "Complete Inferential Report: SBP Reduction Trial")
+```
+
+---
+
+## 6. Multiple Testing and Error Control
+
+### 6.1 The Multiple Comparisons Problem
+
+When testing $m$ hypotheses simultaneously, each at level $\alpha$, the probability of at least one false positive is:
+
+$$P(\text{at least one Type I error}) = 1 - (1 - \alpha)^m$$
+
+For $m = 20$ tests at $\alpha = 0.05$: $P = 1 - 0.95^{20} \approx 0.64$.
+
+```{r}
+#| label: fwer-demo
+#| fig-cap: "Family-wise error rate rises rapidly with number of tests"
+
+m_vals <- 1:50
+fwer   <- 1 - (1 - 0.05)^m_vals
+
+tibble(m = m_vals, FWER = fwer) |>
+  ggplot(aes(x = m, y = FWER)) +
+  geom_line(colour = "#D32F2F", linewidth = 1.1) +
+  geom_hline(yintercept = 0.05, linetype = "dashed", colour = "#2C6E9E") +
+  geom_hline(yintercept = 0.20, linetype = "dotted", colour = "#F57C00") +
+  annotate("text", x = 48, y = 0.07, label = "α = 0.05", colour = "#2C6E9E", size = 3) +
+  annotate("text", x = 48, y = 0.22, label = "20%",      colour = "#F57C00", size = 3) +
+  labs(
+    x = "Number of Tests (m)",
+    y = "Family-Wise Error Rate (FWER)",
+    title = "Multiple Testing Inflates the Type I Error Rate",
+    subtitle = "Each individual test at α = 0.05"
+  ) +
+  theme_bw(base_size = 12)
+```
+
+### 6.2 Correction Methods
+
+**Bonferroni correction**: Divide $\alpha$ by $m$. Simple, conservative.
+$$\alpha^* = \frac{\alpha}{m}$$
+
+**Holm's step-down**: Less conservative than Bonferroni, controls FWER.
+
+**Benjamini–Hochberg (FDR)**: Controls the expected proportion of false discoveries among rejected hypotheses. Preferred for exploratory analyses.
+
+```{r}
+#| label: multiple-testing-corrections
+
+set.seed(99)
+# Simulate 20 p-values (5 truly non-null, 15 null)
+n_tests    <- 20
+true_null  <- c(rep(TRUE, 15), rep(FALSE, 5))
+raw_pvals  <- c(
+  runif(15, 0.01, 0.99),         # null hypotheses
+  c(0.001, 0.004, 0.012, 0.031, 0.048)  # non-null (small p-values)
+)
+
+corrections <- tibble(
+  test         = paste0("Test-", sprintf("%02d", 1:n_tests)),
+  p_raw        = raw_pvals,
+  p_bonferroni = p.adjust(raw_pvals, method = "bonferroni"),
+  p_holm       = p.adjust(raw_pvals, method = "holm"),
+  p_BH         = p.adjust(raw_pvals, method = "BH"),
+  true_null    = true_null
+) |>
+  arrange(p_raw)
+
+# Summary of rejections
+tibble(
+  Method      = c("No correction", "Bonferroni", "Holm", "Benjamini-Hochberg"),
+  Threshold   = c(0.05, 0.05 / n_tests, 0.05, 0.05),
+  Rejections  = c(
+    sum(raw_pvals < 0.05),
+    sum(p.adjust(raw_pvals, "bonferroni") < 0.05),
+    sum(p.adjust(raw_pvals, "holm")       < 0.05),
+    sum(p.adjust(raw_pvals, "BH")         < 0.05)
+  ),
+  True_Positives = c(
+    sum(!true_null & raw_pvals < 0.05),
+    sum(!true_null & p.adjust(raw_pvals, "bonferroni") < 0.05),
+    sum(!true_null & p.adjust(raw_pvals, "holm")       < 0.05),
+    sum(!true_null & p.adjust(raw_pvals, "BH")         < 0.05)
+  )
+) |>
+  mutate(False_Positives = Rejections - True_Positives) |>
+  gt() |>
+  tab_header(title = "Comparison of Multiple Testing Correction Methods",
+             subtitle = "20 tests: 15 true null, 5 true non-null")
+```
+
+---
+
+## 7. Bootstrap Inference
+
+The bootstrap is a resampling method for constructing CIs without distributional assumptions — valuable when normality cannot be assumed or sample size is small.
+
+```{r}
+#| label: bootstrap-ci
+#| fig-cap: "Bootstrap distribution of the mean SBP change and corresponding 95% CI"
+
+set.seed(42)
+boot_data <- trial_df |> filter(arm == "Active") |> pull(sbp_chg)
+n_boot    <- 5000
+boot_means <- replicate(n_boot, mean(sample(boot_data, replace = TRUE)))
+
+# Percentile CI
+ci_boot <- quantile(boot_means, c(0.025, 0.975))
+
+cat("Bootstrap 95% CI (percentile):",
+    round(ci_boot[1], 2), "to", round(ci_boot[2], 2), "mmHg\n")
+cat("Parametric 95% CI:            ",
+    round(t.test(boot_data)$conf.int[1], 2), "to",
+    round(t.test(boot_data)$conf.int[2], 2), "mmHg\n")
+
+tibble(boot_mean = boot_means) |>
+  ggplot(aes(x = boot_mean)) +
+  geom_histogram(bins = 50, fill = "#2C6E9E", colour = "white", alpha = 0.85) +
+  geom_vline(xintercept = ci_boot, colour = "red",
+             linetype = "dashed", linewidth = 0.9) +
+  annotate("text", x = ci_boot[1] - 0.3, y = 350,
+           label = paste0(round(ci_boot[1], 1)), colour = "red", hjust = 1, size = 3.5) +
+  annotate("text", x = ci_boot[2] + 0.3, y = 350,
+           label = paste0(round(ci_boot[2], 1)), colour = "red", hjust = 0, size = 3.5) +
+  labs(
+    x = "Bootstrap Sample Mean (mmHg)",
+    y = "Count",
+    title = "Bootstrap Distribution of Mean SBP Change (Active Arm)",
+    subtitle = paste0(n_boot, " bootstrap replicates; red dashed lines = 95% CI")
+  ) +
+  theme_bw(base_size = 12)
+```
+
+---
+
+## 8. One-Sample and Two-Sample Inferences: Practical Workflow
+
+```{r}
+#| label: inference-workflow
+
+# Complete workflow for a two-arm trial comparison
+
+# Step 1: Check assumptions
+cat("=== Normality Check (Shapiro-Wilk) ===\n")
+for (arm_name in c("Active", "Placebo")) {
+  vals <- trial_df |> filter(arm == arm_name) |> pull(sbp_chg)
+  sw   <- shapiro.test(vals)
+  cat(arm_name, ": W =", round(sw$statistic, 4),
+      ", p =", round(sw$p.value, 4),
+      ifelse(sw$p.value > 0.05, " (Normal assumption OK)\n", " (Consider non-parametric)\n"))
+}
+
+# Step 2: Variance equality (Levene's / F-test)
+cat("\n=== Variance Equality (F-test) ===\n")
+ftest <- var.test(sbp_chg ~ arm, data = trial_df)
+cat("F =", round(ftest$statistic, 3),
+    ", p =", round(ftest$p.value, 4),
+    ifelse(ftest$p.value > 0.05,
+           " (Equal variances OK — use pooled t-test)\n",
+           " (Unequal variances — use Welch t-test)\n"))
+
+# Step 3: Conduct test
+cat("\n=== Inferential Test ===\n")
+final_test <- t.test(sbp_chg ~ arm, data = trial_df,
+                     var.equal = ftest$p.value > 0.05)
+cat("t =", round(final_test$statistic, 3),
+    ", df =", round(final_test$parameter, 1),
+    ", p =", round(final_test$p.value, 4), "\n")
+cat("95% CI: [", round(final_test$conf.int[1], 2), ",",
+    round(final_test$conf.int[2], 2), "] mmHg\n")
+```
+
+---
+
+## Summary
+
+Statistical inference bridges the gap between observed data and generalisable conclusions. The key principles for clinical research are:
+
+- **Standard errors** quantify sampling variability; they shrink as $n$ increases
+- **Confidence intervals** convey both the direction and precision of effects; they are preferred over p-values alone for regulatory submissions (ICH E9)
+- **Hypothesis testing** controls long-run error rates; the significance level $\alpha = 0.05$ is a convention, not a law
+- **p-Values** measure the compatibility of data with the null hypothesis — they are *not* the probability that the null is true
+- **Effect sizes** (Cohen's d, relative risk) are essential for interpreting practical importance
+- **Multiple testing adjustments** are mandatory whenever more than one hypothesis is tested
+- **Bootstrap methods** provide distribution-free inference, particularly useful for small or non-normal samples
+
+> **Regulatory note**: ICH E9 (Statistical Principles for Clinical Trials) and its addendum ICH E9(R1) on estimands provide the gold standard framework for statistical inference in confirmatory clinical trials.

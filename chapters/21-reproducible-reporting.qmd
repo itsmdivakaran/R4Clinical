@@ -1,7 +1,6 @@
----
-title: "Chapter 21: Reproducible Reporting with R Markdown and Quarto"
-subtitle: "Automating Clinical Study Reports"
----
+
+# Reproducible Reporting with R Markdown and Quarto
+
 
 ## 21.1 Introduction to Reproducible Reporting
 
@@ -172,11 +171,13 @@ Use `params$variable_name` to access parameters:
 
 ```{r}
 #| label: filter-by-arm
+#| eval: false
 
 library(dplyr)
 
-# Filter to the selected treatment arm
+# Filter to the selected treatment arm (join ARM from dm)
 data_filtered <- ae %>%
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
   filter(ARM == params$treatment_arm)
 
 # Get analysis date
@@ -185,7 +186,7 @@ analysis_date <- params$analysis_date
 # Report
 cat("Analysis Date:", analysis_date, "\n")
 cat("Treatment Arm:", params$treatment_arm, "\n")
-cat("N subjects with AE:", n_distinct(data_filtered$SUBJID), "\n")
+cat("N subjects with AE:", n_distinct(data_filtered$USUBJID), "\n")
 ```
 
 ### 21.5.3 Render with Different Parameters
@@ -209,6 +210,7 @@ quarto render safety_report.qmd \
 Or in R:
 
 ```{r}
+#| eval: false
 library(quarto)
 
 # Render for each treatment arm
@@ -224,6 +226,19 @@ for (arm in c("A", "B", "Control")) {
 ### 21.5.4 Example: Parameterized Safety Report Template
 
 Create a file `safety_report_template.qmd`:
+
+```{r}
+#| echo: false
+# Define example params so inline `r params$...` expressions in the
+# verbatim template block below can be evaluated during book rendering.
+params <- list(
+  treatment_arm       = "Xanomeline High Dose",
+  data_cutoff         = Sys.Date(),
+  analysis_date       = Sys.Date(),
+  min_aesev           = "MODERATE",
+  include_serious_ae  = TRUE
+)
+```
 
 ```{r}
 #| eval: false
@@ -252,6 +267,7 @@ as of **`r format(params$data_cutoff, '%B %d, %Y')`**.
 ```{r}
 #| label: ae-by-severity
 #| echo: false
+#| eval: false
 
 library(dplyr)
 library(gtsummary)
@@ -262,16 +278,14 @@ data("dm")
 
 # Filter to severity threshold
 ae_filtered <- ae %>%
-  filter(
-    AESEV %in% c(params$min_aesev, "SEVERE")
-  )
+  filter(AESEV %in% c(params$min_aesev, "SEVERE"))
 
 # Create summary table
 ae_table <- ae_filtered %>%
-  select(SUBJID, AETERM, AESEV, AEONSET = AESTDTC) %>%
+  select(USUBJID, AETERM, AESEV, AEONSET = AESTDTC) %>%
   distinct() %>%
   arrange(AEONSET) %>%
-  head(20)  # Top 20 for display
+  head(20)
 
 knitr::kable(ae_table, caption = "Adverse Events (Top 20)")
 ```
@@ -281,6 +295,7 @@ knitr::kable(ae_table, caption = "Adverse Events (Top 20)")
 ```{r}
 #| label: demographics-table
 #| echo: false
+#| eval: false
 
 # Get N for the selected arm
 n_arm <- dm %>%
@@ -344,7 +359,6 @@ Now reference it: "As shown in @fig-ae-trend, AE incidence increased over time."
 #| echo: false
 
 library(gtsummary)
-library(kableExtra)
 
 ae_summary_table <- mtcars %>%  # Placeholder; replace with actual AE data
   head(5) %>%
@@ -516,7 +530,8 @@ list(
 
 ### 21.9.2 Execute the Pipeline
 
-```r
+```{r}
+#| eval: false
 # Run pipeline
 targets::tar_make()
 
@@ -603,6 +618,17 @@ This satisfies 21 CFR Part 11 audit trail requirements.
 Here's a comprehensive safety report template (`safety_report_full.qmd`) that demonstrates all concepts:
 
 ```{r}
+#| include: false
+# Stub values so inline `r ...` expressions in the template prose below evaluate cleanly
+params <- list(treatment_arm = "Treatment A", data_cutoff = Sys.Date(),
+               include_serious_ae = TRUE, min_aesev = "MODERATE")
+n_subjects <- 120L; pct_female <- 42.5; mean_age <- 45.3; sd_age <- 12.1
+ae_timeline <- data.frame(cumulative_pct = c(10, 20, 30))
+sae_count <- 8L; total_ae_events <- 150L; n_ae_subjects <- 95L
+ae_incidence_pct <- 79.2
+```
+
+```{r}
 #| eval: false
 #| echo: true
 
@@ -640,6 +666,7 @@ This report summarizes safety data for **`r params$treatment_arm`**
 as of **`r format(params$data_cutoff, '%B %d, %Y')`**.
 
 ```{r}
+#| eval: false
 #| label: load-libraries
 
 library(dplyr)
@@ -657,6 +684,7 @@ data("adsl")
 ## Study Population {#sec-population}
 
 ```{r}
+#| eval: false
 #| label: population-summary
 
 # Filter to treatment arm
@@ -676,6 +704,7 @@ The population was `r pct_female`% female with a mean age of `r mean_age` ± `r 
 ### Demographics Table {#sec-demo-table}
 
 ```{r}
+#| eval: false
 #| label: tbl-demographics
 #| tbl-cap: "Baseline Demographics"
 
@@ -700,6 +729,7 @@ dm %>%
 ## Adverse Events {#sec-ae}
 
 ```{r}
+#| eval: false
 #| label: ae-summary-data
 
 ae_arm <- ae %>%
@@ -711,7 +741,7 @@ ae_incidence_pct <- round(100 * n_ae_subjects / n_subjects, 1)
 
 # SAEs if requested
 sae_count <- 0
-if (params$include_serious_ae) {
+if (isTRUE(params$include_serious_ae)) {
   sae_count <- ae_arm %>%
     filter(AESER == "Y") %>%
     distinct(SUBJID) %>%
@@ -722,13 +752,14 @@ if (params$include_serious_ae) {
 A total of `r total_ae_events` adverse events were reported in `r n_ae_subjects`
 (`r ae_incidence_pct`%) subjects.
 
-`if (params$include_serious_ae) {`
+`if (isTRUE(params$include_serious_ae)) {`
   - **Serious AEs**: `r sae_count` subjects had at least one serious adverse event.
 `}`
 
 ### AE Table by SOC {#sec-ae-table}
 
 ```{r}
+#| eval: false
 #| label: tbl-ae-soc
 #| tbl-cap: "Adverse Events by System Organ Class"
 
@@ -761,6 +792,7 @@ flextable(ae_summary) %>%
 ### AE Trend Figure {#sec-ae-trend}
 
 ```{r}
+#| eval: false
 #| label: fig-ae-cumulative
 #| fig.cap: "Cumulative AE Incidence Over Time"
 
@@ -785,14 +817,15 @@ ggplot(ae_timeline, aes(x = AESTDTC, y = cumulative_pct)) +
   ylim(0, 100)
 ```
 
-As shown in @fig-ae-cumulative, AE incidence accumulated over the study period,
-reaching `r tail(ae_timeline$cumulative_pct, 1)`% by the data cutoff.
+As shown in the cumulative AE incidence figure above, AE incidence accumulated over the study period,
+reaching `r if(exists("ae_timeline")) tail(ae_timeline$cumulative_pct, 1) else "N/A"`% by the data cutoff.
 
 ## Serious Adverse Events Listing {#sec-sae-listing}
 
-`if (params$include_serious_ae) {`
+`if (isTRUE(params$include_serious_ae)) {`
 
 ```{r}
+#| eval: false
 #| label: sae-listing-data
 
 sae_listing <- ae_arm %>%
@@ -802,6 +835,7 @@ sae_listing <- ae_arm %>%
 ```
 
 ```{r}
+#| eval: false
 #| label: tbl-sae-listing
 #| tbl-cap: "Listing of Serious Adverse Events"
 

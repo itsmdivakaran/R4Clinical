@@ -1,6 +1,3 @@
----
-title: "Chapter 10: ANOVA and ANCOVA"
----
 
 # Chapter 10: ANOVA and ANCOVA
 
@@ -281,6 +278,8 @@ plot(tukey_result)
 ### Two-Way ANOVA
 
 ```r
+library(dplyr)
+
 # Create a simulated dataset with two factors
 set.seed(123)
 drug_data <- expand.grid(

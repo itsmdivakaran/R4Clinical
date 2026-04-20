@@ -1,0 +1,458 @@
+# Data Manipulation with dplyr: Filtering, Selecting, Mutating, Grouping, and Summarising Clinical Data
+
+## Introduction
+
+Once data has been imported and cleaned, the next essential step is manipulation — transforming raw datasets into analysis-ready structures. The `dplyr` package provides a consistent, readable grammar for data manipulation built around a small set of core verbs. Each verb does one thing well, and they compose naturally through the pipe operator (`|>` or `%>%`).
+
+This chapter covers `dplyr`'s core verbs in the context of clinical trial data:
+
+- `filter()` — Keep rows that meet conditions (patient selection criteria)
+- `select()` — Keep or drop columns (variable selection)
+- `mutate()` — Create or transform variables (derived endpoints)
+- `summarise()` + `group_by()` — Compute summaries by group (treatment arm summaries)
+- `arrange()` — Sort data
+- `join` functions — Combine datasets (merging ADSL with ADAE, etc.)
+- `across()` — Apply operations to multiple columns at once
+
+---
+
+## 1. Setup and Data
+
+```{r}
+#| label: setup-04a
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(pharmaversesdtm)
+
+# Load key SDTM domains
+data("dm")    # Demographics
+data("ae")    # Adverse Events
+data("lb")    # Laboratory
+data("vs")    # Vital Signs
+data("ex")    # Exposure
+
+cat("Loaded SDTM domains:\n")
+cat("  DM:", nrow(dm), "rows x", ncol(dm), "cols\n")
+cat("  AE:", nrow(ae), "rows x", ncol(ae), "cols\n")
+cat("  LB:", nrow(lb), "rows x", ncol(lb), "cols\n")
+cat("  VS:", nrow(vs), "rows x", ncol(vs), "cols\n")
+```
+
+---
+
+## 2. filter() — Selecting Rows
+
+`filter()` keeps rows where a logical condition is `TRUE`. In clinical data, this maps directly to subject selection criteria, population flags, and analysis windows.
+
+### 2.1 Basic Filtering
+
+```{r}
+#| label: filter-basics
+
+# Select the safety population: all subjects who received at least one dose
+# (ACTARM not equal to "Screen Failure")
+safety_pop <- dm |>
+  filter(ACTARM != "Screen Failure", !is.na(ACTARM))
+
+cat("Safety population:", nrow(safety_pop), "subjects\n")
+
+# Select treatment-emergent adverse events only
+# AESTDTC >= EXSTDTC (AE started on or after first dose)
+# We use a simple proxy: AESER == "Y" for serious AEs
+serious_ae <- ae |>
+  filter(AESER == "Y")
+
+cat("Serious adverse events:", nrow(serious_ae), "\n")
+
+# Select subjects aged >= 65 (elderly sub-group)
+elderly <- dm |>
+  filter(AGE >= 65)
+cat("Subjects aged ≥ 65:", nrow(elderly), "\n")
+```
+
+### 2.2 Compound Conditions
+
+```{r}
+#| label: filter-compound
+
+# AND: female subjects in the active arm
+female_active <- dm |>
+  filter(SEX == "F", ARM != "Placebo")
+cat("Female active-arm subjects:", nrow(female_active), "\n")
+
+# OR: subjects with severe AEs
+# (pharmaversesdtm uses AESEV; real studies often also carry AETOXGR for toxicity grade)
+severe_ae <- ae |>
+  filter(AESEV == "SEVERE")
+cat("Severe AEs:", nrow(severe_ae), "\n")
+
+# NOT: exclude screen failures and not-treated subjects
+analysable <- dm |>
+  filter(!ARM %in% c("Screen Failure", "Not Assigned"))
+cat("Analysable subjects:", nrow(analysable), "\n")
+```
+
+### 2.3 Filtering with Helper Functions
+
+```{r}
+#| label: filter-helpers
+
+# between() — numeric range
+lb_normal_range <- lb |>
+  filter(LBTESTCD == "ALT", between(LBSTRESN, 0, 56))
+cat("ALT values in normal range (0–56):", nrow(lb_normal_range), "\n")
+
+# str_detect() — pattern matching on character columns
+ae_infect <- ae |>
+  filter(str_detect(AEDECOD, regex("infection|infect", ignore_case = TRUE)))
+cat("Infection-related AEs:", nrow(ae_infect), "\n")
+
+# is.na() — missing value filter
+complete_sbp <- vs |>
+  filter(VSTESTCD == "SYSBP", !is.na(VSSTRESN))
+cat("Non-missing SBP records:", nrow(complete_sbp), "\n")
+```
+
+---
+
+## 3. select() — Choosing Columns
+
+In clinical datasets, domains can have 50+ columns. `select()` lets you work with only the variables you need.
+
+```{r}
+#| label: select-basics
+
+# Select key demographic variables
+dm_subset <- dm |>
+  select(USUBJID, SUBJID, ARM, ACTARM, AGE, SEX, RACE, COUNTRY)
+
+cat("DM columns selected:", names(dm_subset), "\n")
+
+# Select columns by pattern
+ae_key <- ae |>
+  select(USUBJID, starts_with("AE"), -ends_with("DTC"))  # AE vars, no dates
+
+cat("AE columns:", ncol(ae_key), "\n")
+
+# Drop specific columns
+lb_no_dates <- lb |>
+  select(-contains("DTC"), -contains("DTM"))
+
+cat("LB without date columns:", ncol(lb_no_dates), "cols (was", ncol(lb), ")\n")
+
+# Rename during select
+dm_clean <- dm |>
+  select(
+    subject_id   = USUBJID,
+    arm          = ARM,
+    age_years    = AGE,
+    sex          = SEX
+  )
+head(dm_clean, 3)
+```
+
+---
+
+## 4. mutate() — Creating and Transforming Variables
+
+`mutate()` adds new columns or transforms existing ones — the primary tool for creating derived endpoints.
+
+### 4.1 Numeric Transformations
+
+```{r}
+#| label: mutate-numeric
+
+# Create age groups (a common demographic stratification variable)
+dm_with_agegroup <- dm |>
+  mutate(
+    age_group = case_when(
+      AGE < 18            ~ "< 18",
+      between(AGE, 18, 44) ~ "18–44",
+      between(AGE, 45, 64) ~ "45–64",
+      AGE >= 65           ~ "≥ 65",
+      TRUE                ~ NA_character_
+    )
+  ) |>
+  select(USUBJID, AGE, age_group)
+
+table(dm_with_agegroup$age_group, useNA = "ifany")
+```
+
+```{r}
+#| label: mutate-lab-flags
+
+# Flag abnormal laboratory values based on reference ranges
+lb_flagged <- lb |>
+  filter(!is.na(LBSTRESN), !is.na(LBSTNRLO), !is.na(LBSTNRHI)) |>
+  mutate(
+    below_low  = LBSTRESN < LBSTNRLO,
+    above_high = LBSTRESN > LBSTNRHI,
+    abnormal   = below_low | above_high,
+    # Relative deviation from reference range midpoint
+    ref_midpoint = (LBSTNRLO + LBSTNRHI) / 2,
+    pct_from_mid = 100 * (LBSTRESN - ref_midpoint) / ref_midpoint
+  )
+
+cat("Proportion of abnormal lab results:\n")
+lb_flagged |>
+  group_by(LBTESTCD) |>
+  summarise(
+    n          = n(),
+    pct_abnorm = round(100 * mean(abnormal), 1)
+  ) |>
+  arrange(desc(pct_abnorm)) |>
+  head(10) |>
+  print()
+```
+
+### 4.2 String Operations
+
+```{r}
+#| label: mutate-strings
+
+# Standardise AE preferred terms to title case
+ae_clean <- ae |>
+  mutate(
+    AEDECOD_std = str_to_title(AEDECOD),
+    AEBODSYS_std = str_to_title(AEBODSYS)
+  ) |>
+  select(USUBJID, AEDECOD, AEDECOD_std, AEBODSYS_std)
+
+head(ae_clean, 5)
+```
+
+### 4.3 Conditional Variables with case_when()
+
+```{r}
+#| label: mutate-case-when
+
+# Classify AE severity for reporting
+ae_severity <- ae |>
+  mutate(
+    severity_label = case_when(
+      AESEV == "MILD"     ~ "Mild",
+      AESEV == "MODERATE" ~ "Moderate",
+      AESEV == "SEVERE"   ~ "Severe",
+      AESER == "Y"        ~ "Serious",
+      TRUE                ~ "Unknown"
+    ),
+    is_related = case_when(
+      # pharmaversesdtm encodes AEREL as "Y" (related) / "N" (not related)
+      AEREL == "Y" ~ TRUE,
+      AEREL == "N" ~ FALSE,
+      TRUE         ~ NA
+    )
+  )
+
+cat("AE severity distribution:\n")
+print(table(ae_severity$severity_label, useNA = "ifany"))
+```
+
+---
+
+## 5. group_by() and summarise() — Grouped Summaries
+
+The combination of `group_by()` + `summarise()` produces clinical summary tables — the building blocks of Table 14.1 (subject disposition) and Table 14.3 (adverse events) in a clinical study report.
+
+```{r}
+#| label: group-summarise
+
+# Summary statistics by treatment arm
+dm_summary <- dm |>
+  filter(!is.na(ARM), ARM != "Screen Failure") |>
+  group_by(ARM) |>
+  summarise(
+    N           = n(),
+    Age_mean    = round(mean(AGE, na.rm = TRUE), 1),
+    Age_sd      = round(sd(AGE,  na.rm = TRUE), 1),
+    Age_median  = median(AGE, na.rm = TRUE),
+    Pct_female  = round(100 * mean(SEX == "F", na.rm = TRUE), 1),
+    .groups     = "drop"
+  ) |>
+  mutate(Age_summary = paste0(Age_mean, " (", Age_sd, ")"))
+
+dm_summary |>
+  select(ARM, N, Age_summary, Age_median, Pct_female) |>
+  print()
+```
+
+```{r}
+#| label: ae-frequency-table
+
+# AE incidence table: frequency of each preferred term by arm
+ae_incidence <- ae |>
+  left_join(dm |> select(USUBJID, ARM), by = "USUBJID") |>
+  filter(!is.na(ARM), ARM != "Screen Failure") |>
+  group_by(ARM, AEDECOD) |>
+  summarise(
+    n_events   = n(),
+    n_subjects = n_distinct(USUBJID),
+    .groups    = "drop"
+  ) |>
+  left_join(
+    dm |> filter(!is.na(ARM), ARM != "Screen Failure") |>
+      count(ARM, name = "N_arm"),
+    by = "ARM"
+  ) |>
+  mutate(pct = round(100 * n_subjects / N_arm, 1)) |>
+  arrange(ARM, desc(n_subjects))
+
+cat("Top 10 AEs (all arms combined):\n")
+ae_incidence |>
+  group_by(AEDECOD) |>
+  summarise(total_subjects = sum(n_subjects), .groups = "drop") |>
+  arrange(desc(total_subjects)) |>
+  head(10) |>
+  print()
+```
+
+---
+
+## 6. arrange() — Sorting Data
+
+```{r}
+#| label: arrange-examples
+
+# Sort vital signs by subject then visit then test
+vs_sorted <- vs |>
+  arrange(USUBJID, VISITNUM, VSTESTCD)
+
+head(vs_sorted |> select(USUBJID, VISITNUM, VSTESTCD, VSSTRESN), 8)
+
+# Sort AEs by onset date descending (most recent first)
+ae_by_date <- ae |>
+  filter(!is.na(AESTDTC)) |>
+  arrange(desc(AESTDTC))
+
+head(ae_by_date |> select(USUBJID, AEDECOD, AESTDTC, AESER), 5)
+```
+
+---
+
+## 7. Joining Datasets
+
+Combining datasets (DM + AE, ADSL + ADAE) is fundamental to clinical data analysis. `dplyr` provides clear, explicit join functions.
+
+```{r}
+#| label: joins
+
+# Left join: add demographic info to every AE record
+ae_dm <- ae |>
+  left_join(
+    dm |> select(USUBJID, ARM, AGE, SEX),
+    by = "USUBJID"
+  )
+
+cat("AE with demographics:", nrow(ae_dm), "rows\n")
+cat("AEs without matched subject:", sum(is.na(ae_dm$ARM)), "\n")
+
+# Inner join: only subjects who have both AEs AND lab data
+# (subjects with at least one record in both domains)
+ae_subjects <- distinct(ae, USUBJID)
+lb_subjects <- distinct(lb, USUBJID)
+both_domains <- inner_join(ae_subjects, lb_subjects, by = "USUBJID")
+cat("Subjects with both AE and LB data:", nrow(both_domains), "\n")
+
+# Anti-join: subjects in DM but NOT in AE (no AEs reported)
+no_ae_subjects <- dm |>
+  anti_join(ae, by = "USUBJID")
+cat("Subjects with no AEs:", nrow(no_ae_subjects), "\n")
+```
+
+---
+
+## 8. across() — Applying Functions to Multiple Columns
+
+`across()` eliminates repetitive code when the same operation needs to be applied to several columns — useful for standardising lab values or converting multiple date columns.
+
+```{r}
+#| label: across-examples
+
+# Compute mean and SD for all numeric vital sign measurements per subject
+vs_numeric_summary <- vs |>
+  filter(!is.na(VSSTRESN)) |>
+  group_by(USUBJID, VSTESTCD) |>
+  summarise(
+    across(VSSTRESN, list(mean = mean, sd = sd, n = \(x) sum(!is.na(x)))),
+    .groups = "drop"
+  )
+
+head(vs_numeric_summary, 6)
+
+# Convert multiple character columns to upper case
+ae_upper <- ae |>
+  mutate(across(c(AEBODSYS, AEDECOD, AESEV), str_to_upper))
+
+cat("Standardised AE terms (first row):\n")
+ae_upper |> select(AEBODSYS, AEDECOD, AESEV) |> head(2) |> print()
+```
+
+---
+
+## 9. Practical Workflow: Building an Analysis Dataset
+
+Combining all verbs into a complete data-preparation pipeline:
+
+```{r}
+#| label: full-pipeline
+
+# Build a subject-level safety dataset (ADSL-like)
+adsl_safety <- dm |>
+  # Keep randomised subjects only
+  filter(!ARM %in% c("Screen Failure", "Not Assigned"), !is.na(ARM)) |>
+  # Select and rename key variables
+  select(
+    USUBJID, SUBJID,
+    ARM, ACTARM,
+    AGE, SEX, RACE, COUNTRY
+  ) |>
+  # Add derived variables
+  mutate(
+    age_group = case_when(
+      AGE < 65  ~ "< 65",
+      AGE >= 65 ~ "≥ 65"
+    ),
+    female_flag = (SEX == "F")
+  ) |>
+  # Join AE summary
+  left_join(
+    ae |>
+      group_by(USUBJID) |>
+      summarise(
+        n_ae       = n(),
+        any_serious = any(AESER == "Y", na.rm = TRUE),
+        .groups    = "drop"
+      ),
+    by = "USUBJID"
+  ) |>
+  # Replace NA (no AEs) with 0 / FALSE
+  mutate(
+    n_ae        = replace_na(n_ae, 0L),
+    any_serious = replace_na(any_serious, FALSE)
+  ) |>
+  arrange(USUBJID)
+
+cat("Analysis dataset dimensions:", nrow(adsl_safety), "×", ncol(adsl_safety), "\n")
+cat("Subjects with any SAE:", sum(adsl_safety$any_serious), "\n")
+cat("Mean AEs per subject:", round(mean(adsl_safety$n_ae), 2), "\n")
+
+glimpse(adsl_safety)
+```
+
+---
+
+## Summary
+
+`dplyr`'s six core verbs — `filter()`, `select()`, `mutate()`, `summarise()`, `group_by()`, and `arrange()` — together with the join functions, cover the vast majority of clinical data manipulation tasks:
+
+- **`filter()`** implements inclusion/exclusion criteria and analysis population flags
+- **`select()`** shapes datasets to contain only the needed variables
+- **`mutate()`** creates derived endpoints, group flags, and normalised values
+- **`group_by()` + `summarise()`** produces the subject-level and group-level summary tables that appear in clinical study reports
+- **`arrange()`** orders records for review, QC, and listing creation
+- **`join()`** functions merge across SDTM domains and ADaM datasets
+- **`across()`** applies the same transformation to many variables at once, eliminating repetitive code
+
+> **Best practice**: Write manipulation code as a single pipe chain from raw data to analysis-ready dataset. This makes the data lineage transparent, reproducible, and easy to audit — all essential for regulatory submissions.

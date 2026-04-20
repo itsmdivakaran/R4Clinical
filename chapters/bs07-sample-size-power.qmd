@@ -1,0 +1,538 @@
+# Sample Size and Power Calculations
+
+## Introduction
+
+Sample size determination is one of the most consequential decisions in clinical trial design. An underpowered study risks missing a real treatment effect; an overpowered study wastes resources and exposes more patients than necessary to experimental treatments. Regulatory agencies require prospective justification of sample size in every confirmatory trial protocol.
+
+This chapter covers:
+
+- **Fundamental concepts**: Effect size, power, Type I and II errors
+- **Two-sample t-test**: Continuous endpoints
+- **Two proportions**: Binary endpoints
+- **Survival endpoints**: Log-rank test and event-driven designs
+- **Equivalence and non-inferiority**: TOST and one-sided designs
+- **Multiple comparisons**: Adjusting for multiplicity
+- **Sensitivity analyses**: Handling uncertainty in design assumptions
+- **R packages**: `pwr`, `pwrss`, `gsDesign`, `rpact`
+
+---
+
+## 1. Core Concepts
+
+### 1.1 The Four Design Parameters
+
+Any sample size calculation involves four interdependent quantities. Fix any three and the fourth is determined:
+
+| Parameter | Symbol | Typical value |
+|---|---|---|
+| Significance level (Type I error rate) | $\alpha$ | 0.05 (two-sided) |
+| Power (1 − Type II error rate) | $1-\beta$ | 0.80 or 0.90 |
+| Effect size (standardised or absolute) | $\delta$ | Clinically meaningful difference |
+| Sample size | $n$ | To be determined |
+
+```{r}
+#| label: power-setup
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(pwr)
+library(gt)
+set.seed(42)
+
+# Illustrate power as a function of sample size
+alpha  <- 0.05
+delta  <- 0.5    # medium standardised effect (Cohen's d)
+n_vals <- seq(10, 300, by = 5)
+
+power_vals <- sapply(n_vals, function(n) {
+  pwr.t.test(n = n, d = delta, sig.level = alpha,
+             type = "two.sample", alternative = "two.sided")$power
+})
+
+tibble(n = n_vals, power = power_vals) |>
+  ggplot(aes(x = n, y = power)) +
+  geom_line(colour = "#2C6E9E", linewidth = 1.1) +
+  geom_hline(yintercept = 0.80, linetype = "dashed", colour = "#D32F2F") +
+  geom_hline(yintercept = 0.90, linetype = "dotted", colour = "#E07B39") +
+  geom_vline(
+    xintercept = pwr.t.test(d = delta, sig.level = alpha,
+                             power = 0.80, type = "two.sample")$n,
+    linetype = "dashed", colour = "#D32F2F", alpha = 0.7
+  ) +
+  annotate("text", x = 5, y = 0.82, label = "80% power",
+           colour = "#D32F2F", hjust = 0, size = 3.5) +
+  annotate("text", x = 5, y = 0.92, label = "90% power",
+           colour = "#E07B39", hjust = 0, size = 3.5) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    x     = "Sample Size per Arm",
+    y     = "Power",
+    title = "Statistical Power vs. Sample Size",
+    subtitle = paste0("Two-sample t-test, δ = ", delta, " (Cohen's d), α = ", alpha)
+  ) +
+  theme_bw(base_size = 12)
+```
+
+### 1.2 Effect Size: The Most Critical Input
+
+The effect size must reflect the **minimum clinically important difference (MCID)** — the smallest difference that would matter to patients or clinicians — not the largest plausible effect.
+
+```{r}
+#| label: effect-size-impact
+#| fig-cap: "Sample size per arm as a function of effect size (two-sample t-test, 80% power, α = 0.05)"
+
+d_vals <- seq(0.1, 1.5, by = 0.05)
+n_needed <- sapply(d_vals, function(d) {
+  ceiling(pwr.t.test(d = d, sig.level = 0.05,
+                     power = 0.80, type = "two.sample")$n)
+})
+
+tibble(effect_size = d_vals, n_per_arm = n_needed) |>
+  ggplot(aes(x = effect_size, y = n_per_arm)) +
+  geom_line(colour = "#2C6E9E", linewidth = 1.1) +
+  geom_point(data = tibble(
+    effect_size = c(0.2, 0.5, 0.8),
+    n_per_arm   = c(
+      ceiling(pwr.t.test(d = 0.2, sig.level = 0.05, power = 0.80, type = "two.sample")$n),
+      ceiling(pwr.t.test(d = 0.5, sig.level = 0.05, power = 0.80, type = "two.sample")$n),
+      ceiling(pwr.t.test(d = 0.8, sig.level = 0.05, power = 0.80, type = "two.sample")$n)
+    ),
+    label = c("Small (0.2)\nn=393", "Medium (0.5)\nn=64", "Large (0.8)\nn=26")
+  ), aes(x = effect_size, y = n_per_arm), colour = "#D32F2F", size = 3) +
+  annotate("text", x = c(0.2, 0.5, 0.8), y = c(450, 120, 80),
+           label = c("Small (0.2)\nn=393", "Medium (0.5)\nn=64", "Large (0.8)\nn=26"),
+           colour = "#D32F2F", size = 3) +
+  scale_y_log10(labels = scales::comma) +
+  labs(
+    x     = "Standardised Effect Size (Cohen's d)",
+    y     = "Sample Size per Arm (log scale)",
+    title = "Effect Size Has a Dramatic Impact on Sample Size",
+    subtitle = "Two-sample t-test, 80% power, α = 0.05"
+  ) +
+  theme_bw(base_size = 12)
+```
+
+---
+
+## 2. Sample Size for Continuous Endpoints
+
+### 2.1 Two-Sample t-Test
+
+The required sample size per arm:
+
+$$n = \frac{2\sigma^2(z_{\alpha/2} + z_\beta)^2}{\delta^2}$$
+
+where $\delta$ is the mean difference, $\sigma$ is the common standard deviation.
+
+```{r}
+#| label: ss-continuous
+
+# Example: Systolic blood pressure trial
+# MCID = 5 mmHg reduction; SD = 15 mmHg; α = 0.05 (two-sided); 90% power
+
+delta_sbp <- 5       # MCID: 5 mmHg
+sigma_sbp <- 15      # assumed SD
+alpha_sbp <- 0.05
+power_sbp <- 0.90
+
+ss_sbp <- pwr.t.test(
+  d          = delta_sbp / sigma_sbp,   # Cohen's d
+  sig.level  = alpha_sbp,
+  power      = power_sbp,
+  type       = "two.sample",
+  alternative = "two.sided"
+)
+
+n_sbp <- ceiling(ss_sbp$n)
+
+cat("=== SBP Trial Sample Size ===\n")
+cat("MCID (δ):      ", delta_sbp, "mmHg\n")
+cat("Assumed SD:    ", sigma_sbp, "mmHg\n")
+cat("Cohen's d:     ", round(delta_sbp / sigma_sbp, 3), "\n")
+cat("α (two-sided): ", alpha_sbp, "\n")
+cat("Power (1-β):   ", power_sbp, "\n")
+cat("n per arm:     ", n_sbp, "\n")
+cat("Total N:       ", n_sbp * 2, "\n\n")
+
+# Sensitivity: vary SD assumption
+cat("Sensitivity to SD assumption:\n")
+tibble(
+  SD       = c(10, 12, 15, 18, 20),
+  n_per_arm = sapply(c(10, 12, 15, 18, 20), function(sd) {
+    ceiling(pwr.t.test(d = delta_sbp / sd, sig.level = alpha_sbp,
+                       power = power_sbp, type = "two.sample")$n)
+  }),
+  Total_N  = sapply(c(10, 12, 15, 18, 20), function(sd) {
+    2 * ceiling(pwr.t.test(d = delta_sbp / sd, sig.level = alpha_sbp,
+                            power = power_sbp, type = "two.sample")$n)
+  })
+) |>
+  mutate(Cohen_d = round(delta_sbp / SD, 3)) |>
+  gt() |>
+  tab_header(title = "Sensitivity Analysis: Varying SD Assumption",
+             subtitle = paste0("δ = ", delta_sbp, " mmHg, α = ", alpha_sbp,
+                               ", power = ", power_sbp))
+```
+
+### 2.2 Power Curve
+
+```{r}
+#| label: power-curve-sbp
+#| fig-cap: "Power curve for SBP trial: power as a function of total sample size"
+
+n_total_range <- seq(20, 400, by = 10)
+power_range   <- sapply(n_total_range, function(n_tot) {
+  pwr.t.test(n = n_tot / 2, d = delta_sbp / sigma_sbp,
+             sig.level = alpha_sbp, type = "two.sample")$power
+})
+
+tibble(n_total = n_total_range, power = power_range) |>
+  ggplot(aes(x = n_total, y = power)) +
+  geom_line(colour = "#2C6E9E", linewidth = 1.1) +
+  geom_hline(yintercept = c(0.80, 0.90), linetype = c("dashed", "dotted"),
+             colour = c("#D32F2F", "#E07B39")) +
+  geom_vline(xintercept = n_sbp * 2, linetype = "dashed",
+             colour = "grey40", alpha = 0.7) +
+  annotate("text", x = n_sbp * 2 + 5, y = 0.5,
+           label = paste0("N = ", n_sbp * 2, "\n(90% power)"),
+           hjust = 0, size = 3.5) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  labs(
+    x     = "Total Sample Size",
+    y     = "Power",
+    title = "Power Curve: SBP Reduction Trial",
+    subtitle = paste0("δ = ", delta_sbp, " mmHg, SD = ", sigma_sbp, " mmHg")
+  ) +
+  theme_bw(base_size = 12)
+```
+
+---
+
+## 3. Sample Size for Binary Endpoints
+
+### 3.1 Two-Proportion z-Test
+
+For comparing two proportions $p_1$ and $p_2$:
+
+$$n = \frac{(z_{\alpha/2}\sqrt{2\bar{p}(1-\bar{p})} + z_\beta\sqrt{p_1(1-p_1) + p_2(1-p_2)})^2}{(p_1 - p_2)^2}$$
+
+where $\bar{p} = (p_1 + p_2)/2$.
+
+```{r}
+#| label: ss-binary
+
+# Example: response rate trial
+p1 <- 0.55   # expected response rate (Active)
+p2 <- 0.40   # expected response rate (Placebo)
+alpha_bin <- 0.05
+power_bin <- 0.80
+
+ss_bin <- pwr.2p.test(
+  h          = ES.h(p1, p2),
+  sig.level  = alpha_bin,
+  power      = power_bin,
+  alternative = "two.sided"
+)
+n_bin <- ceiling(ss_bin$n)
+
+cat("=== Binary Endpoint Trial (Response Rate) ===\n")
+cat("Active response rate (p1):  ", p1, "\n")
+cat("Placebo response rate (p2): ", p2, "\n")
+cat("Difference:                 ", p1 - p2, "(", (p1 - p2) * 100, "pp)\n")
+cat("Cohen's h:                  ", round(ES.h(p1, p2), 4), "\n")
+cat("n per arm:                  ", n_bin, "\n")
+cat("Total N:                    ", n_bin * 2, "\n\n")
+
+# Sensitivity: vary response rates
+cat("Sensitivity to assumed response rates:\n")
+scenarios <- expand.grid(
+  p_active  = c(0.50, 0.55, 0.60),
+  p_placebo = c(0.35, 0.40, 0.45)
+) |>
+  filter(p_active > p_placebo) |>
+  mutate(
+    Diff      = round(p_active - p_placebo, 2),
+    n_per_arm = sapply(1:nrow(cur_data()), function(i) {
+      ceiling(pwr.2p.test(
+        h         = ES.h(p_active[i], p_placebo[i]),
+        sig.level = 0.05,
+        power     = 0.80
+      )$n)
+    }),
+    Total_N   = n_per_arm * 2
+  ) |>
+  rename(p_Active = p_active, p_Placebo = p_placebo)
+
+scenarios |>
+  gt() |>
+  tab_header(title = "Sample Size Sensitivity: Binary Endpoint",
+             subtitle = "α = 0.05, power = 80%")
+```
+
+---
+
+## 4. Sample Size for Survival Endpoints
+
+### 4.1 Event-Driven Designs
+
+Survival trials are powered by the **number of events** (deaths, progressions), not the number of subjects. The required number of events for the log-rank test:
+
+$$E = \frac{4(z_{\alpha/2} + z_\beta)^2}{[\log(HR)]^2}$$
+
+```{r}
+#| label: ss-survival
+
+# Survival trial: OS in oncology
+# HR = 0.70 (30% reduction in hazard); α = 0.05; power = 80%
+hr      <- 0.70
+alpha_s <- 0.05
+power_s <- 0.80
+
+# Required events (Schoenfeld formula)
+z_alpha <- qnorm(1 - alpha_s / 2)
+z_beta  <- qnorm(power_s)
+e_req   <- ceiling(4 * (z_alpha + z_beta)^2 / (log(hr))^2)
+
+cat("=== Survival Trial (Overall Survival) ===\n")
+cat("Hazard Ratio (HR):     ", hr, "\n")
+cat("α (two-sided):         ", alpha_s, "\n")
+cat("Power (1-β):           ", power_s, "\n")
+cat("Required events:       ", e_req, "\n\n")
+
+# Translate events to subjects (assuming event probability)
+# Accrual = 24 months, follow-up = 12 months, control median OS = 18 months
+lambda_ctrl   <- log(2) / 18        # control arm hazard (median 18 months)
+lambda_active <- lambda_ctrl * hr   # active arm hazard
+
+# Probability of event by end of trial (36 months max)
+t_max <- 36
+# Simplified: event probability ~ 1 - exp(-lambda * t_max) averaged over uniform accrual
+p_event_ctrl   <- 1 - exp(-lambda_ctrl   * t_max * 0.6)  # approximate
+p_event_active <- 1 - exp(-lambda_active * t_max * 0.6)
+p_event_avg    <- (p_event_ctrl + p_event_active) / 2
+
+n_subjects <- ceiling(e_req / p_event_avg)
+
+cat("Event probability (approx, per arm): ", round(p_event_avg, 3), "\n")
+cat("Estimated subjects per arm:          ", ceiling(n_subjects / 2), "\n")
+cat("Total subjects:                      ", n_subjects, "\n\n")
+
+# HR sensitivity table
+hr_vals <- c(0.60, 0.65, 0.70, 0.75, 0.80)
+tibble(
+  HR           = hr_vals,
+  Events_req   = sapply(hr_vals, function(h) {
+    ceiling(4 * (qnorm(0.975) + qnorm(0.80))^2 / (log(h))^2)
+  })
+) |>
+  gt() |>
+  tab_header(title = "Events Required vs. Hazard Ratio",
+             subtitle = "α = 0.05 (two-sided), power = 80%")
+```
+
+---
+
+## 5. Non-Inferiority and Equivalence Trials
+
+### 5.1 Non-Inferiority Margin
+
+Non-inferiority (NI) trials test that a new treatment is not worse than an active comparator by more than a pre-specified margin $\Delta_{NI}$.
+
+$$H_0: \mu_{\text{test}} - \mu_{\text{ref}} \leq -\Delta_{NI}$$
+$$H_1: \mu_{\text{test}} - \mu_{\text{ref}} > -\Delta_{NI}$$
+
+```{r}
+#| label: ss-ni
+
+# Non-inferiority: new formulation vs. reference
+# NI margin = -5 mmHg; expected true difference = 0; SD = 12
+delta_ni  <- 0     # true difference (expected: no difference)
+margin_ni <- 5     # NI margin (mmHg)
+sigma_ni  <- 12
+alpha_ni  <- 0.025  # one-sided alpha
+power_ni  <- 0.90
+
+# For NI test: n = 2σ²(z_α + z_β)² / (margin - delta)²
+z_a <- qnorm(1 - alpha_ni)
+z_b <- qnorm(power_ni)
+n_ni <- ceiling(2 * sigma_ni^2 * (z_a + z_b)^2 / (margin_ni - delta_ni)^2)
+
+cat("=== Non-Inferiority Trial ===\n")
+cat("NI margin (Δ):         ", margin_ni, "mmHg\n")
+cat("Expected difference:   ", delta_ni, "mmHg (no difference)\n")
+cat("σ:                     ", sigma_ni, "\n")
+cat("α (one-sided):         ", alpha_ni, "\n")
+cat("Power (1-β):           ", power_ni, "\n")
+cat("n per arm:             ", n_ni, "\n")
+cat("Total N:               ", n_ni * 2, "\n\n")
+
+# Compare with superiority design
+n_sup <- ceiling(pwr.t.test(
+  d         = 5 / 12,
+  sig.level = 0.05,
+  power     = 0.90,
+  type      = "two.sample"
+)$n)
+
+cat("Equivalent superiority design (δ = 5 mmHg):\n")
+cat("  n per arm:", n_sup, "| Total:", n_sup * 2, "\n")
+cat("  (NI trials often need fewer patients since margin > 0)\n")
+```
+
+### 5.2 Two One-Sided Tests (TOST) for Equivalence
+
+```{r}
+#| label: tost
+
+# Bioequivalence: 80-125% rule (on log scale)
+# For log-transformed PK parameters: log(1.25) ≈ 0.223
+margin_be <- log(1.25)
+sigma_be  <- 0.25      # CV ≈ 25% for PK data
+power_be  <- 0.90
+alpha_be  <- 0.05
+
+n_be <- ceiling(
+  2 * sigma_be^2 * (qnorm(1 - alpha_be) + qnorm(power_be))^2 / margin_be^2
+)
+
+cat("=== Bioequivalence (TOST) ===\n")
+cat("BE margin:    ±", round(margin_be, 4), "(log scale) = 80–125% ratio\n")
+cat("CV (σ):       ", sigma_be, "\n")
+cat("Power:        ", power_be, "\n")
+cat("Sequences×periods (crossover): 2 × 2\n")
+cat("n subjects:   ", n_be, "\n")
+```
+
+---
+
+## 6. Adjusting for Dropout and Protocol Deviations
+
+```{r}
+#| label: dropout-adjustment
+
+# Account for expected dropout
+n_per_arm_base <- n_sbp    # from earlier calculation
+dropout_rate   <- 0.15     # 15% dropout expected
+
+n_inflated <- ceiling(n_per_arm_base / (1 - dropout_rate))
+
+cat("=== Inflating for Dropout ===\n")
+cat("Required completers per arm: ", n_per_arm_base, "\n")
+cat("Expected dropout rate:       ", dropout_rate * 100, "%\n")
+cat("Required enrolled per arm:   ", n_inflated, "\n")
+cat("Total to enrol:              ", n_inflated * 2, "\n\n")
+
+# Sensitivity: vary dropout
+tibble(
+  Dropout_rate  = seq(0.05, 0.30, by = 0.05),
+  n_to_enrol    = ceiling(n_per_arm_base / (1 - seq(0.05, 0.30, by = 0.05))),
+  Total_enrol   = 2 * ceiling(n_per_arm_base / (1 - seq(0.05, 0.30, by = 0.05)))
+) |>
+  mutate(Dropout_rate = paste0(Dropout_rate * 100, "%")) |>
+  gt() |>
+  tab_header(title = "Sample Size Inflation for Dropout",
+             subtitle = paste0("Base n = ", n_per_arm_base, " completers per arm"))
+```
+
+---
+
+## 7. Adaptive and Group Sequential Designs
+
+### 7.1 Group Sequential Designs
+
+Group sequential designs allow pre-planned interim analyses with the option to stop early for efficacy or futility, while controlling the overall Type I error rate.
+
+```{r}
+#| label: group-sequential
+
+# O'Brien-Fleming boundaries for 2 interim + final analysis
+# Using simple z-score boundaries (illustrative)
+n_analyses   <- 3     # 2 interim + 1 final
+alpha_total  <- 0.05
+
+# Pocock spending function (constant boundaries)
+z_pocock <- qnorm(1 - alpha_total / (2 * n_analyses))
+
+# O'Brien-Fleming spending (conservative at interim, liberal at final)
+info_times <- c(1/3, 2/3, 1)   # information fraction at each analysis
+of_bounds <- qnorm(1 - alpha_total / 2) / sqrt(info_times)
+
+cat("=== Group Sequential Boundaries (Illustrative) ===\n\n")
+tibble(
+  Analysis       = c("Interim 1", "Interim 2", "Final"),
+  Info_fraction  = info_times,
+  n_analysed     = ceiling(info_times * n_sbp * 2),
+  Pocock_z       = round(rep(z_pocock, 3), 3),
+  OBF_z          = round(of_bounds, 3),
+  Pocock_p       = round(2 * pnorm(-z_pocock), 4),
+  OBF_p          = round(2 * pnorm(-of_bounds), 4)
+) |>
+  gt() |>
+  tab_header(
+    title    = "Group Sequential Efficacy Boundaries",
+    subtitle = "3-analysis design, α = 0.05 (two-sided)"
+  ) |>
+  cols_label(
+    Info_fraction = "Information Fraction",
+    n_analysed    = "N at Analysis",
+    Pocock_z      = "Pocock z",
+    OBF_z         = "O'Brien-Fleming z",
+    Pocock_p      = "Pocock p",
+    OBF_p         = "OBF p"
+  )
+```
+
+---
+
+## 8. Comprehensive Sample Size Summary Table
+
+```{r}
+#| label: ss-summary-table
+
+tibble(
+  Design      = c(
+    "Two-sample t-test (SBP, 90% power)",
+    "Two proportions (response, 80% power)",
+    "Log-rank survival (HR=0.70, 80% power)",
+    "Non-inferiority (continuous)",
+    "Bioequivalence (TOST crossover)"
+  ),
+  Endpoint    = c("SBP change (mmHg)", "Response (Y/N)",
+                  "Overall survival", "BP endpoint (NI)",
+                  "AUC/Cmax ratio"),
+  Key_assumption = c(
+    paste0("δ=5mmHg, σ=15, α=0.05"),
+    paste0("p1=55%, p2=40%, α=0.05"),
+    paste0("HR=0.70, α=0.05"),
+    paste0("Margin=5mmHg, σ=12"),
+    paste0("CV=25%, 80-125% rule")
+  ),
+  n_per_arm   = c(n_sbp, n_bin, ceiling(n_subjects / 2), n_ni, n_be),
+  Total_N     = c(n_sbp * 2, n_bin * 2, n_subjects, n_ni * 2, n_be)
+) |>
+  gt() |>
+  tab_header(title = "Summary: Sample Size Requirements Across Designs") |>
+  cols_label(
+    Key_assumption = "Key Assumptions",
+    n_per_arm      = "n per arm",
+    Total_N        = "Total N"
+  )
+```
+
+---
+
+## Summary
+
+Rigorous sample size calculation is a regulatory requirement and a scientific obligation. Key principles:
+
+- **Four parameters** — $\alpha$, power, effect size, and $n$ — are interdependent: specify three, solve for the fourth
+- **The effect size is the most consequential input**: use the MCID, not an optimistic estimate, and conduct sensitivity analyses
+- **Standard designs**: two-sample t-test for continuous endpoints; two-proportion z-test for binary; log-rank for survival
+- **Event-driven survival trials**: power depends on the number of events, not just the sample size; recruitment and follow-up periods determine when events accumulate
+- **Non-inferiority and equivalence trials** use one-sided tests and require a pre-specified, scientifically justified NI margin
+- **Inflate for dropout**: always account for expected withdrawal when calculating the number to enrol
+- **Group sequential designs** allow for early stopping while maintaining overall error control
+- **Pre-registration**: sample size justification must be documented in the protocol and SAP before data collection begins
+
+> **Regulatory note**: ICH E9 requires that the sample size justification be included in the protocol, with explicit statements of the primary endpoint, assumed treatment difference, SD (or event rate), $\alpha$, and power. Sensitivity analyses exploring the impact of varying assumptions are strongly recommended.

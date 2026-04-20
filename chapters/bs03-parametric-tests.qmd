@@ -1,0 +1,1017 @@
+# Parametric Statistical Tests in Clinical Trials
+
+## Introduction
+
+Parametric tests are the workhorses of clinical trial statistics. They assume that the data follow a known probability distribution — most commonly the normal distribution — and use the parameters of that distribution (mean, variance) to draw inferences. When these assumptions hold, parametric tests are the most powerful tools available for detecting true treatment effects.
+
+This chapter covers the full spectrum of parametric tests used in clinical development:
+
+- **t-tests**: One-sample, two-sample independent, and paired designs
+- **ANOVA**: One-way and two-way analysis of variance across treatment arms
+- **ANCOVA**: Covariate adjustment for baseline measurements
+- **Assumption checking**: Normality tests, homogeneity of variance, and diagnostic plots
+- **Post-hoc tests**: Multiple comparison procedures after ANOVA
+
+All examples use the `pharmaversesdtm` dataset, which provides realistic CDISC-formatted clinical trial data.
+
+---
+
+## Setup and Data Preparation
+
+```{r}
+#| label: setup
+#| message: false
+#| warning: false
+
+library(dplyr)
+library(ggplot2)
+library(car)
+library(pharmaversesdtm)
+
+# Load CDISC datasets
+data("dm")   # Demographics
+data("ae")   # Adverse events
+data("vs")   # Vital signs
+data("lb")   # Laboratory values
+
+# Clean demographics: retain valid ARM assignments
+dm_clean <- dm |>
+  filter(!is.na(ARM), ARM != "") |>
+  mutate(ARM = factor(ARM,
+                      levels = c("Placebo",
+                                 "Xanomeline Low Dose",
+                                 "Xanomeline High Dose")))
+
+# Preview
+cat("Treatment arm counts:\n")
+print(table(dm_clean$ARM))
+cat("\nAGE summary:\n")
+print(summary(dm_clean$AGE))
+```
+
+```{r}
+#| label: vs-prep
+
+# Prepare vital signs: systolic blood pressure
+vs_sysbp <- vs |>
+  filter(VSTESTCD == "SYSBP", !is.na(VSSTRESN)) |>
+  left_join(dm_clean |> select(USUBJID, ARM, SEX), by = "USUBJID") |>
+  filter(!is.na(ARM))
+
+cat("Systolic BP records per visit:\n")
+print(table(vs_sysbp$VISITNUM))
+cat("\nTotal SYSBP records:", nrow(vs_sysbp), "\n")
+```
+
+---
+
+## 1. One-Sample t-Test
+
+### 1.1 Theory
+
+The one-sample t-test asks: **does the population mean differ from a specified value (mu)?**
+
+$$t = \frac{\bar{x} - \mu_0}{s / \sqrt{n}}$$
+
+where $\bar{x}$ is the sample mean, $\mu_0$ is the hypothesised value, $s$ is the sample standard deviation, and $n$ is the sample size. The test statistic follows a $t$-distribution with $n - 1$ degrees of freedom under $H_0$.
+
+**Hypotheses:**
+
+- $H_0: \mu = \mu_0$ (population mean equals the hypothesised value)
+- $H_1: \mu \neq \mu_0$ (two-tailed)
+
+**Clinical question:** Is the mean age of participants in this trial different from 65 years — the typical cut-off used for elderly subgroup analyses?
+
+### 1.2 Assumption Check: Normality
+
+```{r}
+#| label: onesample-normality
+#| fig-cap: "Q-Q plot for participant age — assessing normality before the one-sample t-test"
+
+age_vals <- dm_clean$AGE
+
+# Shapiro-Wilk normality test (best for n < 2000)
+sw_age <- shapiro.test(age_vals)
+cat("Shapiro-Wilk test for AGE:\n")
+cat("  W =", round(sw_age$statistic, 4),
+    ", p-value =", round(sw_age$p.value, 4), "\n\n")
+
+# Q-Q plot
+ggplot(data.frame(AGE = age_vals), aes(sample = AGE)) +
+  stat_qq(colour = "#2C6E9E", size = 2, alpha = 0.7) +
+  stat_qq_line(colour = "#E74C3C", linewidth = 1) +
+  labs(
+    title    = "Normal Q-Q Plot of Participant Age",
+    subtitle = paste0("Shapiro-Wilk: W = ", round(sw_age$statistic, 3),
+                      ", p = ", round(sw_age$p.value, 3)),
+    x = "Theoretical Quantiles",
+    y = "Sample Quantiles (Age in Years)"
+  ) +
+  theme_classic(base_size = 13)
+```
+
+### 1.3 Performing the Test
+
+```{r}
+#| label: onesample-ttest
+
+set.seed(42)
+
+# One-sample t-test: H0: mu_AGE = 65
+result_1samp <- t.test(dm_clean$AGE, mu = 65, alternative = "two.sided")
+print(result_1samp)
+
+cat("\n--- Clinical Interpretation ---\n")
+cat("Mean age:", round(mean(dm_clean$AGE), 1), "years\n")
+cat("95% CI: [", round(result_1samp$conf.int[1], 1), ",",
+    round(result_1samp$conf.int[2], 1), "]\n")
+
+if (result_1samp$p.value < 0.05) {
+  cat("Conclusion: The mean age significantly DIFFERS from 65 years (p =",
+      round(result_1samp$p.value, 4), ").\n")
+  cat("The trial population is", ifelse(mean(dm_clean$AGE) > 65, "older", "younger"),
+      "than the general elderly threshold.\n")
+} else {
+  cat("Conclusion: No significant difference from 65 years (p =",
+      round(result_1samp$p.value, 4), ").\n")
+  cat("The trial population age is consistent with the elderly threshold.\n")
+}
+```
+
+### 1.4 Visualisation
+
+```{r}
+#| label: onesample-plot
+#| fig-cap: "Distribution of participant age with hypothesis test reference line (mu = 65)"
+
+ggplot(dm_clean, aes(x = AGE)) +
+  geom_histogram(aes(y = after_stat(density)),
+                 bins = 20, fill = "#2C6E9E", colour = "white", alpha = 0.8) +
+  geom_density(colour = "#1A3E5C", linewidth = 1) +
+  geom_vline(xintercept = 65, colour = "#E74C3C",
+             linetype = "dashed", linewidth = 1.2) +
+  geom_vline(xintercept = mean(dm_clean$AGE), colour = "#27AE60",
+             linetype = "solid", linewidth = 1.2) +
+  annotate("text", x = 65, y = Inf, label = " H\u2080: \u03bc = 65",
+           hjust = 0, vjust = 2, colour = "#E74C3C", size = 4) +
+  annotate("text", x = mean(dm_clean$AGE), y = Inf,
+           label = paste0(" \u0078\u0305 = ", round(mean(dm_clean$AGE), 1)),
+           hjust = 0, vjust = 3.5, colour = "#27AE60", size = 4) +
+  labs(
+    title    = "One-Sample t-Test: Participant Age vs. 65-Year Threshold",
+    subtitle = paste0("t(", result_1samp$parameter, ") = ",
+                      round(result_1samp$statistic, 2),
+                      ", p = ", round(result_1samp$p.value, 4)),
+    x = "Age (years)",
+    y = "Density"
+  ) +
+  theme_classic(base_size = 13)
+```
+
+> **Clinical note:** In regulatory submissions, the age distribution of trial participants is routinely compared against predefined age cut-offs (e.g., 65, 75) to ensure the study population adequately represents the intended patient population.
+
+---
+
+## 2. Two-Sample Independent t-Test
+
+### 2.1 Theory
+
+The two-sample independent t-test compares the means of two unrelated groups:
+
+$$t = \frac{\bar{x}_1 - \bar{x}_2}{\sqrt{s_p^2 \left(\frac{1}{n_1} + \frac{1}{n_2}\right)}}$$
+
+where $s_p^2$ is the pooled variance (assuming equal variances). When variances are unequal, Welch's correction adjusts the degrees of freedom.
+
+**Clinical question:** Does the mean age differ between the Placebo and Xanomeline High Dose arms? (Age balance at baseline validates randomisation.)
+
+### 2.2 Filter to Two Arms
+
+```{r}
+#| label: twosample-filter
+
+# Filter to exactly two arms for comparison
+dm_2arm <- dm_clean |>
+  filter(ARM %in% c("Placebo", "Xanomeline High Dose")) |>
+  droplevels()
+
+cat("Sample sizes:\n")
+print(table(dm_2arm$ARM))
+cat("\nGroup means:\n")
+print(tapply(dm_2arm$AGE, dm_2arm$ARM, mean, na.rm = TRUE))
+```
+
+### 2.3 Assumption Checks
+
+```{r}
+#| label: twosample-assumptions
+#| fig-cap: "Q-Q plots by treatment arm for two-sample t-test assumption checking"
+
+# Shapiro-Wilk per group
+sw_by_arm <- tapply(dm_2arm$AGE, dm_2arm$ARM, shapiro.test)
+for (arm in names(sw_by_arm)) {
+  cat(arm, ": W =", round(sw_by_arm[[arm]]$statistic, 4),
+      ", p =", round(sw_by_arm[[arm]]$p.value, 4), "\n")
+}
+
+# Levene's test for equal variances (more robust than Bartlett)
+lev_result <- car::leveneTest(AGE ~ ARM, data = dm_2arm)
+cat("\nLevene's Test for Homogeneity of Variance:\n")
+print(lev_result)
+
+# Q-Q plots by arm
+ggplot(dm_2arm, aes(sample = AGE, colour = ARM)) +
+  stat_qq(size = 2, alpha = 0.7) +
+  stat_qq_line(linewidth = 1) +
+  facet_wrap(~ARM) +
+  scale_colour_manual(values = c("Placebo" = "#2C6E9E",
+                                  "Xanomeline High Dose" = "#E74C3C")) +
+  labs(
+    title    = "Normal Q-Q Plots by Treatment Arm",
+    subtitle = "Assessing normality for the two-sample t-test",
+    x = "Theoretical Quantiles",
+    y = "Sample Quantiles (Age)"
+  ) +
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none")
+```
+
+### 2.4 Performing the Test
+
+```{r}
+#| label: twosample-ttest
+
+# Welch's t-test (var.equal = FALSE is safer default)
+result_2samp <- t.test(AGE ~ ARM, data = dm_2arm,
+                       alternative = "two.sided",
+                       var.equal   = FALSE)
+print(result_2samp)
+
+# Also show pooled variance version for comparison
+result_2samp_eq <- t.test(AGE ~ ARM, data = dm_2arm, var.equal = TRUE)
+
+cat("\n--- Summary Table ---\n")
+cat("Test               | t-statistic | df    | p-value\n")
+cat("Welch (unequal var)|", round(result_2samp$statistic, 3),
+    "        |", round(result_2samp$parameter, 1),
+    "|", round(result_2samp$p.value, 4), "\n")
+cat("Student (equal var)|", round(result_2samp_eq$statistic, 3),
+    "        |", round(result_2samp_eq$parameter, 1),
+    "|", round(result_2samp_eq$p.value, 4), "\n")
+
+cat("\n--- Clinical Interpretation ---\n")
+means <- tapply(dm_2arm$AGE, dm_2arm$ARM, mean, na.rm = TRUE)
+cat("Mean age - Placebo:", round(means["Placebo"], 1), "years\n")
+cat("Mean age - Xanomeline High Dose:", round(means["Xanomeline High Dose"], 1), "years\n")
+if (result_2samp$p.value > 0.05) {
+  cat("Conclusion: No significant age imbalance between arms (p =",
+      round(result_2samp$p.value, 4), ").\n")
+  cat("Randomisation appears successful — age is balanced at baseline.\n")
+}
+```
+
+### 2.5 Visualisation
+
+```{r}
+#| label: twosample-plot
+#| fig-cap: "Box plot comparing age between Placebo and Xanomeline High Dose"
+
+ggplot(dm_2arm, aes(x = ARM, y = AGE, fill = ARM)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = 16, outlier.size = 2) +
+  geom_jitter(width = 0.15, alpha = 0.4, size = 1.5) +
+  scale_fill_manual(values = c("Placebo"               = "#2C6E9E",
+                                "Xanomeline High Dose" = "#E74C3C")) +
+  labs(
+    title    = "Age Distribution by Treatment Arm",
+    subtitle = paste0("Two-sample Welch t-test: p = ",
+                      round(result_2samp$p.value, 4)),
+    x        = "Treatment Arm",
+    y        = "Age (years)"
+  ) +
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none")
+```
+
+> **Clinical note:** Baseline demographic comparability is assessed in **Table 1** of most clinical study reports. A non-significant t-test supports the conclusion that randomisation adequately balanced age across treatment groups.
+
+---
+
+## 3. Paired t-Test
+
+### 3.1 Theory
+
+The paired t-test compares two related measurements — typically the same subject at two time points:
+
+$$t = \frac{\bar{d}}{s_d / \sqrt{n}}$$
+
+where $\bar{d}$ is the mean of within-subject differences and $s_d$ is their standard deviation. This design removes between-subject variability, yielding greater power than the two-sample test.
+
+**Clinical question:** Does systolic blood pressure (SYSBP) change significantly from screening (VISITNUM = 1) to the first follow-up visit (VISITNUM = 2)?
+
+### 3.2 Data Preparation
+
+```{r}
+#| label: paired-prep
+
+# Extract baseline (VISITNUM=1) and first follow-up (VISITNUM=2) SYSBP
+vs_paired <- vs_sysbp |>
+  filter(VISITNUM %in% c(1, 2)) |>
+  select(USUBJID, VISITNUM, VSSTRESN) |>
+  group_by(USUBJID, VISITNUM) |>
+  summarise(VSSTRESN = mean(VSSTRESN, na.rm = TRUE), .groups = "drop") |>
+  tidyr::pivot_wider(names_from  = VISITNUM,
+                     values_from = VSSTRESN,
+                     names_prefix = "VISIT") |>
+  filter(!is.na(VISIT1), !is.na(VISIT2)) |>
+  mutate(diff = VISIT2 - VISIT1)
+
+cat("Subjects with both VISITNUM 1 and 2:", nrow(vs_paired), "\n")
+cat("Mean difference (Visit2 - Visit1):", round(mean(vs_paired$diff), 2), "mmHg\n")
+cat("SD of differences:", round(sd(vs_paired$diff), 2), "mmHg\n")
+```
+
+### 3.3 Performing the Test
+
+```{r}
+#| label: paired-ttest
+
+# Shapiro-Wilk on differences
+sw_diff <- shapiro.test(vs_paired$diff)
+cat("Shapiro-Wilk on differences: W =", round(sw_diff$statistic, 4),
+    ", p =", round(sw_diff$p.value, 4), "\n\n")
+
+# Paired t-test
+result_paired <- t.test(vs_paired$VISIT2, vs_paired$VISIT1,
+                         paired = TRUE, alternative = "two.sided")
+print(result_paired)
+
+cat("\n--- Clinical Interpretation ---\n")
+cat("Mean SBP at Visit 1:", round(mean(vs_paired$VISIT1), 1), "mmHg\n")
+cat("Mean SBP at Visit 2:", round(mean(vs_paired$VISIT2), 1), "mmHg\n")
+cat("Mean change:", round(mean(vs_paired$diff), 1), "mmHg\n")
+cat("95% CI for change: [", round(result_paired$conf.int[1], 1), ",",
+    round(result_paired$conf.int[2], 1), "] mmHg\n")
+if (result_paired$p.value < 0.05) {
+  cat("Conclusion: Statistically significant change in SBP between visits (p =",
+      round(result_paired$p.value, 4), ").\n")
+} else {
+  cat("Conclusion: No statistically significant change in SBP between visits (p =",
+      round(result_paired$p.value, 4), ").\n")
+}
+```
+
+### 3.4 Visualisation
+
+```{r}
+#| label: paired-plot
+#| fig-cap: "Paired SBP measurements at Visit 1 and Visit 2 with change distribution"
+
+# Spaghetti-style paired plot (sample for clarity)
+set.seed(42)
+vs_long <- vs_paired |>
+  slice_sample(n = min(60, nrow(vs_paired))) |>
+  tidyr::pivot_longer(cols = c(VISIT1, VISIT2),
+                      names_to  = "Visit",
+                      values_to = "SBP") |>
+  mutate(Visit = case_match(Visit,
+                            "VISIT1" ~ "Visit 1\n(Baseline)",
+                            "VISIT2" ~ "Visit 2\n(Follow-up)"))
+
+p1 <- ggplot(vs_long, aes(x = Visit, y = SBP, group = USUBJID)) +
+  geom_line(alpha = 0.3, colour = "#2C6E9E") +
+  geom_point(alpha = 0.5, size = 1.5, colour = "#2C6E9E") +
+  stat_summary(aes(group = 1), fun = mean, geom = "line",
+               colour = "#E74C3C", linewidth = 1.5, linetype = "dashed") +
+  stat_summary(aes(group = 1), fun = mean, geom = "point",
+               colour = "#E74C3C", size = 4) +
+  labs(
+    title    = "Paired SBP: Baseline to Follow-up",
+    subtitle = paste0("Paired t-test: p = ", round(result_paired$p.value, 4)),
+    x        = NULL,
+    y        = "Systolic BP (mmHg)"
+  ) +
+  theme_classic(base_size = 13)
+
+# Distribution of differences
+p2 <- ggplot(vs_paired, aes(x = diff)) +
+  geom_histogram(bins = 20, fill = "#27AE60", colour = "white", alpha = 0.8) +
+  geom_vline(xintercept = 0, colour = "#E74C3C",
+             linetype = "dashed", linewidth = 1) +
+  geom_vline(xintercept = mean(vs_paired$diff), colour = "#1A3E5C",
+             linewidth = 1.2) +
+  labs(
+    title    = "Distribution of Within-Subject SBP Change",
+    subtitle = paste0("Mean change = ", round(mean(vs_paired$diff), 1), " mmHg"),
+    x        = "SBP Change (Visit 2 - Visit 1, mmHg)",
+    y        = "Count"
+  ) +
+  theme_classic(base_size = 13)
+
+print(p1)
+print(p2)
+```
+
+> **Clinical note:** Paired designs are standard for within-patient efficacy analyses (e.g., change from baseline). The paired t-test is the parametric equivalent of the matched-pairs analysis used in crossover trials and pre-post studies.
+
+---
+
+## 4. One-Way ANOVA
+
+### 4.1 Theory
+
+One-way ANOVA extends the two-sample t-test to $k \geq 3$ groups. It partitions total variability into:
+
+$$\text{SS}_{\text{Total}} = \text{SS}_{\text{Between}} + \text{SS}_{\text{Within}}$$
+
+The F-statistic:
+
+$$F = \frac{\text{MS}_{\text{Between}}}{\text{MS}_{\text{Within}}} = \frac{\text{SS}_{\text{Between}} / (k-1)}{\text{SS}_{\text{Within}} / (N-k)}$$
+
+**Clinical question:** Does mean systolic blood pressure differ across the three treatment arms?
+
+### 4.2 Assumption Checks
+
+```{r}
+#| label: anova1-assumptions
+#| fig-cap: "Diagnostic plots for one-way ANOVA assumption checking"
+
+# Use Visit 1 (baseline) SBP across all 3 arms
+vs_anova <- vs_sysbp |>
+  filter(VISITNUM == 1, !is.na(VSSTRESN)) |>
+  select(USUBJID, ARM, VSSTRESN)
+
+cat("Sample sizes by ARM:\n")
+print(table(vs_anova$ARM))
+
+# Shapiro-Wilk per group
+cat("\nShapiro-Wilk normality tests by ARM:\n")
+by(vs_anova$VSSTRESN, vs_anova$ARM, function(x) {
+  sw <- shapiro.test(x)
+  cat("  W =", round(sw$statistic, 4), ", p =", round(sw$p.value, 4), "\n")
+})
+
+# Levene's test for homogeneity of variance
+lev_anova <- car::leveneTest(VSSTRESN ~ ARM, data = vs_anova)
+cat("\nLevene's Test:\n")
+print(lev_anova)
+
+# Q-Q plots per group
+ggplot(vs_anova, aes(sample = VSSTRESN, colour = ARM)) +
+  stat_qq(size = 2, alpha = 0.7) +
+  stat_qq_line(linewidth = 0.8) +
+  facet_wrap(~ARM, ncol = 3) +
+  scale_colour_manual(values = c(
+    "Placebo"               = "#2C6E9E",
+    "Xanomeline Low Dose"  = "#27AE60",
+    "Xanomeline High Dose" = "#E74C3C"
+  )) +
+  labs(
+    title    = "Q-Q Plots of Baseline SBP by Treatment Arm",
+    x = "Theoretical Quantiles",
+    y = "Sample Quantiles (SBP, mmHg)"
+  ) +
+  theme_classic(base_size = 12) +
+  theme(legend.position = "none")
+```
+
+### 4.3 Performing One-Way ANOVA
+
+```{r}
+#| label: anova1-test
+
+# Fit one-way ANOVA
+model_anova1 <- aov(VSSTRESN ~ ARM, data = vs_anova)
+anova_summary <- summary(model_anova1)
+print(anova_summary)
+
+cat("\n--- Clinical Interpretation ---\n")
+group_means <- tapply(vs_anova$VSSTRESN, vs_anova$ARM, mean, na.rm = TRUE)
+for (arm in names(group_means)) {
+  cat(arm, ": mean SBP =", round(group_means[arm], 1), "mmHg\n")
+}
+
+f_val <- anova_summary[[1]]$`F value`[1]
+p_val <- anova_summary[[1]]$`Pr(>F)`[1]
+cat("\nF-statistic:", round(f_val, 3), ", p-value:", round(p_val, 4), "\n")
+
+if (p_val < 0.05) {
+  cat("Conclusion: Significant difference in baseline SBP across arms (p =",
+      round(p_val, 4), ").\n")
+  cat("Post-hoc tests are needed to identify which pairs differ.\n")
+} else {
+  cat("Conclusion: No significant difference in SBP across arms (p =",
+      round(p_val, 4), ").\n")
+  cat("Baseline SBP is balanced across treatment groups — consistent with good randomisation.\n")
+}
+```
+
+### 4.4 Visualisation
+
+```{r}
+#| label: anova1-plot
+#| fig-cap: "Violin plot of baseline SBP across treatment arms"
+
+ggplot(vs_anova, aes(x = ARM, y = VSSTRESN, fill = ARM)) +
+  geom_violin(alpha = 0.6, trim = FALSE) +
+  geom_boxplot(width = 0.15, fill = "white", alpha = 0.8, outlier.size = 1.5) +
+  scale_fill_manual(values = c(
+    "Placebo"               = "#2C6E9E",
+    "Xanomeline Low Dose"  = "#27AE60",
+    "Xanomeline High Dose" = "#E74C3C"
+  )) +
+  labs(
+    title    = "Baseline Systolic BP by Treatment Arm",
+    subtitle = paste0("One-Way ANOVA: F = ", round(f_val, 2),
+                      ", p = ", round(p_val, 4)),
+    x        = "Treatment Arm",
+    y        = "Systolic BP (mmHg)"
+  ) +
+  theme_classic(base_size = 13) +
+  theme(
+    legend.position  = "none",
+    axis.text.x      = element_text(size = 10)
+  )
+```
+
+---
+
+## 5. Two-Way ANOVA: Treatment × Sex Interaction
+
+### 5.1 Theory
+
+Two-way ANOVA simultaneously tests the effects of two categorical factors and their interaction:
+
+$$y_{ijk} = \mu + \alpha_i + \beta_j + (\alpha\beta)_{ij} + \epsilon_{ijk}$$
+
+where $\alpha_i$ = ARM effect, $\beta_j$ = SEX effect, $(\alpha\beta)_{ij}$ = interaction. A significant interaction means the effect of treatment differs by sex (or vice versa) — critical for subgroup analyses in regulatory submissions.
+
+**Clinical question:** Does the treatment arm effect on SBP differ by sex?
+
+### 5.2 Fitting the Model
+
+```{r}
+#| label: anova2-fit
+
+vs_anova2 <- vs_anova |>
+  left_join(dm_clean |> select(USUBJID, SEX), by = "USUBJID") |>
+  filter(!is.na(SEX))
+
+cat("Cell counts (ARM x SEX):\n")
+print(table(vs_anova2$ARM, vs_anova2$SEX))
+
+# Two-way ANOVA with interaction
+model_anova2 <- aov(VSSTRESN ~ ARM * SEX, data = vs_anova2)
+print(summary(model_anova2))
+
+cat("\n--- Clinical Interpretation ---\n")
+anova2_table <- summary(model_anova2)[[1]]
+p_arm        <- anova2_table["ARM",          "Pr(>F)"]
+p_sex        <- anova2_table["SEX",          "Pr(>F)"]
+p_interaction <- anova2_table["ARM:SEX",     "Pr(>F)"]
+
+cat("ARM main effect: p =", round(p_arm, 4), "\n")
+cat("SEX main effect: p =", round(p_sex, 4), "\n")
+cat("ARM:SEX interaction: p =", round(p_interaction, 4), "\n\n")
+
+if (p_interaction < 0.05) {
+  cat("Significant interaction detected. The treatment effect on SBP differs by sex.\n")
+  cat("Subgroup analyses by sex are warranted.\n")
+} else {
+  cat("No significant treatment-by-sex interaction (p =", round(p_interaction, 4), ").\n")
+  cat("The treatment effect is consistent across sexes — supports a pooled analysis.\n")
+}
+```
+
+### 5.3 Interaction Plot
+
+```{r}
+#| label: anova2-plot
+#| fig-cap: "Interaction plot: mean SBP by treatment arm and sex"
+
+cell_means <- vs_anova2 |>
+  group_by(ARM, SEX) |>
+  summarise(
+    mean_sbp = mean(VSSTRESN, na.rm = TRUE),
+    se_sbp   = sd(VSSTRESN, na.rm = TRUE) / sqrt(n()),
+    .groups  = "drop"
+  )
+
+ggplot(cell_means, aes(x = ARM, y = mean_sbp,
+                        colour = SEX, group = SEX)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 4) +
+  geom_errorbar(aes(ymin = mean_sbp - 1.96 * se_sbp,
+                    ymax = mean_sbp + 1.96 * se_sbp),
+                width = 0.15, linewidth = 0.8) +
+  scale_colour_manual(values = c("F" = "#E74C3C", "M" = "#2C6E9E"),
+                      labels  = c("F" = "Female", "M" = "Male")) +
+  labs(
+    title    = "Treatment × Sex Interaction: Baseline SBP",
+    subtitle = paste0("Interaction p = ", round(p_interaction, 4)),
+    x        = "Treatment Arm",
+    y        = "Mean Systolic BP \u00b1 95% CI (mmHg)",
+    colour   = "Sex"
+  ) +
+  theme_classic(base_size = 13) +
+  theme(axis.text.x = element_text(size = 10))
+```
+
+> **Clinical note:** Interaction tests are routinely included in subgroup analyses for regulatory submissions (ICH E9 guideline). A non-significant treatment-by-sex interaction provides support for reporting a pooled primary result.
+
+---
+
+## 6. ANCOVA: Adjusting for Baseline
+
+### 6.1 Theory
+
+ANCOVA (Analysis of Covariance) combines ANOVA with linear regression. It removes the variability explained by a covariate (e.g., baseline measurement) before testing for group differences:
+
+$$y_{ij} = \mu + \tau_i + \beta(x_{ij} - \bar{x}) + \epsilon_{ij}$$
+
+where $\tau_i$ is the treatment effect and $\beta$ is the regression coefficient for the baseline covariate $x$.
+
+**Benefits in clinical trials:**
+- Increased statistical power (reduced residual variance)
+- Control for baseline imbalances even after randomisation
+- Required by ICH E9(R1) for many primary efficacy analyses
+
+**Clinical question:** Does treatment arm affect SBP at Visit 2 after adjusting for baseline (Visit 1) SBP?
+
+### 6.2 Fitting ANCOVA
+
+```{r}
+#| label: ancova-fit
+
+# Build dataset: baseline (V1) and post-treatment (V2) SBP with ARM
+vs_ancova <- vs_sysbp |>
+  filter(VISITNUM %in% c(1, 2)) |>
+  select(USUBJID, VISITNUM, VSSTRESN, ARM) |>
+  group_by(USUBJID, VISITNUM, ARM) |>
+  summarise(VSSTRESN = mean(VSSTRESN, na.rm = TRUE), .groups = "drop") |>
+  tidyr::pivot_wider(names_from  = VISITNUM,
+                     values_from = VSSTRESN,
+                     names_prefix = "V") |>
+  filter(!is.na(V1), !is.na(V2))
+
+cat("ANCOVA dataset: n =", nrow(vs_ancova), "\n")
+cat("Missingness check: V1 missing =", sum(is.na(vs_ancova$V1)),
+    ", V2 missing =", sum(is.na(vs_ancova$V2)), "\n\n")
+
+# ANCOVA model: post-treatment SBP ~ ARM + baseline SBP
+model_ancova <- lm(V2 ~ ARM + V1, data = vs_ancova)
+ancova_anova <- car::Anova(model_ancova, type = "III")
+print(ancova_anova)
+
+cat("\n--- Coefficient Table ---\n")
+print(summary(model_ancova)$coefficients)
+
+cat("\n--- Clinical Interpretation ---\n")
+p_arm_ancova <- ancova_anova["ARM", "Pr(>F)"]
+cat("Treatment ARM effect after adjusting for baseline SBP:\n")
+cat("  p-value =", round(p_arm_ancova, 4), "\n")
+cat("  R-squared =", round(summary(model_ancova)$r.squared, 3), "\n")
+cat("  Baseline SBP coefficient:", round(coef(model_ancova)["V1"], 3), "\n\n")
+
+if (p_arm_ancova < 0.05) {
+  cat("Conclusion: Significant treatment effect on SBP after baseline adjustment.\n")
+} else {
+  cat("Conclusion: No significant treatment effect after baseline adjustment (p =",
+      round(p_arm_ancova, 4), ").\n")
+}
+```
+
+### 6.3 ANCOVA Visualisation
+
+```{r}
+#| label: ancova-plot
+#| fig-cap: "ANCOVA plot: post-treatment SBP vs baseline SBP, with regression lines by arm"
+
+ggplot(vs_ancova, aes(x = V1, y = V2, colour = ARM)) +
+  geom_point(alpha = 0.5, size = 2) +
+  geom_smooth(method = "lm", se = TRUE, linewidth = 1.2, alpha = 0.15) +
+  scale_colour_manual(values = c(
+    "Placebo"               = "#2C6E9E",
+    "Xanomeline Low Dose"  = "#27AE60",
+    "Xanomeline High Dose" = "#E74C3C"
+  )) +
+  geom_abline(intercept = 0, slope = 1,
+              linetype = "dashed", colour = "grey50", linewidth = 0.8) +
+  labs(
+    title    = "ANCOVA: Visit 2 SBP Adjusted for Baseline (Visit 1)",
+    subtitle = paste0("ARM effect p = ", round(p_arm_ancova, 4),
+                      " after adjusting for baseline"),
+    x        = "Baseline SBP — Visit 1 (mmHg)",
+    y        = "Post-Treatment SBP — Visit 2 (mmHg)",
+    colour   = "Treatment Arm"
+  ) +
+  theme_classic(base_size = 13) +
+  theme(legend.position = "bottom")
+```
+
+---
+
+## 7. Assumption Checking: A Systematic Approach
+
+### 7.1 ANOVA Residual Diagnostics
+
+```{r}
+#| label: residual-diagnostics
+#| fig-cap: "Four-panel residual diagnostic plot for one-way ANOVA"
+#| fig-width: 9
+#| fig-height: 7
+
+par(mfrow = c(2, 2))
+plot(model_anova1, which = 1:4)
+par(mfrow = c(1, 1))
+```
+
+### 7.2 Interpreting Diagnostic Plots
+
+```{r}
+#| label: diagnostics-interpretation
+
+# Extract residuals
+resids <- residuals(model_anova1)
+
+# Shapiro-Wilk on residuals
+sw_resid <- shapiro.test(resids)
+cat("Shapiro-Wilk on ANOVA residuals:\n")
+cat("  W =", round(sw_resid$statistic, 4), ", p =", round(sw_resid$p.value, 4), "\n\n")
+
+cat("Diagnostic Plot Guide:\n")
+cat("1. Residuals vs Fitted: Should show no pattern — tests independence\n")
+cat("2. Normal Q-Q:          Points near the line — tests normality of residuals\n")
+cat("3. Scale-Location:      Horizontal band — tests homoscedasticity\n")
+cat("4. Cook's Distance:     No point > 0.5 — identifies influential observations\n\n")
+
+cat("Cook's Distance: max =", round(max(cooks.distance(model_anova1)), 4), "\n")
+n_influential <- sum(cooks.distance(model_anova1) > 4 / nrow(vs_anova))
+cat("Observations with Cook's D > 4/n:", n_influential, "\n")
+```
+
+### 7.3 Testing All Three Key Assumptions
+
+```{r}
+#| label: all-assumptions
+
+cat("=========================================\n")
+cat("ASSUMPTION CHECKING SUMMARY\n")
+cat("=========================================\n\n")
+
+# 1. Normality
+cat("1. NORMALITY (Shapiro-Wilk per group):\n")
+sw_results <- tapply(vs_anova$VSSTRESN, vs_anova$ARM, function(x) {
+  if (length(x) >= 3) shapiro.test(x) else list(statistic = NA, p.value = NA)
+})
+for (nm in names(sw_results)) {
+  cat("  ", nm, ": p =", round(sw_results[[nm]]$p.value, 4), "\n")
+}
+
+# 2. Homogeneity of variance
+lev <- car::leveneTest(VSSTRESN ~ ARM, data = vs_anova)
+cat("\n2. HOMOGENEITY OF VARIANCE (Levene's Test):\n")
+cat("   F =", round(lev[1, "F value"], 3),
+    ", p =", round(lev[1, "Pr(>F)"], 4), "\n")
+
+# 3. Independence — structural assumption
+cat("\n3. INDEPENDENCE:\n")
+cat("   Assumed by CDISC ADSL/ADVS design (one record per subject per visit).\n")
+cat("   Parallel group design with randomisation ensures independence.\n")
+
+cat("\nDecision matrix:\n")
+cat("Normality OK?  Variance OK?  Recommended test\n")
+cat("YES            YES           One-way ANOVA (current)\n")
+cat("YES            NO            Welch's ANOVA (oneway.test)\n")
+cat("NO             -             Kruskal-Wallis (see Chapter BS4)\n")
+```
+
+---
+
+## 8. Post-Hoc Tests: TukeyHSD
+
+### 8.1 Why Post-Hoc Tests?
+
+When ANOVA rejects $H_0$, we know at least one group differs — but not *which* pairs. Post-hoc procedures make all pairwise comparisons while controlling the family-wise error rate (FWER).
+
+**Tukey's Honestly Significant Difference (HSD):** Controls FWER at $\alpha$ for all $\binom{k}{2}$ pairwise comparisons. Appropriate when comparing all pairs with equal sample sizes.
+
+### 8.2 Tukey HSD with Significant ANOVA
+
+```{r}
+#| label: posthoc-tukey
+
+# For illustration, use AGE across all 3 arms (re-fit ANOVA)
+model_age_anova <- aov(AGE ~ ARM, data = dm_clean)
+cat("ANOVA for AGE across all 3 arms:\n")
+print(summary(model_age_anova))
+
+# TukeyHSD
+tukey_result <- TukeyHSD(model_age_anova)
+cat("\nTukey HSD pairwise comparisons:\n")
+print(tukey_result)
+```
+
+### 8.3 Visualise Tukey Intervals
+
+```{r}
+#| label: posthoc-plot
+#| fig-cap: "Tukey HSD confidence intervals for all pairwise age comparisons"
+
+tukey_df <- as.data.frame(tukey_result$ARM) |>
+  tibble::rownames_to_column("comparison") |>
+  rename(diff = diff, lower = lwr, upper = upr, p_adj = `p adj`)
+
+ggplot(tukey_df, aes(x = comparison, y = diff)) +
+  geom_hline(yintercept = 0, linetype = "dashed",
+             colour = "#E74C3C", linewidth = 1) +
+  geom_point(size = 4, colour = "#2C6E9E") +
+  geom_errorbar(aes(ymin = lower, ymax = upper),
+                width = 0.25, linewidth = 1.2, colour = "#2C6E9E") +
+  geom_text(aes(label = paste0("p = ", round(p_adj, 3))),
+            vjust = -1.2, size = 3.5) +
+  coord_flip() +
+  labs(
+    title    = "Tukey HSD: Pairwise Comparisons of Age",
+    subtitle = "95% family-wise confidence level",
+    x        = "Comparison",
+    y        = "Difference in Mean Age (years)"
+  ) +
+  theme_classic(base_size = 13)
+```
+
+### 8.4 Other Post-Hoc Options
+
+```{r}
+#| label: posthoc-alternatives
+
+# Bonferroni correction — more conservative
+pairwise_result <- pairwise.t.test(dm_clean$AGE, dm_clean$ARM,
+                                    p.adjust.method = "bonferroni")
+cat("Pairwise t-tests with Bonferroni correction:\n")
+print(pairwise_result)
+
+# Holm method — step-down, uniformly better than Bonferroni
+pairwise_holm <- pairwise.t.test(dm_clean$AGE, dm_clean$ARM,
+                                   p.adjust.method = "holm")
+cat("\nPairwise t-tests with Holm correction:\n")
+print(pairwise_holm)
+
+cat("\nPost-hoc method selection guide:\n")
+cat("TukeyHSD:   All pairwise comparisons, equal n, controls FWER\n")
+cat("Bonferroni: Conservative, any comparison structure\n")
+cat("Holm:       Less conservative than Bonferroni, recommended default\n")
+cat("Dunnett:    Compare each treatment to control only (most powerful)\n")
+```
+
+> **Clinical note:** ICH E9 guidance recommends pre-specifying the multiple comparison procedure in the Statistical Analysis Plan (SAP). Dunnett's test is often preferred in dose-response trials where each dose is compared only to placebo, as it is more powerful than Tukey HSD.
+
+---
+
+## 9. Welch's ANOVA: When Variances Are Unequal
+
+```{r}
+#| label: welch-anova
+
+# Welch's ANOVA — robust to heteroscedasticity
+welch_anova <- oneway.test(VSSTRESN ~ ARM, data = vs_anova, var.equal = FALSE)
+cat("Welch's ANOVA (heteroscedasticity-robust):\n")
+print(welch_anova)
+
+# Compare with standard ANOVA
+std_anova <- oneway.test(VSSTRESN ~ ARM, data = vs_anova, var.equal = TRUE)
+cat("\nStandard ANOVA (assumes equal variance):\n")
+print(std_anova)
+
+cat("\nComparison:\n")
+cat("Standard ANOVA F =", round(std_anova$statistic, 3),
+    ", p =", round(std_anova$p.value, 4), "\n")
+cat("Welch's ANOVA  F =", round(welch_anova$statistic, 3),
+    ", p =", round(welch_anova$p.value, 4), "\n")
+cat("\nIf Levene's p < 0.05, prefer Welch's ANOVA.\n")
+```
+
+---
+
+## 10. Reporting Parametric Results: A Template
+
+```{r}
+#| label: reporting-template
+
+cat("=========================================\n")
+cat("STATISTICAL RESULTS REPORTING TEMPLATE\n")
+cat("(Suitable for Clinical Study Report)\n")
+cat("=========================================\n\n")
+
+# Pull key values
+n_total  <- nrow(dm_clean)
+mean_age <- round(mean(dm_clean$AGE), 1)
+sd_age   <- round(sd(dm_clean$AGE),   1)
+t_stat   <- round(result_1samp$statistic, 2)
+df_val   <- result_1samp$parameter
+ci_lo    <- round(result_1samp$conf.int[1], 1)
+ci_hi    <- round(result_1samp$conf.int[2], 1)
+p1       <- round(result_1samp$p.value, 4)
+
+cat("One-Sample t-Test:\n")
+cat("  The mean age of participants (n =", n_total, ") was",
+    mean_age, "(SD =", sd_age, ") years.\n")
+cat("  A one-sample t-test showed that the mean age was significantly\n")
+cat("  different from 65 years: t(", df_val, ") =", t_stat,
+    ", 95% CI [", ci_lo, ",", ci_hi, "],",
+    "p =", p1, ".\n\n")
+
+cat("Two-Sample t-Test:\n")
+cat("  Age was compared between Placebo and Xanomeline High Dose arms.\n")
+cat("  A Welch two-sample t-test indicated no significant imbalance:\n")
+cat("  t(", round(result_2samp$parameter, 1), ") =",
+    round(result_2samp$statistic, 2),
+    ", p =", round(result_2samp$p.value, 4), ".\n\n")
+
+cat("ANOVA:\n")
+cat("  One-way ANOVA of baseline SBP across three arms:\n")
+cat("  F(", anova_summary[[1]]$Df[1], ",",
+    anova_summary[[1]]$Df[2], ") =",
+    round(anova_summary[[1]]$`F value`[1], 2),
+    ", p =", round(anova_summary[[1]]$`Pr(>F)`[1], 4), ".\n")
+```
+
+---
+
+## Summary
+
+| Test | Use Case | Key Assumption | R Function |
+|------|----------|---------------|------------|
+| One-sample t-test | Mean vs. known value | Normality | `t.test(x, mu=)` |
+| Two-sample t-test | Two group means | Normality, (equal var) | `t.test(y ~ grp)` |
+| Paired t-test | Before-after / matched | Differences normal | `t.test(x, y, paired=TRUE)` |
+| One-way ANOVA | ≥3 group means | Normality, equal var | `aov(y ~ grp)` |
+| Two-way ANOVA | 2 factors + interaction | Normality, equal var | `aov(y ~ A * B)` |
+| ANCOVA | Groups + covariate | Linearity, normality | `lm(y ~ grp + cov)` |
+| Welch's ANOVA | ≥3 groups, unequal var | Normality | `oneway.test(var.equal=FALSE)` |
+| TukeyHSD | Post-hoc all pairs | ANOVA significant | `TukeyHSD(aov_obj)` |
+
+---
+
+## Exercises
+
+::: {.callout-note icon="false"}
+## Exercise 1: One-Sample t-Test on BMI
+
+Using the `dm` dataset (if `BMIBL` is available) or weight-related variables from `vs`:
+
+1. Extract body weight (`VSTESTCD == "WEIGHT"`) from the `vs` dataset at baseline.
+2. Test whether the mean weight differs from 70 kg using a one-sample t-test.
+3. Check the normality assumption using Shapiro-Wilk and a Q-Q plot.
+4. Write two sentences interpreting the result as you would in a clinical study report.
+:::
+
+::: {.callout-note icon="false"}
+## Exercise 2: Two-Sample t-Test
+
+1. Filter `dm_clean` to Placebo and Xanomeline **Low** Dose arms only.
+2. Compare mean `AGE` between these two arms using a Welch t-test.
+3. First check whether variances are equal using Levene's test.
+4. Create a publication-ready box plot with the p-value annotated.
+:::
+
+::: {.callout-note icon="false"}
+## Exercise 3: One-Way ANOVA with Post-Hoc
+
+1. Extract diastolic BP (`VSTESTCD == "DIABP"`) at VISITNUM == 1.
+2. Run a one-way ANOVA comparing diastolic BP across all three ARM groups.
+3. Check the four standard ANOVA assumptions.
+4. If ANOVA is significant, run Tukey HSD and visualise the confidence intervals.
+5. Which pairs of arms differ significantly?
+:::
+
+::: {.callout-note icon="false"}
+## Exercise 4: ANCOVA Analysis
+
+1. Use `VSTESTCD == "DIABP"` at VISITNUM 1 (baseline) and VISITNUM 3 (post-treatment).
+2. Fit an ANCOVA model: `V3 ~ ARM + V1`.
+3. Interpret the ARM coefficient and the baseline covariate coefficient.
+4. Compare the p-value for ARM from plain ANOVA vs ANCOVA — which has more power? Why?
+:::
+
+::: {.callout-note icon="false"}
+## Exercise 5: Two-Way ANOVA
+
+1. Use baseline SYSBP data across all three arms.
+2. Fit a two-way ANOVA: `VSSTRESN ~ ARM * SEX`.
+3. Interpret the interaction term.
+4. Create an interaction plot showing mean SBP by ARM and SEX with 95% CI error bars.
+5. Discuss the clinical implications if the interaction were statistically significant.
+:::
+
+::: {.callout-note icon="false"}
+## Challenge Exercise: Complete Parametric Analysis Pipeline
+
+Write a single R function `parametric_pipeline(data, outcome_var, group_var, baseline_var = NULL)` that:
+
+1. Checks normality (Shapiro-Wilk) for each group.
+2. Checks variance equality (Levene's test).
+3. Selects and runs the appropriate test (t-test, Welch t-test, ANOVA, Welch ANOVA, or ANCOVA).
+4. Runs post-hoc tests if ANOVA is significant.
+5. Returns a list with test name, statistic, p-value, and a ggplot visualisation.
+
+Test your function on at least two different variables from the `vs` dataset.
+:::

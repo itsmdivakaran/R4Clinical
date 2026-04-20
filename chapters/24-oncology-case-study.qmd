@@ -1,8 +1,4 @@
----
-title: "Chapter 24: Oncology Trial Case Study"
----
-
-# Chapter 24: Oncology Trial Case Study
+# Oncology Trial Case Study
 
 This chapter presents a comprehensive, real-world case study of a Phase III oncology trial analyzing efficacy and safety data. We demonstrate survival analysis, response evaluation, subgroup analyses, and safety reporting using clinical datasets and rigorous biostatistical methods aligned with oncology regulatory standards.
 
@@ -162,21 +158,22 @@ recist_data <- colon_os_unique %>%
   select(subject_id, id, rx, age, node4) %>%
   mutate(
     # Simulate best response by treatment
-    best_response = case_when(
-      rx == "Vemotinib" ~ sample(c("CR", "PR", "SD", "PD"),
-                                  n_subjects / 2,
-                                  replace = TRUE,
-                                  prob = c(0.12, 0.28, 0.35, 0.25)),
-      rx == "Control" ~ sample(c("CR", "PR", "SD", "PD"),
-                               n_subjects / 2,
-                               replace = TRUE,
-                               prob = c(0.05, 0.15, 0.40, 0.40))
-    ),
-    # Simulate percentage change in target lesion sum
-    change_pct = case_when(
-      rx == "Vemotinib" ~ rnorm(n = n(), mean = -18, sd = 28),
-      rx == "Control" ~ rnorm(n = n(), mean = -5, sd = 35)
-    ),
+    best_response = {
+      resp    <- character(n())
+      is_vemo <- rx == "Vemotinib"
+      resp[is_vemo]  <- sample(c("CR","PR","SD","PD"), sum(is_vemo),  replace=TRUE,
+                                prob=c(0.12, 0.28, 0.35, 0.25))
+      resp[!is_vemo] <- sample(c("CR","PR","SD","PD"), sum(!is_vemo), replace=TRUE,
+                                prob=c(0.05, 0.15, 0.40, 0.40))
+      resp
+    },
+    change_pct = {
+      chg     <- numeric(n())
+      is_vemo <- rx == "Vemotinib"
+      chg[is_vemo]  <- rnorm(sum(is_vemo),  mean=-18, sd=28)
+      chg[!is_vemo] <- rnorm(sum(!is_vemo), mean=-5,  sd=35)
+      chg
+    },
     # Responder indicator (CR or PR)
     responder = as.integer(best_response %in% c("CR", "PR"))
   )
@@ -219,35 +216,38 @@ print(km_os)
 
 ```{r}
 #| label: km-os-plot
-#| eval: false
 #| message: false
 
-# Requires ggsurvfit package
-# Install with: install.packages("ggsurvfit")
+# KM plot using base survival + ggplot2 (no ggsurvfit dependency)
+km_summary <- summary(km_os)
+km_df <- data.frame(
+  time   = km_summary$time,
+  surv   = km_summary$surv,
+  lower  = km_summary$lower,
+  upper  = km_summary$upper,
+  strata = sub("ARM=", "", as.character(km_summary$strata))
+)
 
-library(ggsurvfit)
-
-km_plot <- ggsurvfit(km_os) +
+ggplot(km_df, aes(x = time, y = surv, colour = strata, fill = strata)) +
+  geom_step(linewidth = 0.9) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.15, colour = NA) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  scale_colour_manual(values = c("#2C6E9E", "#E07B39")) +
+  scale_fill_manual(  values = c("#2C6E9E", "#E07B39")) +
   labs(
-    title = "ONCO-301 Trial: Overall Survival (Intent-to-Treat Population)",
-    x = "Time (years)",
-    y = "Overall Survival Probability"
+    title  = "ONCO-301 Trial: Overall Survival (Intent-to-Treat Population)",
+    x      = "Time (years)",
+    y      = "Overall Survival Probability",
+    colour = "Treatment",
+    fill   = "Treatment"
   ) +
-  theme_minimal() +
+  theme_bw(base_size = 12) +
   theme(
-    legend.position = "bottom",
-    plot.title = element_text(size = 14, face = "bold"),
+    legend.position  = "bottom",
+    plot.title       = element_text(size = 13, face = "bold"),
     panel.grid.minor = element_blank()
-  ) +
-  add_confidence_interval() +
-  add_risktable()
-
-km_plot
+  )
 ```
-
-::: {.callout-warning}
-The code above requires the `ggsurvfit` package. If you do not have it installed, run: `install.packages("ggsurvfit")`. This chunk uses `#| eval: false` because the rendering environment may not have this package. Run it in your local R session to generate the plot.
-:::
 
 ### Log-Rank Test
 
@@ -790,14 +790,15 @@ ae_summary <- ae_data %>%
     names_glue = "{rx}_{.value}"
   )
 
+col_labels <- list(soc = "System Organ Class")
+for (arm in c("Control", "Vemotinib")) {
+  ag_col  <- paste0(arm, "_Any Grade (n, %)")
+  g34_col <- paste0(arm, "_Grade 3-4 (n, %)")
+  if (ag_col  %in% names(ae_summary)) col_labels[[ag_col]]  <- paste0(arm, ": Any Grade")
+  if (g34_col %in% names(ae_summary)) col_labels[[g34_col]] <- paste0(arm, ": Grade 3-4")
+}
 gt(ae_summary) %>%
-  cols_label(
-    soc = "System Organ Class",
-    Control_`Any Grade (n, %)` = "Control: Any Grade",
-    Control_`Grade 3-4 (n, %)` = "Control: Grade 3-4",
-    Vemotinib_`Any Grade (n, %)` = "Vemotinib: Any Grade",
-    Vemotinib_`Grade 3-4 (n, %)` = "Vemotinib: Grade 3-4"
-  )
+  gt::cols_label(.list = col_labels)
 ```
 
 ::: {.callout-info}
@@ -844,6 +845,7 @@ baseline_table <- colon_os %>%
     `≥4 Positive Nodes (n, %)` = paste0(sum(node4 == 1), " (",
                                        round(100 * mean(node4 == 1), 1), ")")
   ) %>%
+  mutate(across(-rx, as.character)) %>%
   pivot_longer(cols = -rx, names_to = "Characteristic", values_to = "Value") %>%
   pivot_wider(names_from = rx, values_from = Value)
 

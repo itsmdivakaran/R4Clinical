@@ -1,6 +1,5 @@
----
-title: "Chapter 18: Bayesian Methods in Clinical Trials"
----
+# Bayesian Methods in Clinical Trials
+
 
 ## Introduction
 
@@ -305,7 +304,10 @@ ggplot(posterior_plot_df, aes(x = theta, y = density)) +
 For more complex models (e.g., multiple covariates, hierarchical structures), we use MCMC. The `rstanarm` package provides a user-friendly interface to Stan.
 
 ```{r}
-library(rstanarm)
+#| eval: false
+if (requireNamespace("rstanarm", quietly = TRUE)) {
+  library(rstanarm)
+}
 
 # Create a simulated clinical trial dataset
 # Outcome: response (1) vs. no response (0)
@@ -359,6 +361,7 @@ summary(bayesian_logistic)
 ### Extracting and Visualizing Posterior Samples
 
 ```{r}
+#| eval: false
 # Extract posterior samples for treatment effect
 posterior_samples <- as.data.frame(bayesian_logistic)
 
@@ -398,6 +401,7 @@ ggplot(posterior_or_df, aes(x = odds_ratio)) +
 ### Convergence Diagnostics
 
 ```{r}
+#| eval: false
 # Check R-hat (Gelman-Rubin statistic)
 cat("R-hat values (should be < 1.05 for convergence):\n")
 print(bayesian_logistic$diagnostics)
@@ -457,9 +461,9 @@ cat("  Projected: ", median_future, " additional responses in next ", n_future, 
 cat("  Projected final response rate: ", round(median(final_response_rates), 3), "\n")
 cat("  P(final response rate > 40% | current data, continued enrollment) =", round(pred_prob_efficacy, 3), "\n\n")
 
-if (pred_prob_efficacy > 0.90) {
+if (isTRUE(pred_prob_efficacy > 0.90)) {
   cat("DECISION: Stop for efficacy (predictive probability > 90%)\n")
-} else if (pred_prob_efficacy < 0.10) {
+} else if (isTRUE(pred_prob_efficacy < 0.10)) {
   cat("DECISION: Stop for futility (predictive probability < 10%)\n")
 } else {
   cat("DECISION: Continue enrollment\n")

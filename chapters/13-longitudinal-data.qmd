@@ -1,6 +1,3 @@
----
-title: "Chapter 13: Longitudinal Data Analysis"
----
 
 # Longitudinal Data Analysis
 
@@ -338,15 +335,17 @@ library(gtsummary)
 
 # Load and prepare data
 data(vs)
+data(dm)
 
 # Filter SBP measurements and prepare for analysis
 vs_sbp <- vs %>%
   filter(VSTESTCD == "SYSBP") %>%  # Systolic BP
+  left_join(dm %>% select(USUBJID, ARM), by = "USUBJID") %>%
   mutate(
     VISIT = factor(VISIT,
                    levels = c("Baseline", "Week 2", "Week 4", "Week 8", "Week 12")),
     VISITN = as.numeric(VISIT),
-    TRTA = factor(TRTA),  # Treatment arm (e.g., Drug A, Placebo)
+    TRTA = factor(ARM),  # Treatment arm from demographics
   ) %>%
   select(USUBJID, VISIT, VISITN, VSSTRESN, TRTA) %>%
   rename(SBP = VSSTRESN) %>%
@@ -355,7 +354,8 @@ vs_sbp <- vs %>%
 # Get baseline SBP for each subject
 baseline_sbp <- vs_sbp %>%
   filter(VISITN == 1) %>%
-  select(USUBJID, TRTA) %>%
+  select(USUBJID, SBP) %>%
+  rename(baseline_SBP = SBP) %>%
   distinct()
 
 vs_sbp <- vs_sbp %>%
@@ -446,16 +446,24 @@ vs_summary <- vs_sbp %>%
 print(vs_summary)
 
 # Estimated treatment difference at final visit using tidy method
-library(broom.mixed)
+if (requireNamespace("broom.mixed", quietly = TRUE)) {
+  library(broom.mixed)
 
-tidy(mmrm_model, effects = "fixed") %>%
-  filter(grepl("Week 12", term)) %>%
-  mutate(
-    HR = exp(estimate),
-    CI_L = exp(estimate - 1.96 * std.error),
-    CI_U = exp(estimate + 1.96 * std.error)
-  ) %>%
-  select(term, estimate, std.error, p.value)
+  model_tidy <- tidy(mmrm_model, effects = "fixed")
+
+  # lme4 does not compute p-values; approximate via z-statistic
+  model_tidy <- model_tidy %>%
+    mutate(p.value = 2 * (1 - pnorm(abs(statistic))))
+
+  model_tidy %>%
+    filter(grepl("Week 12", term)) %>%
+    mutate(
+      HR = exp(estimate),
+      CI_L = exp(estimate - 1.96 * std.error),
+      CI_U = exp(estimate + 1.96 * std.error)
+    ) %>%
+    select(intersect(names(model_tidy), c("term", "estimate", "std.error", "statistic", "p.value")))
+}
 ```
 
 ## Key Assumptions and Diagnostics
@@ -464,8 +472,13 @@ tidy(mmrm_model, effects = "fixed") %>%
 
 ```r
 # Extract random intercepts
-ranef_plot <- ranef(lme2)$Subject %>%
-  ggplot(aes(sample = `(Intercept)`)) +
+re_intercepts <- as.numeric(
+  as.data.frame(ranef(lme2)$Subject)[["(Intercept)"]]
+)
+ranef_df <- data.frame(random_intercept = re_intercepts)
+
+ranef_plot <- ranef_df %>%
+  ggplot(aes(sample = random_intercept)) +
   stat_qq() +
   stat_qq_line() +
   labs(title = "Q-Q Plot of Random Intercepts") +

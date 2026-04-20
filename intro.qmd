@@ -1,9 +1,107 @@
-# Introduction
+# Introduction {.unnumbered}
 
-This is a book created from markdown and executable code.
+## The R Revolution in Clinical Research
 
-See @knuth84 for additional discussion of literate programming.
+For most of the twentieth century, clinical data analysis was synonymous with proprietary statistical software. SAS dominated regulatory submissions; SPSS filled academic labs; Stata found a home in epidemiology. Each had strengths, but all shared a common limitation: knowledge was locked behind licence fees, and reproducibility depended on institutional access rather than open science.
 
-```{r}
-1 + 1
+R changed everything. Born in academic statistics, R has matured into the lingua franca of data science. Today it powers production pipelines at Roche, Novartis, Pfizer, and dozens of other pharmaceutical companies. The U.S. Food and Drug Administration accepted the first fully R-based regulatory submission in 2021 — a milestone that would have seemed implausible a decade earlier. The R Consortium's Submissions Working Group has since demonstrated, through repeated FDA pilots, that R-based analyses meet the highest standards of regulatory reproducibility.
+
+Yet most resources for learning clinical statistics with R remain fragmented — a survival analysis tutorial here, a missing-data vignette there. This book exists to change that.
+
+## What This Book Does
+
+*R for Clinical Data Analysis: From Fundamentals to Advanced Biostatistics* is a single, coherent journey from your first `library(tidyverse)` to a complete, validated, regulatory-ready analysis pipeline. It is built on three commitments:
+
+**Real data, real problems.** Every dataset used in this book is freely available — either from CRAN packages, the pharmaverse ecosystem, or simulated inline with `set.seed()`. You will never need proprietary data to reproduce an example. The CDISC SDTM pilot datasets from `{pharmaversesdtm}` — the same domains (DM, AE, LB, VS, EX) used in actual FDA submissions — appear throughout Parts II–VII.
+
+**Code that actually runs.** Every code block in this book was executed in a clean R environment during typesetting. There are no "simplified for illustration" examples that silently skip an error-prone step. If an approach is fragile in practice, we say so and show a robust alternative.
+
+**Theory earned, not assumed.** Statistical methods are presented with enough mathematical grounding to understand *why* they work, not just *how* to call them. Equations appear where they illuminate; they are omitted where prose suffices. The companion Biostatistics Fundamentals module (Part III) provides a self-contained refresher for readers whose statistics is rusty.
+
+## The Pharmaverse Ecosystem
+
+A central thread running through this book is the **pharmaverse** — a coordinated collection of R packages designed specifically for pharmaceutical data analysis and regulatory submissions:
+
+| Package | Purpose |
+|---|---|
+| `{pharmaversesdtm}` | CDISC SDTM pilot datasets (DM, AE, LB, VS, EX) |
+| `{admiral}` | ADaM dataset construction |
+| `{gtsummary}` | Publication-quality summary tables |
+| `{rtables}` | Regulatory-style Tables, Listings, Figures |
+| `{ggsurvfit}` | Kaplan-Meier plots with risk tables |
+| `{teal}` | Interactive Shiny-based clinical reporting |
+
+Where pharmaverse packages are used, we explain not just the function call but the CDISC concepts behind it — ARM, USUBJID, VISITNUM, AEDECOD — so that the code is intelligible to anyone who has read a clinical study report.
+
+## Navigating the Eight Parts
+
+This book is designed so that experienced analysts can enter at any part, while newcomers can work straight through from beginning to end.
+
+**Part I (Chapters 1–4b)** covers the R foundations that everything else depends on: data types, importing from SAS/Excel/CSV, data cleaning, `dplyr` manipulation, and `tidyr` wrangling. Even if you have used R before, skim this part — the chapter on data wrangling covers reshape patterns that trip up experienced users.
+
+**Part II (Chapters 5–7)** introduces CDISC standards (SDTM and ADaM), exploratory data analysis with clinical datasets, and `ggplot2` visualisation for clinical contexts. After this part you will be able to load, explore, and visualise SDTM data from scratch.
+
+**Part III (Chapters BS01–BS09)** is the Biostatistics Fundamentals Module — a self-contained sequence covering probability distributions, statistical inference, parametric and non-parametric tests, regression, categorical data analysis, sample size and power, advanced biostatistics, and multivariate methods. It can be read independently as a statistics refresher or used as a reference alongside the clinical chapters.
+
+**Part IV (Chapters 8–11)** applies classical biostatistical methods to clinical trial datasets: descriptive statistics, hypothesis testing, ANOVA/ANCOVA, and regression modelling. You will run the analyses you have read about in protocols and clinical study reports.
+
+**Part V (Chapters 12–15)** covers the advanced methods that define modern clinical trial analysis: time-to-event (Kaplan-Meier, Cox), longitudinal mixed models, missing data (MCAR/MAR/MNAR, multiple imputation), and comprehensive safety analysis.
+
+**Part VI (Chapters 16–19)** addresses specialised trial designs and analytical paradigms: bioequivalence, non-inferiority, Bayesian adaptive methods, and real-world evidence.
+
+**Part VII (Chapters 20–22)** teaches the production side of clinical analysis: Tables, Listings, and Figures (TLFs) to regulatory specifications, reproducible reporting with Quarto, and validation/QC workflows compliant with GAMP 5 and 21 CFR Part 11.
+
+**Part VIII (Chapters 23–25)** puts everything together through three complete case studies: a Phase III cardiovascular trial (end-to-end from SDTM to final report), an oncology survival and response analysis, and an infectious disease vaccine efficacy study.
+
+## A Practical Learning Path
+
+If you are **new to R**, work through Parts I and II before anything else, then follow the chapter order from Part IV onward. Dip into Part III when you need the statistical background for a method you encounter.
+
+If you are a **SAS programmer** transitioning to R, Appendix A (R–SAS Equivalence Guide) is your first stop. Then focus on Chapters 5 (CDISC in R), 20 (TLFs), and 22 (Validation/QC) — the areas where the R workflow differs most from SAS.
+
+If you are a **biostatistician comfortable with R**, jump directly to the topics you need: Part V for mixed models and missing data, Part VI for specialised designs, or Part VII for reporting infrastructure.
+
+If you are a **student**, read linearly. The progressive exercises at the end of each chapter are calibrated to beginner, intermediate, and advanced skill levels. Completing them will build a portfolio of clinical analysis work.
+
+## Setting Up Your Environment
+
+Before your first chapter, run this installation block once:
+
+```r
+install.packages(c(
+  # Tidyverse core
+  "tidyverse", "haven", "readxl",
+  # Clinical / Pharmaverse
+  "pharmaversesdtm", "admiral", "gtsummary", "rtables",
+  # Biostatistics
+  "survival", "lme4", "nlme", "mice", "MatchIt",
+  "PropCIs", "ggsurvfit", "cmprsk", "survminer",
+  # Reporting
+  "gt", "flextable", "officer", "knitr",
+  # Bayesian
+  "rstanarm", "bayesplot",
+  # Utilities
+  "broom", "broom.mixed", "lmtest", "car",
+  "gsDesign", "rpact"
+))
 ```
+
+This book was written and tested under **R 4.4.x** with Quarto 1.5. All results are reproducible using the companion repository at `https://github.com/r4clinical/book`.
+
+## On Style and Conventions
+
+Code is displayed in monospace blocks. Lines beginning with `#>` show console output. We use the native pipe `|>` and `dplyr`/`tidyr` idioms throughout, with base R shown where it is clearer or more portable.
+
+Statistical notation follows standard conventions: *n* for sample size, *p* for p-value, *α* for significance level, *β* for type II error (or regression coefficients, context permitting), and *H*₀/*H*₁ for null and alternative hypotheses. Clinical abbreviations are defined on first use.
+
+One convention worth highlighting: wherever data are filtered to a treated population, we always exclude screen failures explicitly:
+
+```r
+dm %>% filter(!is.na(ARM), ARM != "")
+```
+
+This pattern, easily forgotten when ARM looks like a simple character column, prevents screen failures with blank ARM from inflating denominators or introducing confounding. You will see it throughout the book.
+
+---
+
+*Let us begin.*

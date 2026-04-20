@@ -50,11 +50,24 @@ book:
         - chapters/02-r-basics.qmd
         - chapters/03-data-import-export.qmd
         - chapters/04-data-cleaning.qmd
+        - chapters/04a-data-manipulation.qmd
+        - chapters/04b-data-wrangling.qmd
     - part: "Part II: Clinical Data Standards and Structures"
       chapters:
         - chapters/05-cdisc-standards.qmd
         - chapters/06-eda.qmd
         - chapters/07-data-visualization.qmd
+    - part: "Biostatistics Foundations"
+      chapters:
+        - chapters/bs01-probability-distributions.qmd
+        - chapters/bs02-statistical-inference.qmd
+        - chapters/bs03-parametric-tests.qmd
+        - chapters/bs04-nonparametric-tests.qmd
+        - chapters/bs05-regression-analysis.qmd
+        - chapters/bs06-categorical-data.qmd
+        - chapters/bs07-sample-size-power.qmd
+        - chapters/bs08-advanced-biostatistics.qmd
+        - chapters/bs09-multivariate-methods.qmd
     - part: "Part III: Core Biostatistics in Clinical Trials"
       chapters:
         - chapters/08-descriptive-stats.qmd
@@ -121,9 +134,9 @@ format:
     toc-depth: 3
     number-sections: true
     colorlinks: true
-    linkcolor: "2C6E9E"
-    urlcolor:  "2C6E9E"
-    citecolor: "2C6E9E"
+    linkcolor: "clinicalblue"
+    urlcolor:  "clinicalblue"
+    citecolor: "clinicalblue"
     geometry:
       - top=30mm
       - left=25mm
@@ -131,6 +144,8 @@ format:
       - bottom=30mm
     include-in-header:
       text: |
+        \usepackage{xcolor}
+        \definecolor{clinicalblue}{HTML}{2C6E9E}
         \usepackage{amsmath}
         \usepackage{amssymb}
         \usepackage{booktabs}
@@ -147,9 +162,11 @@ format:
     cover-image: cover.png
     toc: true
     number-sections: true
+    prefer-html: true
 
 execute:
   echo: true
+  eval: true
   warning: false
   message: false
   cache: false
