@@ -1,1 +1,1 @@
-Sitemap: https://r4clinical.github.io/sitemap.xml
+Sitemap: https://itsmdivakaran.github.io/R4Clinical/sitemap.xml
