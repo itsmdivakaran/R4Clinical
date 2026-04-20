@@ -1,0 +1,2291 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>6&nbsp; Data Wrangling with tidyr: Reshaping, Pivoting, Nesting, and Structuring Clinical Data – R for Clinical Data Analysis: From Fundamentals to Advanced Biostatistics</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../chapters/05-cdisc-standards.html" rel="next">
+<link href="../chapters/04a-data-manipulation.html" rel="prev">
+<link href="../cover.png" rel="icon" type="image/png">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-cfa45de4c6f2fde802ca69ebd4f440e2.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-f37303f8b17d592088e6d372bde27f4d.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-cfa45de4c6f2fde802ca69ebd4f440e2.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-50fe7d2bad15909f59ebb547d81bae49.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-293a0bc44baea06b6a522a83c0e3d1d6.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-50fe7d2bad15909f59ebb547d81bae49.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+</head>
+
+<body class="nav-sidebar floating nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">R for Clinical Data Analysis: From Fundamentals to Advanced Biostatistics</span>
+    </a>
+  </div>
+        <div class="quarto-navbar-tools tools-wide tools-end">
+    <a href="https://github.com/r4clinical/book" title="Source Code" class="quarto-navigation-tool px-1" aria-label="Source Code"><i class="bi bi-github"></i></a>
+    <div class="dropdown">
+      <a href="" title="Download" id="quarto-navigation-tool-dropdown-0" class="quarto-navigation-tool dropdown-toggle px-1" data-bs-toggle="dropdown" aria-expanded="false" role="link" aria-label="Download"><i class="bi bi-download"></i></a>
+      <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="quarto-navigation-tool-dropdown-0">
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="../R-for-Clinical-Data-Analysis--From-Fundamentals-to-Advanced-Biostatistics.pdf">
+              <i class="bi bi-file-pdf pe-1"></i>
+            Download PDF
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="../R-for-Clinical-Data-Analysis--From-Fundamentals-to-Advanced-Biostatistics.epub">
+              <i class="bi bi-journal pe-1"></i>
+            Download ePub
+            </a>
+          </li>
+      </ul>
+    </div>
+    <div class="dropdown">
+      <a href="" title="Share" id="quarto-navigation-tool-dropdown-1" class="quarto-navigation-tool dropdown-toggle px-1" data-bs-toggle="dropdown" aria-expanded="false" role="link" aria-label="Share"><i class="bi bi-share"></i></a>
+      <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="quarto-navigation-tool-dropdown-1">
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="https://twitter.com/intent/tweet?url=|url|">
+              <i class="bi bi-twitter pe-1"></i>
+            Twitter
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="https://www.linkedin.com/sharing/share-offsite/?url=|url|">
+              <i class="bi bi-linkedin pe-1"></i>
+            LinkedIn
+            </a>
+          </li>
+      </ul>
+    </div>
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+          <div id="quarto-search" class="" title="Search"></div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/01-intro-clinical-r.html">Part I: Foundations of R Programming</a></li><li class="breadcrumb-item"><a href="../chapters/04b-data-wrangling.html"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Data Wrangling with tidyr: Reshaping, Pivoting, Nesting, and Structuring Clinical Data</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part I: Foundations of R Programming</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/01-intro-clinical-r.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction to R in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/02-r-basics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">R Fundamentals and Data Structures</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/03-data-import-export.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Data Import and Export in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04-data-cleaning.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Data Cleaning and Transformation in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04a-data-manipulation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Data Manipulation with dplyr: Filtering, Selecting, Mutating, Grouping, and Summarising Clinical Data</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04b-data-wrangling.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Data Wrangling with tidyr: Reshaping, Pivoting, Nesting, and Structuring Clinical Data</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part II: Clinical Data Standards and Structures</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/05-cdisc-standards.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Chapter 5: CDISC Standards (SDTM &amp; ADaM)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/06-eda.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Chapter 6: Exploratory Data Analysis (EDA): Understanding Your Data Before Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/07-data-visualization.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Chapter 7: Data Visualization in Clinical Research: From Grammar of Graphics to Publication-Quality Figures</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Biostatistics Foundations</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs01-probability-distributions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Probability Distributions in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs02-statistical-inference.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Statistical Inference in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs03-parametric-tests.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Parametric Statistical Tests in Clinical Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs04-nonparametric-tests.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Non-Parametric Tests in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs05-regression-analysis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Regression Analysis in Clinical Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs06-categorical-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">Categorical Data Analysis in Clinical Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs07-sample-size-power.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Sample Size and Power Calculations</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs08-advanced-biostatistics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">17</span>&nbsp; <span class="chapter-title">Advanced Biostatistical Methods in Drug Development</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs09-multivariate-methods.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">18</span>&nbsp; <span class="chapter-title">Multivariate Methods in Clinical Research</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part III: Core Biostatistics in Clinical Trials</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/08-descriptive-stats.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">19</span>&nbsp; <span class="chapter-title">Chapter 8: Descriptive Statistics</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/09-hypothesis-testing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">20</span>&nbsp; <span class="chapter-title">Chapter 9: Hypothesis Testing</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/10-anova-ancova.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">21</span>&nbsp; <span class="chapter-title">Chapter 10: ANOVA and ANCOVA</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/11-regression-models.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">22</span>&nbsp; <span class="chapter-title">Chapter 11: Regression Models</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part IV: Advanced Clinical Analysis</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/12-survival-analysis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">23</span>&nbsp; <span class="chapter-title">Survival Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/13-longitudinal-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">24</span>&nbsp; <span class="chapter-title">Longitudinal Data Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/14-missing-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">25</span>&nbsp; <span class="chapter-title">Missing Data in Clinical Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/15-safety-analysis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">26</span>&nbsp; <span class="chapter-title">Safety Analysis in Clinical Trials</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part V: Specialized Clinical Methods</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/16-bioequivalence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">27</span>&nbsp; <span class="chapter-title">Bioequivalence Studies</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/17-non-inferiority.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">28</span>&nbsp; <span class="chapter-title">Non-Inferiority and Equivalence Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/18-bayesian-methods.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Bayesian Methods in Clinical Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/19-rwe.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">Real-World Evidence (RWE)</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part VI: Reporting and Regulatory Outputs</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/20-tlfs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">31</span>&nbsp; <span class="chapter-title">Tables, Listings, and Figures (TLFs)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/21-reproducible-reporting.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">32</span>&nbsp; <span class="chapter-title">Reproducible Reporting with R Markdown and Quarto</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/22-validation-qc.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">33</span>&nbsp; <span class="chapter-title">Validation and Quality Control</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part VII: Case Studies</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/23-case-study-ete.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">34</span>&nbsp; <span class="chapter-title">End-to-End Clinical Trial Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/24-oncology-case-study.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">35</span>&nbsp; <span class="chapter-title">Oncology Trial Case Study</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/25-infectious-disease.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">36</span>&nbsp; <span class="chapter-title">Infectious Disease Study</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../appendices/appendix-a.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Appendix A: R and SAS Equivalence Guide</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../appendices/appendix-b.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Appendix B: Essential R Packages for Clinical Data Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../appendices/appendix-c.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">39</span>&nbsp; <span class="chapter-title">Appendix C: Simulated Clinical Datasets</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../appendices/appendix-d.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">40</span>&nbsp; <span class="chapter-title">Appendix D: Regulatory References and Resources</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../references.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">References</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction"><span class="header-section-number">6.1</span> Introduction</a></li>
+  <li><a href="#setup" id="toc-setup" class="nav-link" data-scroll-target="#setup"><span class="header-section-number">6.2</span> 1. Setup</a></li>
+  <li><a href="#tidy-data-principles" id="toc-tidy-data-principles" class="nav-link" data-scroll-target="#tidy-data-principles"><span class="header-section-number">6.3</span> 2. Tidy Data Principles</a></li>
+  <li><a href="#pivot_longer-wide-to-long" id="toc-pivot_longer-wide-to-long" class="nav-link" data-scroll-target="#pivot_longer-wide-to-long"><span class="header-section-number">6.4</span> 3. pivot_longer() — Wide to Long</a>
+  <ul class="collapse">
+  <li><a href="#clinical-example-summary-statistics-to-long-format" id="toc-clinical-example-summary-statistics-to-long-format" class="nav-link" data-scroll-target="#clinical-example-summary-statistics-to-long-format"><span class="header-section-number">6.4.1</span> 3.1 Clinical Example: Summary Statistics to Long Format</a></li>
+  <li><a href="#sdtm-vital-signs-multiple-parameters-to-long" id="toc-sdtm-vital-signs-multiple-parameters-to-long" class="nav-link" data-scroll-target="#sdtm-vital-signs-multiple-parameters-to-long"><span class="header-section-number">6.4.2</span> 3.2 SDTM Vital Signs: Multiple Parameters to Long</a></li>
+  </ul></li>
+  <li><a href="#pivot_wider-long-to-wide" id="toc-pivot_wider-long-to-wide" class="nav-link" data-scroll-target="#pivot_wider-long-to-wide"><span class="header-section-number">6.5</span> 4. pivot_wider() — Long to Wide</a>
+  <ul class="collapse">
+  <li><a href="#lab-data-one-column-per-visit" id="toc-lab-data-one-column-per-visit" class="nav-link" data-scroll-target="#lab-data-one-column-per-visit"><span class="header-section-number">6.5.1</span> 4.1 Lab Data: One Column per Visit</a></li>
+  <li><a href="#computing-change-from-baseline" id="toc-computing-change-from-baseline" class="nav-link" data-scroll-target="#computing-change-from-baseline"><span class="header-section-number">6.5.2</span> 4.2 Computing Change from Baseline</a></li>
+  </ul></li>
+  <li><a href="#separate-and-unite-splitting-and-combining-columns" id="toc-separate-and-unite-splitting-and-combining-columns" class="nav-link" data-scroll-target="#separate-and-unite-splitting-and-combining-columns"><span class="header-section-number">6.6</span> 5. separate() and unite() — Splitting and Combining Columns</a>
+  <ul class="collapse">
+  <li><a href="#separate-split-a-column" id="toc-separate-split-a-column" class="nav-link" data-scroll-target="#separate-split-a-column"><span class="header-section-number">6.6.1</span> 5.1 separate() — Split a Column</a></li>
+  <li><a href="#unite-combine-columns" id="toc-unite-combine-columns" class="nav-link" data-scroll-target="#unite-combine-columns"><span class="header-section-number">6.6.2</span> 5.2 unite() — Combine Columns</a></li>
+  </ul></li>
+  <li><a href="#complete-making-implicit-missing-values-explicit" id="toc-complete-making-implicit-missing-values-explicit" class="nav-link" data-scroll-target="#complete-making-implicit-missing-values-explicit"><span class="header-section-number">6.7</span> 6. complete() — Making Implicit Missing Values Explicit</a></li>
+  <li><a href="#fill-carrying-values-forward-or-backward" id="toc-fill-carrying-values-forward-or-backward" class="nav-link" data-scroll-target="#fill-carrying-values-forward-or-backward"><span class="header-section-number">6.8</span> 7. fill() — Carrying Values Forward or Backward</a></li>
+  <li><a href="#nest-and-unnest-list-columns-and-grouped-models" id="toc-nest-and-unnest-list-columns-and-grouped-models" class="nav-link" data-scroll-target="#nest-and-unnest-list-columns-and-grouped-models"><span class="header-section-number">6.9</span> 8. nest() and unnest() — List-Columns and Grouped Models</a>
+  <ul class="collapse">
+  <li><a href="#nested-linear-models-by-lab-test" id="toc-nested-linear-models-by-lab-test" class="nav-link" data-scroll-target="#nested-linear-models-by-lab-test"><span class="header-section-number">6.9.1</span> 8.1 Nested Linear Models by Lab Test</a></li>
+  <li><a href="#unnesting-for-reporting" id="toc-unnesting-for-reporting" class="nav-link" data-scroll-target="#unnesting-for-reporting"><span class="header-section-number">6.9.2</span> 8.2 Unnesting for Reporting</a></li>
+  </ul></li>
+  <li><a href="#full-workflow-sdtm-lab-data-adam-adlb-like-structure" id="toc-full-workflow-sdtm-lab-data-adam-adlb-like-structure" class="nav-link" data-scroll-target="#full-workflow-sdtm-lab-data-adam-adlb-like-structure"><span class="header-section-number">6.10</span> 9. Full Workflow: SDTM Lab Data → ADaM ADLB-like Structure</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">6.11</span> Summary</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/r4clinical/book/edit/main/chapters/04b-data-wrangling.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/r4clinical/book/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/01-intro-clinical-r.html">Part I: Foundations of R Programming</a></li><li class="breadcrumb-item"><a href="../chapters/04b-data-wrangling.html"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Data Wrangling with tidyr: Reshaping, Pivoting, Nesting, and Structuring Clinical Data</span></a></li></ol></nav>
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Data Wrangling with tidyr: Reshaping, Pivoting, Nesting, and Structuring Clinical Data</span></h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="introduction" class="level2" data-number="6.1">
+<h2 data-number="6.1" class="anchored" data-anchor-id="introduction"><span class="header-section-number">6.1</span> Introduction</h2>
+<p>Data wrangling — transforming data between wide and long formats, handling nested structures, and resolving shape mismatches — is a daily task in clinical data programming. Clinical trial data is particularly challenging because:</p>
+<ul>
+<li>SDTM stores lab and vital sign data in <strong>long</strong> format (one row per test per visit)</li>
+<li>Statistical analysis often requires <strong>wide</strong> format (one row per subject, one column per timepoint)</li>
+<li>ADaM datasets require specific structures that differ from SDTM</li>
+<li>Regulatory outputs (listings, tables) demand yet another shape</li>
+</ul>
+<p>The <code>tidyr</code> package provides the tools to reshape data efficiently and consistently.</p>
+<p>This chapter covers:</p>
+<ul>
+<li><code>pivot_longer()</code> and <code>pivot_wider()</code> — reshaping between long and wide</li>
+<li><code>separate()</code> and <code>unite()</code> — splitting and combining columns</li>
+<li><code>complete()</code> — filling in missing combinations</li>
+<li><code>nest()</code> and <code>unnest()</code> — working with list-columns and grouped models</li>
+<li><code>fill()</code> and <code>replace_na()</code> — handling structural missing values</li>
+<li>Real SDTM-to-ADaM reshaping workflows</li>
+</ul>
+<hr>
+</section>
+<section id="setup" class="level2" data-number="6.2">
+<h2 data-number="6.2" class="anchored" data-anchor-id="setup"><span class="header-section-number">6.2</span> 1. Setup</h2>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pharmaversesdtm)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"dm"</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"lb"</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"vs"</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"ae"</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Domains loaded.</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; Domains loaded.</code></pre>
+</div>
+</div>
+<hr>
+</section>
+<section id="tidy-data-principles" class="level2" data-number="6.3">
+<h2 data-number="6.3" class="anchored" data-anchor-id="tidy-data-principles"><span class="header-section-number">6.3</span> 2. Tidy Data Principles</h2>
+<p>Before reshaping, it helps to understand what “tidy” means:</p>
+<ol type="1">
+<li>Every <strong>variable</strong> has its own column</li>
+<li>Every <strong>observation</strong> has its own row</li>
+<li>Every <strong>value</strong> has its own cell</li>
+</ol>
+<p>Most clinical data issues arise from violations of these rules. For example, a lab dataset with <code>BASELINE</code>, <code>WEEK4</code>, <code>WEEK8</code>, <code>WEEK12</code> as separate columns violates rule 2 — the four columns represent four observations of the same variable.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># SDTM LB is already tidy (long): one row per subject × test × visit</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>lb <span class="sc">|&gt;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, LBTESTCD, VISITNUM, LBSTRESN) <span class="sc">|&gt;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(LBTESTCD <span class="sc">==</span> <span class="st">"ALT"</span>, USUBJID <span class="sc">==</span> <span class="fu">unique</span>(USUBJID)[<span class="dv">1</span>]) <span class="sc">|&gt;</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">8</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; # A tibble: 8 × 4
+#&gt;   USUBJID     LBTESTCD VISITNUM LBSTRESN
+#&gt;   &lt;chr&gt;       &lt;chr&gt;       &lt;dbl&gt;    &lt;dbl&gt;
+#&gt; 1 01-701-1015 ALT             1       27
+#&gt; 2 01-701-1015 ALT             4       41
+#&gt; 3 01-701-1015 ALT             5       18
+#&gt; 4 01-701-1015 ALT             7       26
+#&gt; 5 01-701-1015 ALT             8       22
+#&gt; 6 01-701-1015 ALT             9       27
+#&gt; 7 01-701-1015 ALT            10       17
+#&gt; 8 01-701-1015 ALT            11       21</code></pre>
+</div>
+</div>
+<hr>
+</section>
+<section id="pivot_longer-wide-to-long" class="level2" data-number="6.4">
+<h2 data-number="6.4" class="anchored" data-anchor-id="pivot_longer-wide-to-long"><span class="header-section-number">6.4</span> 3. pivot_longer() — Wide to Long</h2>
+<p><code>pivot_longer()</code> stacks multiple columns into key–value pairs. Use it when column names represent values of a variable (e.g., <code>visit_1</code>, <code>visit_2</code>, <code>visit_4</code>).</p>
+<section id="clinical-example-summary-statistics-to-long-format" class="level3" data-number="6.4.1">
+<h3 data-number="6.4.1" class="anchored" data-anchor-id="clinical-example-summary-statistics-to-long-format"><span class="header-section-number">6.4.1</span> 3.1 Clinical Example: Summary Statistics to Long Format</h3>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a wide summary table (e.g., from a reporting tool)</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>dm_wide <span class="ot">&lt;-</span> dm <span class="sc">|&gt;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(ARM), ARM <span class="sc">!=</span> <span class="st">"Screen Failure"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(ARM) <span class="sc">|&gt;</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">N           =</span> <span class="fu">n</span>(),</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">Mean_age    =</span> <span class="fu">round</span>(<span class="fu">mean</span>(AGE, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="dv">1</span>),</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">SD_age      =</span> <span class="fu">round</span>(<span class="fu">sd</span>(AGE,  <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="dv">1</span>),</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">Pct_female  =</span> <span class="fu">round</span>(<span class="dv">100</span> <span class="sc">*</span> <span class="fu">mean</span>(SEX <span class="sc">==</span> <span class="st">"F"</span>), <span class="dv">1</span>),</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups     =</span> <span class="st">"drop"</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(dm_wide)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; # A tibble: 3 × 5
+#&gt;   ARM                      N Mean_age SD_age Pct_female
+#&gt;   &lt;chr&gt;                &lt;int&gt;    &lt;dbl&gt;  &lt;dbl&gt;      &lt;dbl&gt;
+#&gt; 1 Placebo                 86     75.2    8.6       61.6
+#&gt; 2 Xanomeline High Dose    84     74.4    7.9       47.6
+#&gt; 3 Xanomeline Low Dose     84     75.7    8.3       59.5</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Pivot to long for a reporting-friendly layout</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>dm_long <span class="ot">&lt;-</span> dm_wide <span class="sc">|&gt;</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">cols      =</span> <span class="sc">-</span>ARM,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_to  =</span> <span class="st">"Statistic"</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_to =</span> <span class="st">"Value"</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(dm_long)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; # A tibble: 12 × 3
+#&gt;    ARM                  Statistic  Value
+#&gt;    &lt;chr&gt;                &lt;chr&gt;      &lt;dbl&gt;
+#&gt;  1 Placebo              N           86  
+#&gt;  2 Placebo              Mean_age    75.2
+#&gt;  3 Placebo              SD_age       8.6
+#&gt;  4 Placebo              Pct_female  61.6
+#&gt;  5 Xanomeline High Dose N           84  
+#&gt;  6 Xanomeline High Dose Mean_age    74.4
+#&gt;  7 Xanomeline High Dose SD_age       7.9
+#&gt;  8 Xanomeline High Dose Pct_female  47.6
+#&gt;  9 Xanomeline Low Dose  N           84  
+#&gt; 10 Xanomeline Low Dose  Mean_age    75.7
+#&gt; 11 Xanomeline Low Dose  SD_age       8.3
+#&gt; 12 Xanomeline Low Dose  Pct_female  59.5</code></pre>
+</div>
+</div>
+</section>
+<section id="sdtm-vital-signs-multiple-parameters-to-long" class="level3" data-number="6.4.2">
+<h3 data-number="6.4.2" class="anchored" data-anchor-id="sdtm-vital-signs-multiple-parameters-to-long"><span class="header-section-number">6.4.2</span> 3.2 SDTM Vital Signs: Multiple Parameters to Long</h3>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Wide vital signs (hypothetical pre-processed table)</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>vs_wide_demo <span class="ot">&lt;-</span> vs <span class="sc">|&gt;</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(VSTESTCD <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"SYSBP"</span>, <span class="st">"DIABP"</span>, <span class="st">"PULSE"</span>),</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>         VISITNUM <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, VISITNUM, VSTESTCD, VSSTRESN) <span class="sc">|&gt;</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> VSTESTCD, <span class="at">values_from =</span> VSSTRESN) <span class="sc">|&gt;</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">20</span>)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Wide VS (first 5 rows):</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; Wide VS (first 5 rows):</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">head</span>(vs_wide_demo, <span class="dv">5</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; # A tibble: 5 × 5
+#&gt;   USUBJID     VISITNUM DIABP     PULSE     SYSBP    
+#&gt;   &lt;chr&gt;          &lt;dbl&gt; &lt;list&gt;    &lt;list&gt;    &lt;list&gt;   
+#&gt; 1 01-701-1015        1 &lt;dbl [3]&gt; &lt;dbl [3]&gt; &lt;dbl [3]&gt;
+#&gt; 2 01-701-1015        2 &lt;dbl [3]&gt; &lt;dbl [3]&gt; &lt;dbl [3]&gt;
+#&gt; 3 01-701-1015        3 &lt;dbl [3]&gt; &lt;dbl [3]&gt; &lt;dbl [3]&gt;
+#&gt; 4 01-701-1023        1 &lt;dbl [3]&gt; &lt;dbl [3]&gt; &lt;dbl [3]&gt;
+#&gt; 5 01-701-1023        2 &lt;dbl [3]&gt; &lt;dbl [3]&gt; &lt;dbl [3]&gt;</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Now pivot back to long (with multiple value columns)</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>vs_long_back <span class="ot">&lt;-</span> vs_wide_demo <span class="sc">|&gt;</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">cols      =</span> <span class="fu">any_of</span>(<span class="fu">c</span>(<span class="st">"SYSBP"</span>, <span class="st">"DIABP"</span>, <span class="st">"PULSE"</span>)),</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_to  =</span> <span class="st">"Parameter"</span>,</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_to =</span> <span class="st">"Value"</span>,</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_drop_na =</span> <span class="cn">TRUE</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"</span><span class="sc">\n</span><span class="st">Long VS (first 8 rows):</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; 
+#&gt; Long VS (first 8 rows):</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">head</span>(vs_long_back, <span class="dv">8</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; # A tibble: 8 × 4
+#&gt;   USUBJID     VISITNUM Parameter Value    
+#&gt;   &lt;chr&gt;          &lt;dbl&gt; &lt;chr&gt;     &lt;list&gt;   
+#&gt; 1 01-701-1015        1 SYSBP     &lt;dbl [3]&gt;
+#&gt; 2 01-701-1015        1 DIABP     &lt;dbl [3]&gt;
+#&gt; 3 01-701-1015        1 PULSE     &lt;dbl [3]&gt;
+#&gt; 4 01-701-1015        2 SYSBP     &lt;dbl [3]&gt;
+#&gt; 5 01-701-1015        2 DIABP     &lt;dbl [3]&gt;
+#&gt; 6 01-701-1015        2 PULSE     &lt;dbl [3]&gt;
+#&gt; 7 01-701-1015        3 SYSBP     &lt;dbl [3]&gt;
+#&gt; 8 01-701-1015        3 DIABP     &lt;dbl [3]&gt;</code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="pivot_wider-long-to-wide" class="level2" data-number="6.5">
+<h2 data-number="6.5" class="anchored" data-anchor-id="pivot_wider-long-to-wide"><span class="header-section-number">6.5</span> 4. pivot_wider() — Long to Wide</h2>
+<p><code>pivot_wider()</code> spreads key–value pairs across multiple columns. Critical for:</p>
+<ul>
+<li>Creating change-from-baseline (CFB) datasets where baseline and post-baseline are side by side</li>
+<li>Building subject-level datasets with one column per timepoint</li>
+<li>Constructing cross-tabulations for regulatory tables</li>
+</ul>
+<section id="lab-data-one-column-per-visit" class="level3" data-number="6.5.1">
+<h3 data-number="6.5.1" class="anchored" data-anchor-id="lab-data-one-column-per-visit"><span class="header-section-number">6.5.1</span> 4.1 Lab Data: One Column per Visit</h3>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create an ALT profile table: one column per visit</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>alt_profile <span class="ot">&lt;-</span> lb <span class="sc">|&gt;</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(LBTESTCD <span class="sc">==</span> <span class="st">"ALT"</span>,</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>         <span class="sc">!</span><span class="fu">is.na</span>(LBSTRESN),</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>         VISITNUM <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">5</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, VISITNUM, LBSTRESN) <span class="sc">|&gt;</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_from   =</span> VISITNUM,</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_from  =</span> LBSTRESN,</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_prefix =</span> <span class="st">"Visit_"</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"ALT by visit (wide format — first 6 subjects):</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; ALT by visit (wide format — first 6 subjects):</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">head</span>(alt_profile, <span class="dv">6</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; # A tibble: 6 × 4
+#&gt;   USUBJID     Visit_1 Visit_4 Visit_5
+#&gt;   &lt;chr&gt;         &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+#&gt; 1 01-701-1015      27      41      18
+#&gt; 2 01-701-1023      23      30      38
+#&gt; 3 01-701-1028      26      30      29
+#&gt; 4 01-701-1033      16      35      14
+#&gt; 5 01-701-1034      15      19      21
+#&gt; 6 01-701-1047      22      16      20</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Dimensions:"</span>, <span class="fu">nrow</span>(alt_profile), <span class="st">"×"</span>, <span class="fu">ncol</span>(alt_profile), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; Dimensions: 254 × 4</code></pre>
+</div>
+</div>
+</section>
+<section id="computing-change-from-baseline" class="level3" data-number="6.5.2">
+<h3 data-number="6.5.2" class="anchored" data-anchor-id="computing-change-from-baseline"><span class="header-section-number">6.5.2</span> 4.2 Computing Change from Baseline</h3>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute change from baseline (CFB) and percent CFB for SBP</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>sbp_cfb <span class="ot">&lt;-</span> vs <span class="sc">|&gt;</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(VSTESTCD <span class="sc">==</span> <span class="st">"SYSBP"</span>, <span class="sc">!</span><span class="fu">is.na</span>(VSSTRESN)) <span class="sc">|&gt;</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, VISITNUM, VSSTRESN) <span class="sc">|&gt;</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Create BASELINE and POST-BASELINE columns</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">timepoint =</span> <span class="fu">if_else</span>(VISITNUM <span class="sc">==</span> <span class="dv">1</span>, <span class="st">"Baseline"</span>, <span class="fu">paste0</span>(<span class="st">"Visit_"</span>, VISITNUM))</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(</span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">id_cols      =</span> USUBJID,</span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_from   =</span> timepoint,</span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_from  =</span> VSSTRESN,</span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_fn    =</span> mean   <span class="co"># average if multiple baseline readings</span></span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Compute CFB for each post-baseline visit</span></span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">across</span>(</span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a>      <span class="fu">starts_with</span>(<span class="st">"Visit_"</span>),</span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a>      <span class="fu">list</span>(</span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>        <span class="at">CFB    =</span> \(x) x <span class="sc">-</span> Baseline,</span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a>        <span class="at">PCTCFB =</span> \(x) <span class="dv">100</span> <span class="sc">*</span> (x <span class="sc">-</span> Baseline) <span class="sc">/</span> Baseline</span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a>      ),</span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a>      <span class="at">.names =</span> <span class="st">"{.col}_{.fn}"</span></span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb23-26"><a href="#cb23-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-27"><a href="#cb23-27" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"SBP with CFB (first 3 subjects):</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; SBP with CFB (first 3 subjects):</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>sbp_cfb <span class="sc">|&gt;</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, Baseline, <span class="fu">starts_with</span>(<span class="st">"Visit_2"</span>), <span class="fu">starts_with</span>(<span class="st">"Visit_3"</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">3</span>) <span class="sc">|&gt;</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; # A tibble: 3 × 17
+#&gt;   USUBJID    Baseline Visit_2 Visit_201 Visit_2_CFB Visit_2_PCTCFB Visit_201_CFB
+#&gt;   &lt;chr&gt;         &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt;       &lt;dbl&gt;          &lt;dbl&gt;         &lt;dbl&gt;
+#&gt; 1 01-701-10…     136.    140        NA         4.33          3.19           NA  
+#&gt; 2 01-701-10…     134     133.      122.       -1.33         -0.995         -12.3
+#&gt; 3 01-701-10…     138.    132        NA        -6.33         -4.58           NA  
+#&gt; # ℹ 10 more variables: Visit_201_PCTCFB &lt;dbl&gt;, Visit_3 &lt;dbl&gt;, Visit_3.5 &lt;dbl&gt;,
+#&gt; #   Visit_3.1 &lt;dbl&gt;, Visit_3_CFB &lt;dbl&gt;, Visit_3_PCTCFB &lt;dbl&gt;,
+#&gt; #   Visit_3.5_CFB &lt;dbl&gt;, Visit_3.5_PCTCFB &lt;dbl&gt;, Visit_3.1_CFB &lt;dbl&gt;,
+#&gt; #   Visit_3.1_PCTCFB &lt;dbl&gt;</code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="separate-and-unite-splitting-and-combining-columns" class="level2" data-number="6.6">
+<h2 data-number="6.6" class="anchored" data-anchor-id="separate-and-unite-splitting-and-combining-columns"><span class="header-section-number">6.6</span> 5. separate() and unite() — Splitting and Combining Columns</h2>
+<p>SDTM date-time columns (ISO 8601: <code>2023-04-15T09:30:00</code>) are stored as strings and often need splitting. Conversely, separate pieces of information sometimes need joining.</p>
+<section id="separate-split-a-column" class="level3" data-number="6.6.1">
+<h3 data-number="6.6.1" class="anchored" data-anchor-id="separate-split-a-column"><span class="header-section-number">6.6.1</span> 5.1 separate() — Split a Column</h3>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Split SDTM ISO date into date and time components</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>lb_dates <span class="ot">&lt;-</span> lb <span class="sc">|&gt;</span></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(LBDTC)) <span class="sc">|&gt;</span></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, LBTESTCD, LBDTC) <span class="sc">|&gt;</span></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">separate</span>(</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">col  =</span> LBDTC,</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">into =</span> <span class="fu">c</span>(<span class="st">"LBDT"</span>, <span class="st">"LBTM"</span>),</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">sep  =</span> <span class="st">"T"</span>,</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">fill =</span> <span class="st">"right"</span>,    <span class="co"># fill right if no time component</span></span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">remove =</span> <span class="cn">FALSE</span></span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">separate</span>(</span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">col  =</span> LBDT,</span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">into =</span> <span class="fu">c</span>(<span class="st">"LBYR"</span>, <span class="st">"LBMO"</span>, <span class="st">"LBDY"</span>),</span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">sep  =</span> <span class="st">"-"</span>,</span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">fill =</span> <span class="st">"right"</span></span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(lb_dates <span class="sc">|&gt;</span> <span class="fu">select</span>(USUBJID, LBDTC, LBYR, LBMO, LBDY, LBTM), <span class="dv">5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; # A tibble: 5 × 6
+#&gt;   USUBJID     LBDTC            LBYR  LBMO  LBDY  LBTM 
+#&gt;   &lt;chr&gt;       &lt;chr&gt;            &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;
+#&gt; 1 01-701-1015 2013-12-26T14:45 2013  12    26    14:45
+#&gt; 2 01-701-1015 2014-01-16T13:17 2014  01    16    13:17
+#&gt; 3 01-701-1015 2014-01-30T08:50 2014  01    30    08:50
+#&gt; 4 01-701-1015 2014-02-12T12:56 2014  02    12    12:56
+#&gt; 5 01-701-1015 2014-03-05T12:25 2014  03    05    12:25</code></pre>
+</div>
+</div>
+</section>
+<section id="unite-combine-columns" class="level3" data-number="6.6.2">
+<h3 data-number="6.6.2" class="anchored" data-anchor-id="unite-combine-columns"><span class="header-section-number">6.6.2</span> 5.2 unite() — Combine Columns</h3>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a unique visit-test identifier for pivot keys</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>lb_key <span class="ot">&lt;-</span> lb <span class="sc">|&gt;</span></span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, LBTESTCD, VISITNUM, LBSTRESN) <span class="sc">|&gt;</span></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unite</span>(</span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">col    =</span> <span class="st">"visit_test"</span>,</span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>    VISITNUM, LBTESTCD,</span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">sep    =</span> <span class="st">"_V"</span>,</span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">remove =</span> <span class="cn">FALSE</span></span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">visit_test =</span> <span class="fu">paste0</span>(<span class="st">"V"</span>, visit_test))</span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(lb_key <span class="sc">|&gt;</span> <span class="fu">select</span>(USUBJID, VISITNUM, LBTESTCD, visit_test, LBSTRESN), <span class="dv">5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; # A tibble: 5 × 5
+#&gt;   USUBJID     VISITNUM LBTESTCD visit_test LBSTRESN
+#&gt;   &lt;chr&gt;          &lt;dbl&gt; &lt;chr&gt;    &lt;chr&gt;         &lt;dbl&gt;
+#&gt; 1 01-701-1015        1 ALB      V1_VALB          38
+#&gt; 2 01-701-1015        4 ALB      V4_VALB          39
+#&gt; 3 01-701-1015        5 ALB      V5_VALB          38
+#&gt; 4 01-701-1015        7 ALB      V7_VALB          37
+#&gt; 5 01-701-1015        8 ALB      V8_VALB          38</code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="complete-making-implicit-missing-values-explicit" class="level2" data-number="6.7">
+<h2 data-number="6.7" class="anchored" data-anchor-id="complete-making-implicit-missing-values-explicit"><span class="header-section-number">6.7</span> 6. complete() — Making Implicit Missing Values Explicit</h2>
+<p><code>complete()</code> ensures that all combinations of variables are present in the dataset, inserting <code>NA</code> for missing combinations. This is essential for creating LOCF (Last Observation Carried Forward) datasets and for identifying subjects missing planned assessments.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Identify which subjects are missing planned VS assessments</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Planned: all subjects should have SYSBP at visits 1, 2, 3, 4, 5</span></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>subjects <span class="ot">&lt;-</span> dm <span class="sc">|&gt;</span></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(ARM), ARM <span class="sc">!=</span> <span class="st">"Screen Failure"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(USUBJID)</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>planned_visits <span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span></span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>sbp_observed <span class="ot">&lt;-</span> vs <span class="sc">|&gt;</span></span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(VSTESTCD <span class="sc">==</span> <span class="st">"SYSBP"</span>,</span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>         USUBJID <span class="sc">%in%</span> subjects,</span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>         VISITNUM <span class="sc">%in%</span> planned_visits) <span class="sc">|&gt;</span></span>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, VISITNUM, VSSTRESN)</span>
+<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a><span class="co"># complete() fills in missing USUBJID × VISITNUM combinations</span></span>
+<span id="cb31-16"><a href="#cb31-16" aria-hidden="true" tabindex="-1"></a>sbp_complete <span class="ot">&lt;-</span> sbp_observed <span class="sc">|&gt;</span></span>
+<span id="cb31-17"><a href="#cb31-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">complete</span>(</span>
+<span id="cb31-18"><a href="#cb31-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">USUBJID  =</span> subjects,</span>
+<span id="cb31-19"><a href="#cb31-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">VISITNUM =</span> planned_visits</span>
+<span id="cb31-20"><a href="#cb31-20" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb31-21"><a href="#cb31-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-22"><a href="#cb31-22" aria-hidden="true" tabindex="-1"></a>n_missing <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(sbp_complete<span class="sc">$</span>VSSTRESN))</span>
+<span id="cb31-23"><a href="#cb31-23" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Missing planned SBP assessments:"</span>, n_missing, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; Missing planned SBP assessments: 38</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Out of:"</span>, <span class="fu">nrow</span>(sbp_complete), <span class="st">"planned assessments</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; Out of: 3734 planned assessments</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Missingness rate:"</span>, <span class="fu">round</span>(<span class="dv">100</span> <span class="sc">*</span> n_missing <span class="sc">/</span> <span class="fu">nrow</span>(sbp_complete), <span class="dv">1</span>), <span class="st">"%</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; Missingness rate: 1 %</code></pre>
+</div>
+</div>
+<hr>
+</section>
+<section id="fill-carrying-values-forward-or-backward" class="level2" data-number="6.8">
+<h2 data-number="6.8" class="anchored" data-anchor-id="fill-carrying-values-forward-or-backward"><span class="header-section-number">6.8</span> 7. fill() — Carrying Values Forward or Backward</h2>
+<p><code>fill()</code> propagates non-missing values across rows — implementing LOCF and BOCF imputation strategies.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="co"># LOCF: Last Observation Carried Forward for SBP</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>sbp_locf <span class="ot">&lt;-</span> sbp_complete <span class="sc">|&gt;</span></span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(USUBJID, VISITNUM) <span class="sc">|&gt;</span></span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(USUBJID) <span class="sc">|&gt;</span></span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fill</span>(VSSTRESN, <span class="at">.direction =</span> <span class="st">"down"</span>) <span class="sc">|&gt;</span>   <span class="co"># LOCF</span></span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">|&gt;</span></span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">SBP_locf =</span> VSSTRESN)</span>
+<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a><span class="co"># BOCF: Baseline Observation Carried Backward</span></span>
+<span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a>sbp_bocf <span class="ot">&lt;-</span> sbp_complete <span class="sc">|&gt;</span></span>
+<span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(USUBJID, VISITNUM) <span class="sc">|&gt;</span></span>
+<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(USUBJID) <span class="sc">|&gt;</span></span>
+<span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fill</span>(VSSTRESN, <span class="at">.direction =</span> <span class="st">"up"</span>) <span class="sc">|&gt;</span>     <span class="co"># BOCF</span></span>
+<span id="cb37-14"><a href="#cb37-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">|&gt;</span></span>
+<span id="cb37-15"><a href="#cb37-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">SBP_bocf =</span> VSSTRESN)</span>
+<span id="cb37-16"><a href="#cb37-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-17"><a href="#cb37-17" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Remaining missing after LOCF:"</span>, <span class="fu">sum</span>(<span class="fu">is.na</span>(sbp_locf<span class="sc">$</span>SBP_locf)), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; Remaining missing after LOCF: 0</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Remaining missing after BOCF:"</span>, <span class="fu">sum</span>(<span class="fu">is.na</span>(sbp_bocf<span class="sc">$</span>SBP_bocf)), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; Remaining missing after BOCF: 32</code></pre>
+</div>
+</div>
+<div class="callout callout-style-simple callout-warning">
+<div class="callout-body d-flex">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-body-container">
+<p><strong>Regulatory caution</strong>: LOCF and BOCF are simple imputation approaches that were common in older trials but are no longer considered acceptable as the primary approach for handling missing data in regulatory submissions. Modern guidance (ICH E9 R1) recommends reference-based imputation or mixed models for repeated measures (MMRM). LOCF is useful for sensitivity analyses only.</p>
+</div>
+</div>
+</div>
+<hr>
+</section>
+<section id="nest-and-unnest-list-columns-and-grouped-models" class="level2" data-number="6.9">
+<h2 data-number="6.9" class="anchored" data-anchor-id="nest-and-unnest-list-columns-and-grouped-models"><span class="header-section-number">6.9</span> 8. nest() and unnest() — List-Columns and Grouped Models</h2>
+<p><code>nest()</code> stores sub-datasets as list-column elements, enabling per-group modelling workflows — fitting a separate model for each lab test, subgroup, or country.</p>
+<section id="nested-linear-models-by-lab-test" class="level3" data-number="6.9.1">
+<h3 data-number="6.9.1" class="anchored" data-anchor-id="nested-linear-models-by-lab-test"><span class="header-section-number">6.9.1</span> 8.1 Nested Linear Models by Lab Test</h3>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(broom)</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit a linear time trend for each lab test</span></span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>lab_trends <span class="ot">&lt;-</span> lb <span class="sc">|&gt;</span></span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(LBSTRESN), <span class="sc">!</span><span class="fu">is.na</span>(VISITNUM)) <span class="sc">|&gt;</span></span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(LBTESTCD) <span class="sc">|&gt;</span></span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">n</span>() <span class="sc">&gt;=</span> <span class="dv">30</span>) <span class="sc">|&gt;</span>  <span class="co"># require at least 30 records</span></span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nest</span>() <span class="sc">|&gt;</span></span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">model  =</span> <span class="fu">map</span>(data, \(d) <span class="fu">lm</span>(LBSTRESN <span class="sc">~</span> VISITNUM, <span class="at">data =</span> d)),</span>
+<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">tidy   =</span> <span class="fu">map</span>(model, broom<span class="sc">::</span>tidy),</span>
+<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">glance =</span> <span class="fu">map</span>(model, broom<span class="sc">::</span>glance)</span>
+<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb41-14"><a href="#cb41-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-15"><a href="#cb41-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract slope (time trend) for each test</span></span>
+<span id="cb41-16"><a href="#cb41-16" aria-hidden="true" tabindex="-1"></a>lab_slopes <span class="ot">&lt;-</span> lab_trends <span class="sc">|&gt;</span></span>
+<span id="cb41-17"><a href="#cb41-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(tidy) <span class="sc">|&gt;</span></span>
+<span id="cb41-18"><a href="#cb41-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(term <span class="sc">==</span> <span class="st">"VISITNUM"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb41-19"><a href="#cb41-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(LBTESTCD, estimate, std.error, p.value) <span class="sc">|&gt;</span></span>
+<span id="cb41-20"><a href="#cb41-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(p.value) <span class="sc">|&gt;</span></span>
+<span id="cb41-21"><a href="#cb41-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">10</span>)</span>
+<span id="cb41-22"><a href="#cb41-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-23"><a href="#cb41-23" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Lab tests with significant time trends (top 10):</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; Lab tests with significant time trends (top 10):</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(lab_slopes)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; # A tibble: 10 × 4
+#&gt; # Groups:   LBTESTCD [10]
+#&gt;    LBTESTCD  estimate std.error  p.value
+#&gt;    &lt;chr&gt;        &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+#&gt;  1 SODIUM    8.76e- 2  1.10e- 2 2.62e-15
+#&gt;  2 SPGRAV    8.21e- 5  2.89e- 5 4.56e- 3
+#&gt;  3 MCHC     -6.69e- 3  3.32e- 3 4.43e- 2
+#&gt;  4 CHOL     -7.66e- 3  3.87e- 3 4.77e- 2
+#&gt;  5 ANISO     1.90e-17  1.08e-17 8.04e- 2
+#&gt;  6 ALT      -7.23e- 2  4.19e- 2 8.47e- 2
+#&gt;  7 WBC      -1.18e- 2  7.01e- 3 9.31e- 2
+#&gt;  8 MCV       3.61e- 2  2.20e- 2 1.00e- 1
+#&gt;  9 BASO     -1.53e- 4  1.08e- 4 1.55e- 1
+#&gt; 10 ALB       1.54e- 2  1.17e- 2 1.89e- 1</code></pre>
+</div>
+</div>
+</section>
+<section id="unnesting-for-reporting" class="level3" data-number="6.9.2">
+<h3 data-number="6.9.2" class="anchored" data-anchor-id="unnesting-for-reporting"><span class="header-section-number">6.9.2</span> 8.2 Unnesting for Reporting</h3>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Unnest model summaries for a clean R² table</span></span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>lab_fit <span class="ot">&lt;-</span> lab_trends <span class="sc">|&gt;</span></span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(glance) <span class="sc">|&gt;</span></span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(LBTESTCD, r.squared, adj.r.squared, p.value) <span class="sc">|&gt;</span></span>
+<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(r.squared)) <span class="sc">|&gt;</span></span>
+<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">8</span>)</span>
+<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-8"><a href="#cb45-8" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Model fit by lab test:</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; Model fit by lab test:</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(lab_fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; # A tibble: 8 × 4
+#&gt; # Groups:   LBTESTCD [8]
+#&gt;   LBTESTCD r.squared adj.r.squared  p.value
+#&gt;   &lt;chr&gt;        &lt;dbl&gt;         &lt;dbl&gt;    &lt;dbl&gt;
+#&gt; 1 MACROCY    0.505        0.500    6.11e-17
+#&gt; 2 ANISO      0.500        0.497    2.92e-25
+#&gt; 3 SODIUM     0.0340       0.0335   2.62e-15
+#&gt; 4 SPGRAV     0.00919      0.00805  4.56e- 3
+#&gt; 5 TSH        0.00290     -0.000806 3.77e- 1
+#&gt; 6 MCHC       0.00226      0.00170  4.43e- 2
+#&gt; 7 CHOL       0.00215      0.00160  4.77e- 2
+#&gt; 8 ALT        0.00164      0.00109  8.47e- 2</code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="full-workflow-sdtm-lab-data-adam-adlb-like-structure" class="level2" data-number="6.10">
+<h2 data-number="6.10" class="anchored" data-anchor-id="full-workflow-sdtm-lab-data-adam-adlb-like-structure"><span class="header-section-number">6.10</span> 9. Full Workflow: SDTM Lab Data → ADaM ADLB-like Structure</h2>
+<p>Combining all <code>tidyr</code> and <code>dplyr</code> tools into a single ADLB-style preparation:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Build an ADLB-like dataset for ALT and AST</span></span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>adlb <span class="ot">&lt;-</span> lb <span class="sc">|&gt;</span></span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(</span>
+<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a>    LBTESTCD <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"ALT"</span>, <span class="st">"AST"</span>),</span>
+<span id="cb49-5"><a href="#cb49-5" aria-hidden="true" tabindex="-1"></a>    <span class="sc">!</span><span class="fu">is.na</span>(LBSTRESN),</span>
+<span id="cb49-6"><a href="#cb49-6" aria-hidden="true" tabindex="-1"></a>    VISITNUM <span class="sc">%in%</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">6</span></span>
+<span id="cb49-7"><a href="#cb49-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb49-8"><a href="#cb49-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, LBTESTCD, VISITNUM, LBSTRESN, LBSTNRHI) <span class="sc">|&gt;</span></span>
+<span id="cb49-9"><a href="#cb49-9" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Add treatment arm from DM</span></span>
+<span id="cb49-10"><a href="#cb49-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(</span>
+<span id="cb49-11"><a href="#cb49-11" aria-hidden="true" tabindex="-1"></a>    dm <span class="sc">|&gt;</span> <span class="fu">select</span>(USUBJID, ARM) <span class="sc">|&gt;</span></span>
+<span id="cb49-12"><a href="#cb49-12" aria-hidden="true" tabindex="-1"></a>      <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(ARM), ARM <span class="sc">!=</span> <span class="st">"Screen Failure"</span>),</span>
+<span id="cb49-13"><a href="#cb49-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">"USUBJID"</span></span>
+<span id="cb49-14"><a href="#cb49-14" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb49-15"><a href="#cb49-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(ARM)) <span class="sc">|&gt;</span></span>
+<span id="cb49-16"><a href="#cb49-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Compute ULN ratio</span></span>
+<span id="cb49-17"><a href="#cb49-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb49-18"><a href="#cb49-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">ULN_ratio  =</span> <span class="fu">round</span>(LBSTRESN <span class="sc">/</span> LBSTNRHI, <span class="dv">3</span>),</span>
+<span id="cb49-19"><a href="#cb49-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">ULN_flag   =</span> ULN_ratio <span class="sc">&gt;</span> <span class="dv">3</span>,   <span class="co"># &gt;3× ULN is a common hepatotoxicity flag</span></span>
+<span id="cb49-20"><a href="#cb49-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">visit_label =</span> <span class="fu">paste0</span>(<span class="st">"Visit "</span>, VISITNUM)</span>
+<span id="cb49-21"><a href="#cb49-21" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb49-22"><a href="#cb49-22" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Pivot: one column per visit for each test</span></span>
+<span id="cb49-23"><a href="#cb49-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(USUBJID, LBTESTCD, VISITNUM)</span>
+<span id="cb49-24"><a href="#cb49-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb49-25"><a href="#cb49-25" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"ADLB-like dataset:</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; ADLB-like dataset:</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(adlb)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; Rows: 1,434
+#&gt; Columns: 9
+#&gt; $ USUBJID     &lt;chr&gt; "01-701-1015", "01-701-1015", "01-701-1015", "01-701-1015"…
+#&gt; $ LBTESTCD    &lt;chr&gt; "ALT", "ALT", "ALT", "AST", "AST", "AST", "ALT", "ALT", "A…
+#&gt; $ VISITNUM    &lt;dbl&gt; 1, 4, 5, 1, 4, 5, 1, 4, 5, 1, 4, 5, 1, 4, 5, 1, 4, 5, 1, 4…
+#&gt; $ LBSTRESN    &lt;dbl&gt; 27, 41, 18, 40, 33, 21, 23, 30, 38, 21, 25, 30, 26, 30, 29…
+#&gt; $ LBSTNRHI    &lt;dbl&gt; 34, 34, 34, 34, 34, 34, 43, 43, 43, 36, 36, 36, 35, 35, 35…
+#&gt; $ ARM         &lt;chr&gt; "Placebo", "Placebo", "Placebo", "Placebo", "Placebo", "Pl…
+#&gt; $ ULN_ratio   &lt;dbl&gt; 0.794, 1.206, 0.529, 1.176, 0.971, 0.618, 0.535, 0.698, 0.…
+#&gt; $ ULN_flag    &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FA…
+#&gt; $ visit_label &lt;chr&gt; "Visit 1", "Visit 4", "Visit 5", "Visit 1", "Visit 4", "Vi…</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"</span><span class="sc">\n</span><span class="st">Subjects with ALT &gt;3× ULN at any visit:</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; 
+#&gt; Subjects with ALT &gt;3× ULN at any visit:</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb55"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a>adlb <span class="sc">|&gt;</span></span>
+<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(LBTESTCD <span class="sc">==</span> <span class="st">"ALT"</span>, ULN_flag) <span class="sc">|&gt;</span></span>
+<span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(USUBJID, ARM) <span class="sc">|&gt;</span></span>
+<span id="cb55-4"><a href="#cb55-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(ARM)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; # A tibble: 1 × 2
+#&gt;   ARM         n
+#&gt;   &lt;chr&gt;   &lt;int&gt;
+#&gt; 1 Placebo     1</code></pre>
+</div>
+</div>
+<hr>
+</section>
+<section id="summary" class="level2" data-number="6.11">
+<h2 data-number="6.11" class="anchored" data-anchor-id="summary"><span class="header-section-number">6.11</span> Summary</h2>
+<p><code>tidyr</code> and <code>dplyr</code> together form the backbone of clinical data wrangling in R:</p>
+<ul>
+<li><strong><code>pivot_longer()</code></strong> converts wide formats (e.g., one column per visit) into tidy long format required by most statistical models</li>
+<li><strong><code>pivot_wider()</code></strong> produces wide formats needed for CFB calculations, listings, and regulatory tables</li>
+<li><strong><code>separate()</code> / <code>unite()</code></strong> handle the messy ISO date strings and compound identifiers ubiquitous in SDTM</li>
+<li><strong><code>complete()</code></strong> makes implicit missingness explicit — essential for identifying protocol deviations and unplanned missing assessments</li>
+<li><strong><code>fill()</code></strong> implements LOCF/BOCF imputation (as sensitivity analysis only)</li>
+<li><strong><code>nest()</code> / <code>unnest()</code></strong> enable scalable per-group modelling — running the same analysis across all lab parameters or subgroups with a single pipeline</li>
+</ul>
+<blockquote class="blockquote">
+<p><strong>Regulatory note</strong>: Any reshaping or imputation applied to the data must be documented in the Statistical Analysis Plan and the dataset specification. The transformation logic should be captured in production-quality, version-controlled R code that can be reviewed and reproduced by statisticians, programmers, and regulators.</p>
+</blockquote>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/r4clinical\.github\.io");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+            // default icon
+            link.classList.add("external");
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../chapters/04a-data-manipulation.html" class="pagination-link" aria-label="Data Manipulation with dplyr: Filtering, Selecting, Mutating, Grouping, and Summarising Clinical Data">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Data Manipulation with dplyr: Filtering, Selecting, Mutating, Grouping, and Summarising Clinical Data</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../chapters/05-cdisc-standards.html" class="pagination-link" aria-label="Chapter 5: CDISC Standards (SDTM &amp; ADaM)">
+        <span class="nav-page-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Chapter 5: CDISC Standards (SDTM &amp; ADaM)</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb57" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Data Wrangling with tidyr: Reshaping, Pivoting, Nesting, and Structuring Clinical Data</span></span>
+<span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a><span class="fu">## Introduction</span></span>
+<span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a>Data wrangling — transforming data between wide and long formats, handling nested structures, and resolving shape mismatches — is a daily task in clinical data programming. Clinical trial data is particularly challenging because:</span>
+<span id="cb57-6"><a href="#cb57-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-7"><a href="#cb57-7" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>SDTM stores lab and vital sign data in **long** format (one row per test per visit)</span>
+<span id="cb57-8"><a href="#cb57-8" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Statistical analysis often requires **wide** format (one row per subject, one column per timepoint)</span>
+<span id="cb57-9"><a href="#cb57-9" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>ADaM datasets require specific structures that differ from SDTM</span>
+<span id="cb57-10"><a href="#cb57-10" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Regulatory outputs (listings, tables) demand yet another shape</span>
+<span id="cb57-11"><a href="#cb57-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-12"><a href="#cb57-12" aria-hidden="true" tabindex="-1"></a>The <span class="in">`tidyr`</span> package provides the tools to reshape data efficiently and consistently.</span>
+<span id="cb57-13"><a href="#cb57-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-14"><a href="#cb57-14" aria-hidden="true" tabindex="-1"></a>This chapter covers:</span>
+<span id="cb57-15"><a href="#cb57-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-16"><a href="#cb57-16" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`pivot_longer()`</span> and <span class="in">`pivot_wider()`</span> — reshaping between long and wide</span>
+<span id="cb57-17"><a href="#cb57-17" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`separate()`</span> and <span class="in">`unite()`</span> — splitting and combining columns</span>
+<span id="cb57-18"><a href="#cb57-18" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`complete()`</span> — filling in missing combinations</span>
+<span id="cb57-19"><a href="#cb57-19" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`nest()`</span> and <span class="in">`unnest()`</span> — working with list-columns and grouped models</span>
+<span id="cb57-20"><a href="#cb57-20" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`fill()`</span> and <span class="in">`replace_na()`</span> — handling structural missing values</span>
+<span id="cb57-21"><a href="#cb57-21" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Real SDTM-to-ADaM reshaping workflows</span>
+<span id="cb57-22"><a href="#cb57-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-23"><a href="#cb57-23" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb57-24"><a href="#cb57-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-25"><a href="#cb57-25" aria-hidden="true" tabindex="-1"></a><span class="fu">## 1. Setup</span></span>
+<span id="cb57-26"><a href="#cb57-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-29"><a href="#cb57-29" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb57-30"><a href="#cb57-30" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: setup-04b</span></span>
+<span id="cb57-31"><a href="#cb57-31" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb57-32"><a href="#cb57-32" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb57-33"><a href="#cb57-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-34"><a href="#cb57-34" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb57-35"><a href="#cb57-35" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pharmaversesdtm)</span>
+<span id="cb57-36"><a href="#cb57-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-37"><a href="#cb57-37" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"dm"</span>)</span>
+<span id="cb57-38"><a href="#cb57-38" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"lb"</span>)</span>
+<span id="cb57-39"><a href="#cb57-39" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"vs"</span>)</span>
+<span id="cb57-40"><a href="#cb57-40" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"ae"</span>)</span>
+<span id="cb57-41"><a href="#cb57-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-42"><a href="#cb57-42" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Domains loaded.</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb57-43"><a href="#cb57-43" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb57-44"><a href="#cb57-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-45"><a href="#cb57-45" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb57-46"><a href="#cb57-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-47"><a href="#cb57-47" aria-hidden="true" tabindex="-1"></a><span class="fu">## 2. Tidy Data Principles</span></span>
+<span id="cb57-48"><a href="#cb57-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-49"><a href="#cb57-49" aria-hidden="true" tabindex="-1"></a>Before reshaping, it helps to understand what "tidy" means:</span>
+<span id="cb57-50"><a href="#cb57-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-51"><a href="#cb57-51" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Every **variable** has its own column</span>
+<span id="cb57-52"><a href="#cb57-52" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Every **observation** has its own row</span>
+<span id="cb57-53"><a href="#cb57-53" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Every **value** has its own cell</span>
+<span id="cb57-54"><a href="#cb57-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-55"><a href="#cb57-55" aria-hidden="true" tabindex="-1"></a>Most clinical data issues arise from violations of these rules. For example, a lab dataset with <span class="in">`BASELINE`</span>, <span class="in">`WEEK4`</span>, <span class="in">`WEEK8`</span>, <span class="in">`WEEK12`</span> as separate columns violates rule 2 — the four columns represent four observations of the same variable.</span>
+<span id="cb57-56"><a href="#cb57-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-59"><a href="#cb57-59" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb57-60"><a href="#cb57-60" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tidy-concept</span></span>
+<span id="cb57-61"><a href="#cb57-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-62"><a href="#cb57-62" aria-hidden="true" tabindex="-1"></a><span class="co"># SDTM LB is already tidy (long): one row per subject × test × visit</span></span>
+<span id="cb57-63"><a href="#cb57-63" aria-hidden="true" tabindex="-1"></a>lb <span class="sc">|&gt;</span></span>
+<span id="cb57-64"><a href="#cb57-64" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, LBTESTCD, VISITNUM, LBSTRESN) <span class="sc">|&gt;</span></span>
+<span id="cb57-65"><a href="#cb57-65" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(LBTESTCD <span class="sc">==</span> <span class="st">"ALT"</span>, USUBJID <span class="sc">==</span> <span class="fu">unique</span>(USUBJID)[<span class="dv">1</span>]) <span class="sc">|&gt;</span></span>
+<span id="cb57-66"><a href="#cb57-66" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">8</span>)</span>
+<span id="cb57-67"><a href="#cb57-67" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb57-68"><a href="#cb57-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-69"><a href="#cb57-69" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb57-70"><a href="#cb57-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-71"><a href="#cb57-71" aria-hidden="true" tabindex="-1"></a><span class="fu">## 3. pivot_longer() — Wide to Long</span></span>
+<span id="cb57-72"><a href="#cb57-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-73"><a href="#cb57-73" aria-hidden="true" tabindex="-1"></a><span class="in">`pivot_longer()`</span> stacks multiple columns into key–value pairs. Use it when column names represent values of a variable (e.g., <span class="in">`visit_1`</span>, <span class="in">`visit_2`</span>, <span class="in">`visit_4`</span>).</span>
+<span id="cb57-74"><a href="#cb57-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-75"><a href="#cb57-75" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3.1 Clinical Example: Summary Statistics to Long Format</span></span>
+<span id="cb57-76"><a href="#cb57-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-79"><a href="#cb57-79" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb57-80"><a href="#cb57-80" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: pivot-longer-basic</span></span>
+<span id="cb57-81"><a href="#cb57-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-82"><a href="#cb57-82" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a wide summary table (e.g., from a reporting tool)</span></span>
+<span id="cb57-83"><a href="#cb57-83" aria-hidden="true" tabindex="-1"></a>dm_wide <span class="ot">&lt;-</span> dm <span class="sc">|&gt;</span></span>
+<span id="cb57-84"><a href="#cb57-84" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(ARM), ARM <span class="sc">!=</span> <span class="st">"Screen Failure"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb57-85"><a href="#cb57-85" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(ARM) <span class="sc">|&gt;</span></span>
+<span id="cb57-86"><a href="#cb57-86" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb57-87"><a href="#cb57-87" aria-hidden="true" tabindex="-1"></a>    <span class="at">N           =</span> <span class="fu">n</span>(),</span>
+<span id="cb57-88"><a href="#cb57-88" aria-hidden="true" tabindex="-1"></a>    <span class="at">Mean_age    =</span> <span class="fu">round</span>(<span class="fu">mean</span>(AGE, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="dv">1</span>),</span>
+<span id="cb57-89"><a href="#cb57-89" aria-hidden="true" tabindex="-1"></a>    <span class="at">SD_age      =</span> <span class="fu">round</span>(<span class="fu">sd</span>(AGE,  <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="dv">1</span>),</span>
+<span id="cb57-90"><a href="#cb57-90" aria-hidden="true" tabindex="-1"></a>    <span class="at">Pct_female  =</span> <span class="fu">round</span>(<span class="dv">100</span> <span class="sc">*</span> <span class="fu">mean</span>(SEX <span class="sc">==</span> <span class="st">"F"</span>), <span class="dv">1</span>),</span>
+<span id="cb57-91"><a href="#cb57-91" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups     =</span> <span class="st">"drop"</span></span>
+<span id="cb57-92"><a href="#cb57-92" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb57-93"><a href="#cb57-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-94"><a href="#cb57-94" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(dm_wide)</span>
+<span id="cb57-95"><a href="#cb57-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-96"><a href="#cb57-96" aria-hidden="true" tabindex="-1"></a><span class="co"># Pivot to long for a reporting-friendly layout</span></span>
+<span id="cb57-97"><a href="#cb57-97" aria-hidden="true" tabindex="-1"></a>dm_long <span class="ot">&lt;-</span> dm_wide <span class="sc">|&gt;</span></span>
+<span id="cb57-98"><a href="#cb57-98" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(</span>
+<span id="cb57-99"><a href="#cb57-99" aria-hidden="true" tabindex="-1"></a>    <span class="at">cols      =</span> <span class="sc">-</span>ARM,</span>
+<span id="cb57-100"><a href="#cb57-100" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_to  =</span> <span class="st">"Statistic"</span>,</span>
+<span id="cb57-101"><a href="#cb57-101" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_to =</span> <span class="st">"Value"</span></span>
+<span id="cb57-102"><a href="#cb57-102" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb57-103"><a href="#cb57-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-104"><a href="#cb57-104" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(dm_long)</span>
+<span id="cb57-105"><a href="#cb57-105" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb57-106"><a href="#cb57-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-107"><a href="#cb57-107" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3.2 SDTM Vital Signs: Multiple Parameters to Long</span></span>
+<span id="cb57-108"><a href="#cb57-108" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-111"><a href="#cb57-111" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb57-112"><a href="#cb57-112" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: pivot-longer-vs</span></span>
+<span id="cb57-113"><a href="#cb57-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-114"><a href="#cb57-114" aria-hidden="true" tabindex="-1"></a><span class="co"># Wide vital signs (hypothetical pre-processed table)</span></span>
+<span id="cb57-115"><a href="#cb57-115" aria-hidden="true" tabindex="-1"></a>vs_wide_demo <span class="ot">&lt;-</span> vs <span class="sc">|&gt;</span></span>
+<span id="cb57-116"><a href="#cb57-116" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(VSTESTCD <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"SYSBP"</span>, <span class="st">"DIABP"</span>, <span class="st">"PULSE"</span>),</span>
+<span id="cb57-117"><a href="#cb57-117" aria-hidden="true" tabindex="-1"></a>         VISITNUM <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb57-118"><a href="#cb57-118" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, VISITNUM, VSTESTCD, VSSTRESN) <span class="sc">|&gt;</span></span>
+<span id="cb57-119"><a href="#cb57-119" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> VSTESTCD, <span class="at">values_from =</span> VSSTRESN) <span class="sc">|&gt;</span></span>
+<span id="cb57-120"><a href="#cb57-120" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">20</span>)</span>
+<span id="cb57-121"><a href="#cb57-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-122"><a href="#cb57-122" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Wide VS (first 5 rows):</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb57-123"><a href="#cb57-123" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">head</span>(vs_wide_demo, <span class="dv">5</span>))</span>
+<span id="cb57-124"><a href="#cb57-124" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-125"><a href="#cb57-125" aria-hidden="true" tabindex="-1"></a><span class="co"># Now pivot back to long (with multiple value columns)</span></span>
+<span id="cb57-126"><a href="#cb57-126" aria-hidden="true" tabindex="-1"></a>vs_long_back <span class="ot">&lt;-</span> vs_wide_demo <span class="sc">|&gt;</span></span>
+<span id="cb57-127"><a href="#cb57-127" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(</span>
+<span id="cb57-128"><a href="#cb57-128" aria-hidden="true" tabindex="-1"></a>    <span class="at">cols      =</span> <span class="fu">any_of</span>(<span class="fu">c</span>(<span class="st">"SYSBP"</span>, <span class="st">"DIABP"</span>, <span class="st">"PULSE"</span>)),</span>
+<span id="cb57-129"><a href="#cb57-129" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_to  =</span> <span class="st">"Parameter"</span>,</span>
+<span id="cb57-130"><a href="#cb57-130" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_to =</span> <span class="st">"Value"</span>,</span>
+<span id="cb57-131"><a href="#cb57-131" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_drop_na =</span> <span class="cn">TRUE</span></span>
+<span id="cb57-132"><a href="#cb57-132" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb57-133"><a href="#cb57-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-134"><a href="#cb57-134" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"</span><span class="sc">\n</span><span class="st">Long VS (first 8 rows):</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb57-135"><a href="#cb57-135" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">head</span>(vs_long_back, <span class="dv">8</span>))</span>
+<span id="cb57-136"><a href="#cb57-136" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb57-137"><a href="#cb57-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-138"><a href="#cb57-138" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb57-139"><a href="#cb57-139" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-140"><a href="#cb57-140" aria-hidden="true" tabindex="-1"></a><span class="fu">## 4. pivot_wider() — Long to Wide</span></span>
+<span id="cb57-141"><a href="#cb57-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-142"><a href="#cb57-142" aria-hidden="true" tabindex="-1"></a><span class="in">`pivot_wider()`</span> spreads key–value pairs across multiple columns. Critical for:</span>
+<span id="cb57-143"><a href="#cb57-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-144"><a href="#cb57-144" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Creating change-from-baseline (CFB) datasets where baseline and post-baseline are side by side</span>
+<span id="cb57-145"><a href="#cb57-145" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Building subject-level datasets with one column per timepoint</span>
+<span id="cb57-146"><a href="#cb57-146" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Constructing cross-tabulations for regulatory tables</span>
+<span id="cb57-147"><a href="#cb57-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-148"><a href="#cb57-148" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4.1 Lab Data: One Column per Visit</span></span>
+<span id="cb57-149"><a href="#cb57-149" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-152"><a href="#cb57-152" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb57-153"><a href="#cb57-153" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: pivot-wider-lab</span></span>
+<span id="cb57-154"><a href="#cb57-154" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-155"><a href="#cb57-155" aria-hidden="true" tabindex="-1"></a><span class="co"># Create an ALT profile table: one column per visit</span></span>
+<span id="cb57-156"><a href="#cb57-156" aria-hidden="true" tabindex="-1"></a>alt_profile <span class="ot">&lt;-</span> lb <span class="sc">|&gt;</span></span>
+<span id="cb57-157"><a href="#cb57-157" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(LBTESTCD <span class="sc">==</span> <span class="st">"ALT"</span>,</span>
+<span id="cb57-158"><a href="#cb57-158" aria-hidden="true" tabindex="-1"></a>         <span class="sc">!</span><span class="fu">is.na</span>(LBSTRESN),</span>
+<span id="cb57-159"><a href="#cb57-159" aria-hidden="true" tabindex="-1"></a>         VISITNUM <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">5</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb57-160"><a href="#cb57-160" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, VISITNUM, LBSTRESN) <span class="sc">|&gt;</span></span>
+<span id="cb57-161"><a href="#cb57-161" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(</span>
+<span id="cb57-162"><a href="#cb57-162" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_from   =</span> VISITNUM,</span>
+<span id="cb57-163"><a href="#cb57-163" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_from  =</span> LBSTRESN,</span>
+<span id="cb57-164"><a href="#cb57-164" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_prefix =</span> <span class="st">"Visit_"</span></span>
+<span id="cb57-165"><a href="#cb57-165" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb57-166"><a href="#cb57-166" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-167"><a href="#cb57-167" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"ALT by visit (wide format — first 6 subjects):</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb57-168"><a href="#cb57-168" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">head</span>(alt_profile, <span class="dv">6</span>))</span>
+<span id="cb57-169"><a href="#cb57-169" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Dimensions:"</span>, <span class="fu">nrow</span>(alt_profile), <span class="st">"×"</span>, <span class="fu">ncol</span>(alt_profile), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb57-170"><a href="#cb57-170" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb57-171"><a href="#cb57-171" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-172"><a href="#cb57-172" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4.2 Computing Change from Baseline</span></span>
+<span id="cb57-173"><a href="#cb57-173" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-176"><a href="#cb57-176" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb57-177"><a href="#cb57-177" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: cfb-calculation</span></span>
+<span id="cb57-178"><a href="#cb57-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-179"><a href="#cb57-179" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute change from baseline (CFB) and percent CFB for SBP</span></span>
+<span id="cb57-180"><a href="#cb57-180" aria-hidden="true" tabindex="-1"></a>sbp_cfb <span class="ot">&lt;-</span> vs <span class="sc">|&gt;</span></span>
+<span id="cb57-181"><a href="#cb57-181" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(VSTESTCD <span class="sc">==</span> <span class="st">"SYSBP"</span>, <span class="sc">!</span><span class="fu">is.na</span>(VSSTRESN)) <span class="sc">|&gt;</span></span>
+<span id="cb57-182"><a href="#cb57-182" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, VISITNUM, VSSTRESN) <span class="sc">|&gt;</span></span>
+<span id="cb57-183"><a href="#cb57-183" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Create BASELINE and POST-BASELINE columns</span></span>
+<span id="cb57-184"><a href="#cb57-184" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb57-185"><a href="#cb57-185" aria-hidden="true" tabindex="-1"></a>    <span class="at">timepoint =</span> <span class="fu">if_else</span>(VISITNUM <span class="sc">==</span> <span class="dv">1</span>, <span class="st">"Baseline"</span>, <span class="fu">paste0</span>(<span class="st">"Visit_"</span>, VISITNUM))</span>
+<span id="cb57-186"><a href="#cb57-186" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb57-187"><a href="#cb57-187" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(</span>
+<span id="cb57-188"><a href="#cb57-188" aria-hidden="true" tabindex="-1"></a>    <span class="at">id_cols      =</span> USUBJID,</span>
+<span id="cb57-189"><a href="#cb57-189" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_from   =</span> timepoint,</span>
+<span id="cb57-190"><a href="#cb57-190" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_from  =</span> VSSTRESN,</span>
+<span id="cb57-191"><a href="#cb57-191" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_fn    =</span> mean   <span class="co"># average if multiple baseline readings</span></span>
+<span id="cb57-192"><a href="#cb57-192" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb57-193"><a href="#cb57-193" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Compute CFB for each post-baseline visit</span></span>
+<span id="cb57-194"><a href="#cb57-194" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb57-195"><a href="#cb57-195" aria-hidden="true" tabindex="-1"></a>    <span class="fu">across</span>(</span>
+<span id="cb57-196"><a href="#cb57-196" aria-hidden="true" tabindex="-1"></a>      <span class="fu">starts_with</span>(<span class="st">"Visit_"</span>),</span>
+<span id="cb57-197"><a href="#cb57-197" aria-hidden="true" tabindex="-1"></a>      <span class="fu">list</span>(</span>
+<span id="cb57-198"><a href="#cb57-198" aria-hidden="true" tabindex="-1"></a>        <span class="at">CFB    =</span> \(x) x <span class="sc">-</span> Baseline,</span>
+<span id="cb57-199"><a href="#cb57-199" aria-hidden="true" tabindex="-1"></a>        <span class="at">PCTCFB =</span> \(x) <span class="dv">100</span> <span class="sc">*</span> (x <span class="sc">-</span> Baseline) <span class="sc">/</span> Baseline</span>
+<span id="cb57-200"><a href="#cb57-200" aria-hidden="true" tabindex="-1"></a>      ),</span>
+<span id="cb57-201"><a href="#cb57-201" aria-hidden="true" tabindex="-1"></a>      <span class="at">.names =</span> <span class="st">"{.col}_{.fn}"</span></span>
+<span id="cb57-202"><a href="#cb57-202" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb57-203"><a href="#cb57-203" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb57-204"><a href="#cb57-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-205"><a href="#cb57-205" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"SBP with CFB (first 3 subjects):</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb57-206"><a href="#cb57-206" aria-hidden="true" tabindex="-1"></a>sbp_cfb <span class="sc">|&gt;</span></span>
+<span id="cb57-207"><a href="#cb57-207" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, Baseline, <span class="fu">starts_with</span>(<span class="st">"Visit_2"</span>), <span class="fu">starts_with</span>(<span class="st">"Visit_3"</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb57-208"><a href="#cb57-208" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">3</span>) <span class="sc">|&gt;</span></span>
+<span id="cb57-209"><a href="#cb57-209" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>()</span>
+<span id="cb57-210"><a href="#cb57-210" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb57-211"><a href="#cb57-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-212"><a href="#cb57-212" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb57-213"><a href="#cb57-213" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-214"><a href="#cb57-214" aria-hidden="true" tabindex="-1"></a><span class="fu">## 5. separate() and unite() — Splitting and Combining Columns</span></span>
+<span id="cb57-215"><a href="#cb57-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-216"><a href="#cb57-216" aria-hidden="true" tabindex="-1"></a>SDTM date-time columns (ISO 8601: <span class="in">`2023-04-15T09:30:00`</span>) are stored as strings and often need splitting. Conversely, separate pieces of information sometimes need joining.</span>
+<span id="cb57-217"><a href="#cb57-217" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-218"><a href="#cb57-218" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.1 separate() — Split a Column</span></span>
+<span id="cb57-219"><a href="#cb57-219" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-222"><a href="#cb57-222" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb57-223"><a href="#cb57-223" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: separate-dates</span></span>
+<span id="cb57-224"><a href="#cb57-224" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-225"><a href="#cb57-225" aria-hidden="true" tabindex="-1"></a><span class="co"># Split SDTM ISO date into date and time components</span></span>
+<span id="cb57-226"><a href="#cb57-226" aria-hidden="true" tabindex="-1"></a>lb_dates <span class="ot">&lt;-</span> lb <span class="sc">|&gt;</span></span>
+<span id="cb57-227"><a href="#cb57-227" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(LBDTC)) <span class="sc">|&gt;</span></span>
+<span id="cb57-228"><a href="#cb57-228" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, LBTESTCD, LBDTC) <span class="sc">|&gt;</span></span>
+<span id="cb57-229"><a href="#cb57-229" aria-hidden="true" tabindex="-1"></a>  <span class="fu">separate</span>(</span>
+<span id="cb57-230"><a href="#cb57-230" aria-hidden="true" tabindex="-1"></a>    <span class="at">col  =</span> LBDTC,</span>
+<span id="cb57-231"><a href="#cb57-231" aria-hidden="true" tabindex="-1"></a>    <span class="at">into =</span> <span class="fu">c</span>(<span class="st">"LBDT"</span>, <span class="st">"LBTM"</span>),</span>
+<span id="cb57-232"><a href="#cb57-232" aria-hidden="true" tabindex="-1"></a>    <span class="at">sep  =</span> <span class="st">"T"</span>,</span>
+<span id="cb57-233"><a href="#cb57-233" aria-hidden="true" tabindex="-1"></a>    <span class="at">fill =</span> <span class="st">"right"</span>,    <span class="co"># fill right if no time component</span></span>
+<span id="cb57-234"><a href="#cb57-234" aria-hidden="true" tabindex="-1"></a>    <span class="at">remove =</span> <span class="cn">FALSE</span></span>
+<span id="cb57-235"><a href="#cb57-235" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb57-236"><a href="#cb57-236" aria-hidden="true" tabindex="-1"></a>  <span class="fu">separate</span>(</span>
+<span id="cb57-237"><a href="#cb57-237" aria-hidden="true" tabindex="-1"></a>    <span class="at">col  =</span> LBDT,</span>
+<span id="cb57-238"><a href="#cb57-238" aria-hidden="true" tabindex="-1"></a>    <span class="at">into =</span> <span class="fu">c</span>(<span class="st">"LBYR"</span>, <span class="st">"LBMO"</span>, <span class="st">"LBDY"</span>),</span>
+<span id="cb57-239"><a href="#cb57-239" aria-hidden="true" tabindex="-1"></a>    <span class="at">sep  =</span> <span class="st">"-"</span>,</span>
+<span id="cb57-240"><a href="#cb57-240" aria-hidden="true" tabindex="-1"></a>    <span class="at">fill =</span> <span class="st">"right"</span></span>
+<span id="cb57-241"><a href="#cb57-241" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb57-242"><a href="#cb57-242" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-243"><a href="#cb57-243" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(lb_dates <span class="sc">|&gt;</span> <span class="fu">select</span>(USUBJID, LBDTC, LBYR, LBMO, LBDY, LBTM), <span class="dv">5</span>)</span>
+<span id="cb57-244"><a href="#cb57-244" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb57-245"><a href="#cb57-245" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-246"><a href="#cb57-246" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.2 unite() — Combine Columns</span></span>
+<span id="cb57-247"><a href="#cb57-247" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-250"><a href="#cb57-250" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb57-251"><a href="#cb57-251" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: unite-example</span></span>
+<span id="cb57-252"><a href="#cb57-252" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-253"><a href="#cb57-253" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a unique visit-test identifier for pivot keys</span></span>
+<span id="cb57-254"><a href="#cb57-254" aria-hidden="true" tabindex="-1"></a>lb_key <span class="ot">&lt;-</span> lb <span class="sc">|&gt;</span></span>
+<span id="cb57-255"><a href="#cb57-255" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, LBTESTCD, VISITNUM, LBSTRESN) <span class="sc">|&gt;</span></span>
+<span id="cb57-256"><a href="#cb57-256" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unite</span>(</span>
+<span id="cb57-257"><a href="#cb57-257" aria-hidden="true" tabindex="-1"></a>    <span class="at">col    =</span> <span class="st">"visit_test"</span>,</span>
+<span id="cb57-258"><a href="#cb57-258" aria-hidden="true" tabindex="-1"></a>    VISITNUM, LBTESTCD,</span>
+<span id="cb57-259"><a href="#cb57-259" aria-hidden="true" tabindex="-1"></a>    <span class="at">sep    =</span> <span class="st">"_V"</span>,</span>
+<span id="cb57-260"><a href="#cb57-260" aria-hidden="true" tabindex="-1"></a>    <span class="at">remove =</span> <span class="cn">FALSE</span></span>
+<span id="cb57-261"><a href="#cb57-261" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb57-262"><a href="#cb57-262" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">visit_test =</span> <span class="fu">paste0</span>(<span class="st">"V"</span>, visit_test))</span>
+<span id="cb57-263"><a href="#cb57-263" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-264"><a href="#cb57-264" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(lb_key <span class="sc">|&gt;</span> <span class="fu">select</span>(USUBJID, VISITNUM, LBTESTCD, visit_test, LBSTRESN), <span class="dv">5</span>)</span>
+<span id="cb57-265"><a href="#cb57-265" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb57-266"><a href="#cb57-266" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-267"><a href="#cb57-267" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb57-268"><a href="#cb57-268" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-269"><a href="#cb57-269" aria-hidden="true" tabindex="-1"></a><span class="fu">## 6. complete() — Making Implicit Missing Values Explicit</span></span>
+<span id="cb57-270"><a href="#cb57-270" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-271"><a href="#cb57-271" aria-hidden="true" tabindex="-1"></a><span class="in">`complete()`</span> ensures that all combinations of variables are present in the dataset, inserting <span class="in">`NA`</span> for missing combinations. This is essential for creating LOCF (Last Observation Carried Forward) datasets and for identifying subjects missing planned assessments.</span>
+<span id="cb57-272"><a href="#cb57-272" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-275"><a href="#cb57-275" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb57-276"><a href="#cb57-276" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: complete-example</span></span>
+<span id="cb57-277"><a href="#cb57-277" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-278"><a href="#cb57-278" aria-hidden="true" tabindex="-1"></a><span class="co"># Identify which subjects are missing planned VS assessments</span></span>
+<span id="cb57-279"><a href="#cb57-279" aria-hidden="true" tabindex="-1"></a><span class="co"># Planned: all subjects should have SYSBP at visits 1, 2, 3, 4, 5</span></span>
+<span id="cb57-280"><a href="#cb57-280" aria-hidden="true" tabindex="-1"></a>subjects <span class="ot">&lt;-</span> dm <span class="sc">|&gt;</span></span>
+<span id="cb57-281"><a href="#cb57-281" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(ARM), ARM <span class="sc">!=</span> <span class="st">"Screen Failure"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb57-282"><a href="#cb57-282" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(USUBJID)</span>
+<span id="cb57-283"><a href="#cb57-283" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-284"><a href="#cb57-284" aria-hidden="true" tabindex="-1"></a>planned_visits <span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span></span>
+<span id="cb57-285"><a href="#cb57-285" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-286"><a href="#cb57-286" aria-hidden="true" tabindex="-1"></a>sbp_observed <span class="ot">&lt;-</span> vs <span class="sc">|&gt;</span></span>
+<span id="cb57-287"><a href="#cb57-287" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(VSTESTCD <span class="sc">==</span> <span class="st">"SYSBP"</span>,</span>
+<span id="cb57-288"><a href="#cb57-288" aria-hidden="true" tabindex="-1"></a>         USUBJID <span class="sc">%in%</span> subjects,</span>
+<span id="cb57-289"><a href="#cb57-289" aria-hidden="true" tabindex="-1"></a>         VISITNUM <span class="sc">%in%</span> planned_visits) <span class="sc">|&gt;</span></span>
+<span id="cb57-290"><a href="#cb57-290" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, VISITNUM, VSSTRESN)</span>
+<span id="cb57-291"><a href="#cb57-291" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-292"><a href="#cb57-292" aria-hidden="true" tabindex="-1"></a><span class="co"># complete() fills in missing USUBJID × VISITNUM combinations</span></span>
+<span id="cb57-293"><a href="#cb57-293" aria-hidden="true" tabindex="-1"></a>sbp_complete <span class="ot">&lt;-</span> sbp_observed <span class="sc">|&gt;</span></span>
+<span id="cb57-294"><a href="#cb57-294" aria-hidden="true" tabindex="-1"></a>  <span class="fu">complete</span>(</span>
+<span id="cb57-295"><a href="#cb57-295" aria-hidden="true" tabindex="-1"></a>    <span class="at">USUBJID  =</span> subjects,</span>
+<span id="cb57-296"><a href="#cb57-296" aria-hidden="true" tabindex="-1"></a>    <span class="at">VISITNUM =</span> planned_visits</span>
+<span id="cb57-297"><a href="#cb57-297" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb57-298"><a href="#cb57-298" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-299"><a href="#cb57-299" aria-hidden="true" tabindex="-1"></a>n_missing <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(sbp_complete<span class="sc">$</span>VSSTRESN))</span>
+<span id="cb57-300"><a href="#cb57-300" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Missing planned SBP assessments:"</span>, n_missing, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb57-301"><a href="#cb57-301" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Out of:"</span>, <span class="fu">nrow</span>(sbp_complete), <span class="st">"planned assessments</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb57-302"><a href="#cb57-302" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Missingness rate:"</span>, <span class="fu">round</span>(<span class="dv">100</span> <span class="sc">*</span> n_missing <span class="sc">/</span> <span class="fu">nrow</span>(sbp_complete), <span class="dv">1</span>), <span class="st">"%</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb57-303"><a href="#cb57-303" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb57-304"><a href="#cb57-304" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-305"><a href="#cb57-305" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb57-306"><a href="#cb57-306" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-307"><a href="#cb57-307" aria-hidden="true" tabindex="-1"></a><span class="fu">## 7. fill() — Carrying Values Forward or Backward</span></span>
+<span id="cb57-308"><a href="#cb57-308" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-309"><a href="#cb57-309" aria-hidden="true" tabindex="-1"></a><span class="in">`fill()`</span> propagates non-missing values across rows — implementing LOCF and BOCF imputation strategies.</span>
+<span id="cb57-310"><a href="#cb57-310" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-313"><a href="#cb57-313" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb57-314"><a href="#cb57-314" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fill-locf</span></span>
+<span id="cb57-315"><a href="#cb57-315" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-316"><a href="#cb57-316" aria-hidden="true" tabindex="-1"></a><span class="co"># LOCF: Last Observation Carried Forward for SBP</span></span>
+<span id="cb57-317"><a href="#cb57-317" aria-hidden="true" tabindex="-1"></a>sbp_locf <span class="ot">&lt;-</span> sbp_complete <span class="sc">|&gt;</span></span>
+<span id="cb57-318"><a href="#cb57-318" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(USUBJID, VISITNUM) <span class="sc">|&gt;</span></span>
+<span id="cb57-319"><a href="#cb57-319" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(USUBJID) <span class="sc">|&gt;</span></span>
+<span id="cb57-320"><a href="#cb57-320" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fill</span>(VSSTRESN, <span class="at">.direction =</span> <span class="st">"down"</span>) <span class="sc">|&gt;</span>   <span class="co"># LOCF</span></span>
+<span id="cb57-321"><a href="#cb57-321" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">|&gt;</span></span>
+<span id="cb57-322"><a href="#cb57-322" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">SBP_locf =</span> VSSTRESN)</span>
+<span id="cb57-323"><a href="#cb57-323" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-324"><a href="#cb57-324" aria-hidden="true" tabindex="-1"></a><span class="co"># BOCF: Baseline Observation Carried Backward</span></span>
+<span id="cb57-325"><a href="#cb57-325" aria-hidden="true" tabindex="-1"></a>sbp_bocf <span class="ot">&lt;-</span> sbp_complete <span class="sc">|&gt;</span></span>
+<span id="cb57-326"><a href="#cb57-326" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(USUBJID, VISITNUM) <span class="sc">|&gt;</span></span>
+<span id="cb57-327"><a href="#cb57-327" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(USUBJID) <span class="sc">|&gt;</span></span>
+<span id="cb57-328"><a href="#cb57-328" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fill</span>(VSSTRESN, <span class="at">.direction =</span> <span class="st">"up"</span>) <span class="sc">|&gt;</span>     <span class="co"># BOCF</span></span>
+<span id="cb57-329"><a href="#cb57-329" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">|&gt;</span></span>
+<span id="cb57-330"><a href="#cb57-330" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">SBP_bocf =</span> VSSTRESN)</span>
+<span id="cb57-331"><a href="#cb57-331" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-332"><a href="#cb57-332" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Remaining missing after LOCF:"</span>, <span class="fu">sum</span>(<span class="fu">is.na</span>(sbp_locf<span class="sc">$</span>SBP_locf)), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb57-333"><a href="#cb57-333" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Remaining missing after BOCF:"</span>, <span class="fu">sum</span>(<span class="fu">is.na</span>(sbp_bocf<span class="sc">$</span>SBP_bocf)), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb57-334"><a href="#cb57-334" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb57-335"><a href="#cb57-335" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-336"><a href="#cb57-336" aria-hidden="true" tabindex="-1"></a>::: {.callout-warning}</span>
+<span id="cb57-337"><a href="#cb57-337" aria-hidden="true" tabindex="-1"></a>**Regulatory caution**: LOCF and BOCF are simple imputation approaches that were common in older trials but are no longer considered acceptable as the primary approach for handling missing data in regulatory submissions. Modern guidance (ICH E9 R1) recommends reference-based imputation or mixed models for repeated measures (MMRM). LOCF is useful for sensitivity analyses only.</span>
+<span id="cb57-338"><a href="#cb57-338" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb57-339"><a href="#cb57-339" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-340"><a href="#cb57-340" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb57-341"><a href="#cb57-341" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-342"><a href="#cb57-342" aria-hidden="true" tabindex="-1"></a><span class="fu">## 8. nest() and unnest() — List-Columns and Grouped Models</span></span>
+<span id="cb57-343"><a href="#cb57-343" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-344"><a href="#cb57-344" aria-hidden="true" tabindex="-1"></a><span class="in">`nest()`</span> stores sub-datasets as list-column elements, enabling per-group modelling workflows — fitting a separate model for each lab test, subgroup, or country.</span>
+<span id="cb57-345"><a href="#cb57-345" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-346"><a href="#cb57-346" aria-hidden="true" tabindex="-1"></a><span class="fu">### 8.1 Nested Linear Models by Lab Test</span></span>
+<span id="cb57-347"><a href="#cb57-347" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-350"><a href="#cb57-350" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb57-351"><a href="#cb57-351" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: nest-models</span></span>
+<span id="cb57-352"><a href="#cb57-352" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-353"><a href="#cb57-353" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(broom)</span>
+<span id="cb57-354"><a href="#cb57-354" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-355"><a href="#cb57-355" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit a linear time trend for each lab test</span></span>
+<span id="cb57-356"><a href="#cb57-356" aria-hidden="true" tabindex="-1"></a>lab_trends <span class="ot">&lt;-</span> lb <span class="sc">|&gt;</span></span>
+<span id="cb57-357"><a href="#cb57-357" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(LBSTRESN), <span class="sc">!</span><span class="fu">is.na</span>(VISITNUM)) <span class="sc">|&gt;</span></span>
+<span id="cb57-358"><a href="#cb57-358" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(LBTESTCD) <span class="sc">|&gt;</span></span>
+<span id="cb57-359"><a href="#cb57-359" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">n</span>() <span class="sc">&gt;=</span> <span class="dv">30</span>) <span class="sc">|&gt;</span>  <span class="co"># require at least 30 records</span></span>
+<span id="cb57-360"><a href="#cb57-360" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nest</span>() <span class="sc">|&gt;</span></span>
+<span id="cb57-361"><a href="#cb57-361" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb57-362"><a href="#cb57-362" aria-hidden="true" tabindex="-1"></a>    <span class="at">model  =</span> <span class="fu">map</span>(data, \(d) <span class="fu">lm</span>(LBSTRESN <span class="sc">~</span> VISITNUM, <span class="at">data =</span> d)),</span>
+<span id="cb57-363"><a href="#cb57-363" aria-hidden="true" tabindex="-1"></a>    <span class="at">tidy   =</span> <span class="fu">map</span>(model, broom<span class="sc">::</span>tidy),</span>
+<span id="cb57-364"><a href="#cb57-364" aria-hidden="true" tabindex="-1"></a>    <span class="at">glance =</span> <span class="fu">map</span>(model, broom<span class="sc">::</span>glance)</span>
+<span id="cb57-365"><a href="#cb57-365" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb57-366"><a href="#cb57-366" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-367"><a href="#cb57-367" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract slope (time trend) for each test</span></span>
+<span id="cb57-368"><a href="#cb57-368" aria-hidden="true" tabindex="-1"></a>lab_slopes <span class="ot">&lt;-</span> lab_trends <span class="sc">|&gt;</span></span>
+<span id="cb57-369"><a href="#cb57-369" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(tidy) <span class="sc">|&gt;</span></span>
+<span id="cb57-370"><a href="#cb57-370" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(term <span class="sc">==</span> <span class="st">"VISITNUM"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb57-371"><a href="#cb57-371" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(LBTESTCD, estimate, std.error, p.value) <span class="sc">|&gt;</span></span>
+<span id="cb57-372"><a href="#cb57-372" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(p.value) <span class="sc">|&gt;</span></span>
+<span id="cb57-373"><a href="#cb57-373" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">10</span>)</span>
+<span id="cb57-374"><a href="#cb57-374" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-375"><a href="#cb57-375" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Lab tests with significant time trends (top 10):</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb57-376"><a href="#cb57-376" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(lab_slopes)</span>
+<span id="cb57-377"><a href="#cb57-377" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb57-378"><a href="#cb57-378" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-379"><a href="#cb57-379" aria-hidden="true" tabindex="-1"></a><span class="fu">### 8.2 Unnesting for Reporting</span></span>
+<span id="cb57-380"><a href="#cb57-380" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-383"><a href="#cb57-383" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb57-384"><a href="#cb57-384" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: unnest-example</span></span>
+<span id="cb57-385"><a href="#cb57-385" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-386"><a href="#cb57-386" aria-hidden="true" tabindex="-1"></a><span class="co"># Unnest model summaries for a clean R² table</span></span>
+<span id="cb57-387"><a href="#cb57-387" aria-hidden="true" tabindex="-1"></a>lab_fit <span class="ot">&lt;-</span> lab_trends <span class="sc">|&gt;</span></span>
+<span id="cb57-388"><a href="#cb57-388" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(glance) <span class="sc">|&gt;</span></span>
+<span id="cb57-389"><a href="#cb57-389" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(LBTESTCD, r.squared, adj.r.squared, p.value) <span class="sc">|&gt;</span></span>
+<span id="cb57-390"><a href="#cb57-390" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(r.squared)) <span class="sc">|&gt;</span></span>
+<span id="cb57-391"><a href="#cb57-391" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">8</span>)</span>
+<span id="cb57-392"><a href="#cb57-392" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-393"><a href="#cb57-393" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Model fit by lab test:</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb57-394"><a href="#cb57-394" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(lab_fit)</span>
+<span id="cb57-395"><a href="#cb57-395" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb57-396"><a href="#cb57-396" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-397"><a href="#cb57-397" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb57-398"><a href="#cb57-398" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-399"><a href="#cb57-399" aria-hidden="true" tabindex="-1"></a><span class="fu">## 9. Full Workflow: SDTM Lab Data → ADaM ADLB-like Structure</span></span>
+<span id="cb57-400"><a href="#cb57-400" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-401"><a href="#cb57-401" aria-hidden="true" tabindex="-1"></a>Combining all <span class="in">`tidyr`</span> and <span class="in">`dplyr`</span> tools into a single ADLB-style preparation:</span>
+<span id="cb57-402"><a href="#cb57-402" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-405"><a href="#cb57-405" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb57-406"><a href="#cb57-406" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: adlb-workflow</span></span>
+<span id="cb57-407"><a href="#cb57-407" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-408"><a href="#cb57-408" aria-hidden="true" tabindex="-1"></a><span class="co"># Build an ADLB-like dataset for ALT and AST</span></span>
+<span id="cb57-409"><a href="#cb57-409" aria-hidden="true" tabindex="-1"></a>adlb <span class="ot">&lt;-</span> lb <span class="sc">|&gt;</span></span>
+<span id="cb57-410"><a href="#cb57-410" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(</span>
+<span id="cb57-411"><a href="#cb57-411" aria-hidden="true" tabindex="-1"></a>    LBTESTCD <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"ALT"</span>, <span class="st">"AST"</span>),</span>
+<span id="cb57-412"><a href="#cb57-412" aria-hidden="true" tabindex="-1"></a>    <span class="sc">!</span><span class="fu">is.na</span>(LBSTRESN),</span>
+<span id="cb57-413"><a href="#cb57-413" aria-hidden="true" tabindex="-1"></a>    VISITNUM <span class="sc">%in%</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">6</span></span>
+<span id="cb57-414"><a href="#cb57-414" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb57-415"><a href="#cb57-415" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, LBTESTCD, VISITNUM, LBSTRESN, LBSTNRHI) <span class="sc">|&gt;</span></span>
+<span id="cb57-416"><a href="#cb57-416" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Add treatment arm from DM</span></span>
+<span id="cb57-417"><a href="#cb57-417" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(</span>
+<span id="cb57-418"><a href="#cb57-418" aria-hidden="true" tabindex="-1"></a>    dm <span class="sc">|&gt;</span> <span class="fu">select</span>(USUBJID, ARM) <span class="sc">|&gt;</span></span>
+<span id="cb57-419"><a href="#cb57-419" aria-hidden="true" tabindex="-1"></a>      <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(ARM), ARM <span class="sc">!=</span> <span class="st">"Screen Failure"</span>),</span>
+<span id="cb57-420"><a href="#cb57-420" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">"USUBJID"</span></span>
+<span id="cb57-421"><a href="#cb57-421" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb57-422"><a href="#cb57-422" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(ARM)) <span class="sc">|&gt;</span></span>
+<span id="cb57-423"><a href="#cb57-423" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Compute ULN ratio</span></span>
+<span id="cb57-424"><a href="#cb57-424" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb57-425"><a href="#cb57-425" aria-hidden="true" tabindex="-1"></a>    <span class="at">ULN_ratio  =</span> <span class="fu">round</span>(LBSTRESN <span class="sc">/</span> LBSTNRHI, <span class="dv">3</span>),</span>
+<span id="cb57-426"><a href="#cb57-426" aria-hidden="true" tabindex="-1"></a>    <span class="at">ULN_flag   =</span> ULN_ratio <span class="sc">&gt;</span> <span class="dv">3</span>,   <span class="co"># &gt;3× ULN is a common hepatotoxicity flag</span></span>
+<span id="cb57-427"><a href="#cb57-427" aria-hidden="true" tabindex="-1"></a>    <span class="at">visit_label =</span> <span class="fu">paste0</span>(<span class="st">"Visit "</span>, VISITNUM)</span>
+<span id="cb57-428"><a href="#cb57-428" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb57-429"><a href="#cb57-429" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Pivot: one column per visit for each test</span></span>
+<span id="cb57-430"><a href="#cb57-430" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(USUBJID, LBTESTCD, VISITNUM)</span>
+<span id="cb57-431"><a href="#cb57-431" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-432"><a href="#cb57-432" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"ADLB-like dataset:</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb57-433"><a href="#cb57-433" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(adlb)</span>
+<span id="cb57-434"><a href="#cb57-434" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-435"><a href="#cb57-435" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"</span><span class="sc">\n</span><span class="st">Subjects with ALT &gt;3× ULN at any visit:</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb57-436"><a href="#cb57-436" aria-hidden="true" tabindex="-1"></a>adlb <span class="sc">|&gt;</span></span>
+<span id="cb57-437"><a href="#cb57-437" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(LBTESTCD <span class="sc">==</span> <span class="st">"ALT"</span>, ULN_flag) <span class="sc">|&gt;</span></span>
+<span id="cb57-438"><a href="#cb57-438" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(USUBJID, ARM) <span class="sc">|&gt;</span></span>
+<span id="cb57-439"><a href="#cb57-439" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(ARM)</span>
+<span id="cb57-440"><a href="#cb57-440" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb57-441"><a href="#cb57-441" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-442"><a href="#cb57-442" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb57-443"><a href="#cb57-443" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-444"><a href="#cb57-444" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary</span></span>
+<span id="cb57-445"><a href="#cb57-445" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-446"><a href="#cb57-446" aria-hidden="true" tabindex="-1"></a><span class="in">`tidyr`</span> and <span class="in">`dplyr`</span> together form the backbone of clinical data wrangling in R:</span>
+<span id="cb57-447"><a href="#cb57-447" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-448"><a href="#cb57-448" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`pivot_longer()`** converts wide formats (e.g., one column per visit) into tidy long format required by most statistical models</span>
+<span id="cb57-449"><a href="#cb57-449" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`pivot_wider()`** produces wide formats needed for CFB calculations, listings, and regulatory tables</span>
+<span id="cb57-450"><a href="#cb57-450" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`separate()` / `unite()`** handle the messy ISO date strings and compound identifiers ubiquitous in SDTM</span>
+<span id="cb57-451"><a href="#cb57-451" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`complete()`** makes implicit missingness explicit — essential for identifying protocol deviations and unplanned missing assessments</span>
+<span id="cb57-452"><a href="#cb57-452" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`fill()`** implements LOCF/BOCF imputation (as sensitivity analysis only)</span>
+<span id="cb57-453"><a href="#cb57-453" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`nest()` / `unnest()`** enable scalable per-group modelling — running the same analysis across all lab parameters or subgroups with a single pipeline</span>
+<span id="cb57-454"><a href="#cb57-454" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-455"><a href="#cb57-455" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **Regulatory note**: Any reshaping or imputation applied to the data must be documented in the Statistical Analysis Plan and the dataset specification. The transformation logic should be captured in production-quality, version-controlled R code that can be reviewed and reproduced by statisticians, programmers, and regulators.</span></span>
+</code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p><em>R for Clinical Data Analysis</em> by Divakaran, Sreedharan &amp; Singh</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/r4clinical/book/edit/main/chapters/04b-data-wrangling.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/r4clinical/book/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+<p>Built with <a href="https://quarto.org/">Quarto</a>.</p>
+</div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

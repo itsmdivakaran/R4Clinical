@@ -1,0 +1,2304 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>21&nbsp; Chapter 10: ANOVA and ANCOVA – R for Clinical Data Analysis: From Fundamentals to Advanced Biostatistics</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../chapters/11-regression-models.html" rel="next">
+<link href="../chapters/09-hypothesis-testing.html" rel="prev">
+<link href="../cover.png" rel="icon" type="image/png">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-cfa45de4c6f2fde802ca69ebd4f440e2.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-f37303f8b17d592088e6d372bde27f4d.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-cfa45de4c6f2fde802ca69ebd4f440e2.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-50fe7d2bad15909f59ebb547d81bae49.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-293a0bc44baea06b6a522a83c0e3d1d6.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-50fe7d2bad15909f59ebb547d81bae49.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar floating nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">R for Clinical Data Analysis: From Fundamentals to Advanced Biostatistics</span>
+    </a>
+  </div>
+        <div class="quarto-navbar-tools tools-wide tools-end">
+    <a href="https://github.com/r4clinical/book" title="Source Code" class="quarto-navigation-tool px-1" aria-label="Source Code"><i class="bi bi-github"></i></a>
+    <div class="dropdown">
+      <a href="" title="Download" id="quarto-navigation-tool-dropdown-0" class="quarto-navigation-tool dropdown-toggle px-1" data-bs-toggle="dropdown" aria-expanded="false" role="link" aria-label="Download"><i class="bi bi-download"></i></a>
+      <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="quarto-navigation-tool-dropdown-0">
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="../R-for-Clinical-Data-Analysis--From-Fundamentals-to-Advanced-Biostatistics.pdf">
+              <i class="bi bi-file-pdf pe-1"></i>
+            Download PDF
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="../R-for-Clinical-Data-Analysis--From-Fundamentals-to-Advanced-Biostatistics.epub">
+              <i class="bi bi-journal pe-1"></i>
+            Download ePub
+            </a>
+          </li>
+      </ul>
+    </div>
+    <div class="dropdown">
+      <a href="" title="Share" id="quarto-navigation-tool-dropdown-1" class="quarto-navigation-tool dropdown-toggle px-1" data-bs-toggle="dropdown" aria-expanded="false" role="link" aria-label="Share"><i class="bi bi-share"></i></a>
+      <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="quarto-navigation-tool-dropdown-1">
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="https://twitter.com/intent/tweet?url=|url|">
+              <i class="bi bi-twitter pe-1"></i>
+            Twitter
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="https://www.linkedin.com/sharing/share-offsite/?url=|url|">
+              <i class="bi bi-linkedin pe-1"></i>
+            LinkedIn
+            </a>
+          </li>
+      </ul>
+    </div>
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+          <div id="quarto-search" class="" title="Search"></div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/08-descriptive-stats.html">Part III: Core Biostatistics in Clinical Trials</a></li><li class="breadcrumb-item"><a href="../chapters/10-anova-ancova.html"><span class="chapter-number">21</span>&nbsp; <span class="chapter-title">Chapter 10: ANOVA and ANCOVA</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part I: Foundations of R Programming</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/01-intro-clinical-r.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction to R in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/02-r-basics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">R Fundamentals and Data Structures</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/03-data-import-export.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Data Import and Export in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04-data-cleaning.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Data Cleaning and Transformation in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04a-data-manipulation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Data Manipulation with dplyr: Filtering, Selecting, Mutating, Grouping, and Summarising Clinical Data</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04b-data-wrangling.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Data Wrangling with tidyr: Reshaping, Pivoting, Nesting, and Structuring Clinical Data</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part II: Clinical Data Standards and Structures</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/05-cdisc-standards.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Chapter 5: CDISC Standards (SDTM &amp; ADaM)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/06-eda.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Chapter 6: Exploratory Data Analysis (EDA): Understanding Your Data Before Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/07-data-visualization.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Chapter 7: Data Visualization in Clinical Research: From Grammar of Graphics to Publication-Quality Figures</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Biostatistics Foundations</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs01-probability-distributions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Probability Distributions in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs02-statistical-inference.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Statistical Inference in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs03-parametric-tests.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Parametric Statistical Tests in Clinical Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs04-nonparametric-tests.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Non-Parametric Tests in Clinical Research</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs05-regression-analysis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Regression Analysis in Clinical Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs06-categorical-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">Categorical Data Analysis in Clinical Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs07-sample-size-power.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Sample Size and Power Calculations</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs08-advanced-biostatistics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">17</span>&nbsp; <span class="chapter-title">Advanced Biostatistical Methods in Drug Development</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/bs09-multivariate-methods.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">18</span>&nbsp; <span class="chapter-title">Multivariate Methods in Clinical Research</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part III: Core Biostatistics in Clinical Trials</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/08-descriptive-stats.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">19</span>&nbsp; <span class="chapter-title">Chapter 8: Descriptive Statistics</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/09-hypothesis-testing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">20</span>&nbsp; <span class="chapter-title">Chapter 9: Hypothesis Testing</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/10-anova-ancova.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">21</span>&nbsp; <span class="chapter-title">Chapter 10: ANOVA and ANCOVA</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/11-regression-models.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">22</span>&nbsp; <span class="chapter-title">Chapter 11: Regression Models</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part IV: Advanced Clinical Analysis</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/12-survival-analysis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">23</span>&nbsp; <span class="chapter-title">Survival Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/13-longitudinal-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">24</span>&nbsp; <span class="chapter-title">Longitudinal Data Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/14-missing-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">25</span>&nbsp; <span class="chapter-title">Missing Data in Clinical Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/15-safety-analysis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">26</span>&nbsp; <span class="chapter-title">Safety Analysis in Clinical Trials</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part V: Specialized Clinical Methods</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/16-bioequivalence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">27</span>&nbsp; <span class="chapter-title">Bioequivalence Studies</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/17-non-inferiority.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">28</span>&nbsp; <span class="chapter-title">Non-Inferiority and Equivalence Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/18-bayesian-methods.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Bayesian Methods in Clinical Trials</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/19-rwe.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">Real-World Evidence (RWE)</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part VI: Reporting and Regulatory Outputs</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/20-tlfs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">31</span>&nbsp; <span class="chapter-title">Tables, Listings, and Figures (TLFs)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/21-reproducible-reporting.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">32</span>&nbsp; <span class="chapter-title">Reproducible Reporting with R Markdown and Quarto</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/22-validation-qc.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">33</span>&nbsp; <span class="chapter-title">Validation and Quality Control</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part VII: Case Studies</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/23-case-study-ete.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">34</span>&nbsp; <span class="chapter-title">End-to-End Clinical Trial Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/24-oncology-case-study.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">35</span>&nbsp; <span class="chapter-title">Oncology Trial Case Study</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/25-infectious-disease.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">36</span>&nbsp; <span class="chapter-title">Infectious Disease Study</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../appendices/appendix-a.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Appendix A: R and SAS Equivalence Guide</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../appendices/appendix-b.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Appendix B: Essential R Packages for Clinical Data Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../appendices/appendix-c.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">39</span>&nbsp; <span class="chapter-title">Appendix C: Simulated Clinical Datasets</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../appendices/appendix-d.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">40</span>&nbsp; <span class="chapter-title">Appendix D: Regulatory References and Resources</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../references.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">References</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction"><span class="header-section-number">21.1</span> Introduction</a></li>
+  <li><a href="#part-i-one-way-anova" id="toc-part-i-one-way-anova" class="nav-link" data-scroll-target="#part-i-one-way-anova"><span class="header-section-number">21.2</span> Part I: One-Way ANOVA</a>
+  <ul class="collapse">
+  <li><a href="#motivation-and-setup" id="toc-motivation-and-setup" class="nav-link" data-scroll-target="#motivation-and-setup"><span class="header-section-number">21.2.1</span> Motivation and Setup</a></li>
+  <li><a href="#partitioning-variability" id="toc-partitioning-variability" class="nav-link" data-scroll-target="#partitioning-variability"><span class="header-section-number">21.2.2</span> Partitioning Variability</a></li>
+  <li><a href="#the-f-statistic" id="toc-the-f-statistic" class="nav-link" data-scroll-target="#the-f-statistic"><span class="header-section-number">21.2.3</span> The F-Statistic</a></li>
+  <li><a href="#anova-table" id="toc-anova-table" class="nav-link" data-scroll-target="#anova-table"><span class="header-section-number">21.2.4</span> ANOVA Table</a></li>
+  <li><a href="#assumptions" id="toc-assumptions" class="nav-link" data-scroll-target="#assumptions"><span class="header-section-number">21.2.5</span> Assumptions</a></li>
+  <li><a href="#clinical-example" id="toc-clinical-example" class="nav-link" data-scroll-target="#clinical-example"><span class="header-section-number">21.2.6</span> Clinical Example</a></li>
+  </ul></li>
+  <li><a href="#part-ii-post-hoc-tests" id="toc-part-ii-post-hoc-tests" class="nav-link" data-scroll-target="#part-ii-post-hoc-tests"><span class="header-section-number">21.3</span> Part II: Post-Hoc Tests</a>
+  <ul class="collapse">
+  <li><a href="#tukeys-honest-significant-difference-hsd" id="toc-tukeys-honest-significant-difference-hsd" class="nav-link" data-scroll-target="#tukeys-honest-significant-difference-hsd"><span class="header-section-number">21.3.1</span> Tukey’s Honest Significant Difference (HSD)</a></li>
+  <li><a href="#bonferroni-correction" id="toc-bonferroni-correction" class="nav-link" data-scroll-target="#bonferroni-correction"><span class="header-section-number">21.3.2</span> Bonferroni Correction</a></li>
+  <li><a href="#least-significant-difference-lsd" id="toc-least-significant-difference-lsd" class="nav-link" data-scroll-target="#least-significant-difference-lsd"><span class="header-section-number">21.3.3</span> Least Significant Difference (LSD)</a></li>
+  <li><a href="#clinical-recommendation" id="toc-clinical-recommendation" class="nav-link" data-scroll-target="#clinical-recommendation"><span class="header-section-number">21.3.4</span> Clinical Recommendation</a></li>
+  </ul></li>
+  <li><a href="#part-iii-two-way-anova" id="toc-part-iii-two-way-anova" class="nav-link" data-scroll-target="#part-iii-two-way-anova"><span class="header-section-number">21.4</span> Part III: Two-Way ANOVA</a></li>
+  <li><a href="#part-iv-analysis-of-covariance-ancova" id="toc-part-iv-analysis-of-covariance-ancova" class="nav-link" data-scroll-target="#part-iv-analysis-of-covariance-ancova"><span class="header-section-number">21.5</span> Part IV: Analysis of Covariance (ANCOVA)</a>
+  <ul class="collapse">
+  <li><a href="#motivation" id="toc-motivation" class="nav-link" data-scroll-target="#motivation"><span class="header-section-number">21.5.1</span> Motivation</a></li>
+  <li><a href="#ancova-model" id="toc-ancova-model" class="nav-link" data-scroll-target="#ancova-model"><span class="header-section-number">21.5.2</span> ANCOVA Model</a></li>
+  <li><a href="#key-assumptions-beyond-anova" id="toc-key-assumptions-beyond-anova" class="nav-link" data-scroll-target="#key-assumptions-beyond-anova"><span class="header-section-number">21.5.3</span> Key Assumptions (Beyond ANOVA)</a></li>
+  <li><a href="#clinical-example-1" id="toc-clinical-example-1" class="nav-link" data-scroll-target="#clinical-example-1"><span class="header-section-number">21.5.4</span> Clinical Example</a></li>
+  <li><a href="#least-squares-means-estimated-marginal-means" id="toc-least-squares-means-estimated-marginal-means" class="nav-link" data-scroll-target="#least-squares-means-estimated-marginal-means"><span class="header-section-number">21.5.5</span> Least Squares Means (Estimated Marginal Means)</a></li>
+  </ul></li>
+  <li><a href="#part-v-practical-implementation-in-r" id="toc-part-v-practical-implementation-in-r" class="nav-link" data-scroll-target="#part-v-practical-implementation-in-r"><span class="header-section-number">21.6</span> Part V: Practical Implementation in R</a>
+  <ul class="collapse">
+  <li><a href="#one-way-anova-with-plantgrowth" id="toc-one-way-anova-with-plantgrowth" class="nav-link" data-scroll-target="#one-way-anova-with-plantgrowth"><span class="header-section-number">21.6.1</span> One-Way ANOVA with PlantGrowth</a></li>
+  <li><a href="#post-hoc-tests-tukey-hsd" id="toc-post-hoc-tests-tukey-hsd" class="nav-link" data-scroll-target="#post-hoc-tests-tukey-hsd"><span class="header-section-number">21.6.2</span> Post-Hoc Tests: Tukey HSD</a></li>
+  <li><a href="#two-way-anova" id="toc-two-way-anova" class="nav-link" data-scroll-target="#two-way-anova"><span class="header-section-number">21.6.3</span> Two-Way ANOVA</a></li>
+  <li><a href="#ancova-example-adjustment-for-baseline" id="toc-ancova-example-adjustment-for-baseline" class="nav-link" data-scroll-target="#ancova-example-adjustment-for-baseline"><span class="header-section-number">21.6.4</span> ANCOVA Example: Adjustment for Baseline</a></li>
+  <li><a href="#checking-ancova-assumptions-homogeneity-of-slopes" id="toc-checking-ancova-assumptions-homogeneity-of-slopes" class="nav-link" data-scroll-target="#checking-ancova-assumptions-homogeneity-of-slopes"><span class="header-section-number">21.6.5</span> Checking ANCOVA Assumptions: Homogeneity of Slopes</a></li>
+  </ul></li>
+  <li><a href="#summary-when-to-use-each-method" id="toc-summary-when-to-use-each-method" class="nav-link" data-scroll-target="#summary-when-to-use-each-method"><span class="header-section-number">21.7</span> Summary: When to Use Each Method</a></li>
+  <li><a href="#exercises" id="toc-exercises" class="nav-link" data-scroll-target="#exercises"><span class="header-section-number">21.8</span> Exercises</a>
+  <ul class="collapse">
+  <li><a href="#beginner-exercises" id="toc-beginner-exercises" class="nav-link" data-scroll-target="#beginner-exercises"><span class="header-section-number">21.8.1</span> Beginner Exercises</a></li>
+  <li><a href="#advanced-exercises" id="toc-advanced-exercises" class="nav-link" data-scroll-target="#advanced-exercises"><span class="header-section-number">21.8.2</span> Advanced Exercises</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/r4clinical/book/edit/main/chapters/10-anova-ancova.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/r4clinical/book/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/08-descriptive-stats.html">Part III: Core Biostatistics in Clinical Trials</a></li><li class="breadcrumb-item"><a href="../chapters/10-anova-ancova.html"><span class="chapter-number">21</span>&nbsp; <span class="chapter-title">Chapter 10: ANOVA and ANCOVA</span></a></li></ol></nav>
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title"><span class="chapter-number">21</span>&nbsp; <span class="chapter-title">Chapter 10: ANOVA and ANCOVA</span></h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="introduction" class="level2" data-number="21.1">
+<h2 data-number="21.1" class="anchored" data-anchor-id="introduction"><span class="header-section-number">21.1</span> Introduction</h2>
+<p>When clinical trials or observational studies compare more than two groups, the two-sample t-test becomes inadequate. <strong>Analysis of Variance (ANOVA)</strong> extends hypothesis testing to multiple groups, partitioning total variability into components attributable to treatment effects versus random error. ANOVA is followed by <strong>post-hoc tests</strong> to identify which specific groups differ.</p>
+<p><strong>Analysis of Covariance (ANCOVA)</strong> augments ANOVA by adjusting for baseline covariates—a key requirement in clinical trials where patients begin with different baseline characteristics. This chapter develops both methods, with emphasis on proper assumption checking and clinical interpretation.</p>
+</section>
+<section id="part-i-one-way-anova" class="level2" data-number="21.2">
+<h2 data-number="21.2" class="anchored" data-anchor-id="part-i-one-way-anova"><span class="header-section-number">21.2</span> Part I: One-Way ANOVA</h2>
+<section id="motivation-and-setup" class="level3" data-number="21.2.1">
+<h3 data-number="21.2.1" class="anchored" data-anchor-id="motivation-and-setup"><span class="header-section-number">21.2.1</span> Motivation and Setup</h3>
+<p>Consider a clinical trial comparing three chemotherapy regimens (Standard, Novel-A, Novel-B) in terms of mean survival time (months). We recruit 60 patients: 20 per arm.</p>
+<p><strong>Research Question:</strong> Do the three regimens differ in mean survival?</p>
+<p><strong>Hypotheses:</strong> <span class="math display">\[H_0: \mu_1 = \mu_2 = \mu_3\]</span> <span class="math display">\[H_1: \text{At least one } \mu_i \text{ differs}\]</span></p>
+<p>The t-test cannot address this directly (multiple pairwise comparisons inflate Type I error). ANOVA solves this by testing all groups simultaneously.</p>
+</section>
+<section id="partitioning-variability" class="level3" data-number="21.2.2">
+<h3 data-number="21.2.2" class="anchored" data-anchor-id="partitioning-variability"><span class="header-section-number">21.2.2</span> Partitioning Variability</h3>
+<p>ANOVA decomposes total variability into two sources:</p>
+<p><span class="math display">\[SS_{\text{Total}} = SS_{\text{Between}} + SS_{\text{Within}}\]</span></p>
+<p>where:</p>
+<ul>
+<li><p><strong><span class="math inline">\(SS_{\text{Total}}\)</span></strong>: Total sum of squared deviations from the grand mean <span class="math display">\[SS_{\text{Total}} = \sum_{i=1}^{k} \sum_{j=1}^{n_i} (Y_{ij} - \bar{Y}_{\cdot\cdot})^2\]</span></p></li>
+<li><p><strong><span class="math inline">\(SS_{\text{Between}}\)</span></strong>: Variability due to differences in group means <span class="math display">\[SS_{\text{Between}} = \sum_{i=1}^{k} n_i (\bar{Y}_{i\cdot} - \bar{Y}_{\cdot\cdot})^2\]</span></p></li>
+<li><p><strong><span class="math inline">\(SS_{\text{Within}}\)</span></strong>: Variability within groups (residual error) <span class="math display">\[SS_{\text{Within}} = \sum_{i=1}^{k} \sum_{j=1}^{n_i} (Y_{ij} - \bar{Y}_{i\cdot})^2\]</span></p></li>
+</ul>
+<p>Here, <span class="math inline">\(k\)</span> is the number of groups, <span class="math inline">\(n_i\)</span> is the sample size in group <span class="math inline">\(i\)</span>, <span class="math inline">\(\bar{Y}_{i\cdot}\)</span> is the mean of group <span class="math inline">\(i\)</span>, and <span class="math inline">\(\bar{Y}_{\cdot\cdot}\)</span> is the grand mean.</p>
+</section>
+<section id="the-f-statistic" class="level3" data-number="21.2.3">
+<h3 data-number="21.2.3" class="anchored" data-anchor-id="the-f-statistic"><span class="header-section-number">21.2.3</span> The F-Statistic</h3>
+<p>Sums of squares are converted to <strong>mean squares</strong> by dividing by degrees of freedom:</p>
+<p><span class="math display">\[MS_{\text{Between}} = \frac{SS_{\text{Between}}}{k - 1}\]</span></p>
+<p><span class="math display">\[MS_{\text{Within}} = \frac{SS_{\text{Within}}}{N - k}\]</span></p>
+<p>where <span class="math inline">\(N = \sum_{i=1}^{k} n_i\)</span> is the total sample size.</p>
+<p>The <strong>F-statistic</strong> is:</p>
+<p><span class="math display">\[F = \frac{MS_{\text{Between}}}{MS_{\text{Within}}}\]</span></p>
+<p>Under <span class="math inline">\(H_0\)</span> (all group means equal), <span class="math inline">\(F\)</span> follows an F-distribution with <span class="math inline">\(k-1\)</span> and <span class="math inline">\(N-k\)</span> degrees of freedom.</p>
+<p><strong>Intuition:</strong> If groups differ substantially (large <span class="math inline">\(MS_{\text{Between}}\)</span>) relative to within-group variability (small <span class="math inline">\(MS_{\text{Within}}\)</span>), then <span class="math inline">\(F\)</span> is large, and we reject <span class="math inline">\(H_0\)</span>.</p>
+</section>
+<section id="anova-table" class="level3" data-number="21.2.4">
+<h3 data-number="21.2.4" class="anchored" data-anchor-id="anova-table"><span class="header-section-number">21.2.4</span> ANOVA Table</h3>
+<p>Results are typically summarized in an ANOVA table:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Source</th>
+<th>Sum of Squares</th>
+<th>df</th>
+<th>Mean Square</th>
+<th>F</th>
+<th>p-value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Between</td>
+<td><span class="math inline">\(SS_{\text{Between}}\)</span></td>
+<td><span class="math inline">\(k-1\)</span></td>
+<td><span class="math inline">\(MS_B\)</span></td>
+<td><span class="math inline">\(F\)</span></td>
+<td>p</td>
+</tr>
+<tr class="even">
+<td>Within (Residual)</td>
+<td><span class="math inline">\(SS_{\text{Within}}\)</span></td>
+<td><span class="math inline">\(N-k\)</span></td>
+<td><span class="math inline">\(MS_W\)</span></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td><strong>Total</strong></td>
+<td><span class="math inline">\(SS_{\text{Total}}\)</span></td>
+<td><span class="math inline">\(N-1\)</span></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="assumptions" class="level3" data-number="21.2.5">
+<h3 data-number="21.2.5" class="anchored" data-anchor-id="assumptions"><span class="header-section-number">21.2.5</span> Assumptions</h3>
+<ol type="1">
+<li><strong>Independence:</strong> Observations are independent within and between groups.</li>
+<li><strong>Normality:</strong> Response variable is normally distributed within each group.</li>
+<li><strong>Homogeneity of Variance:</strong> Variances are equal across groups, <span class="math inline">\(\sigma_1^2 = \sigma_2^2 = \cdots = \sigma_k^2\)</span>.</li>
+</ol>
+<p><strong>Checking Assumptions:</strong></p>
+<ul>
+<li><strong>Normality:</strong> Q-Q plots or Shapiro-Wilk test within each group</li>
+<li><strong>Homogeneity of Variance:</strong> Levene’s test: <span class="math inline">\(H_0: \sigma_1^2 = \sigma_2^2 = \cdots = \sigma_k^2\)</span></li>
+<li><strong>Independence:</strong> Study design ensures this; plot residuals vs.&nbsp;order</li>
+</ul>
+<p>ANOVA is relatively robust to modest departures from normality if sample sizes are large and balanced. The Kruskal-Wallis test (Chapter 9 extension) is a non-parametric alternative for severely non-normal data.</p>
+</section>
+<section id="clinical-example" class="level3" data-number="21.2.6">
+<h3 data-number="21.2.6" class="anchored" data-anchor-id="clinical-example"><span class="header-section-number">21.2.6</span> Clinical Example</h3>
+<p>Suppose we analyze plant growth (proxy for patient response) across three treatment groups in <code>PlantGrowth</code>:</p>
+<pre><code>Group    N    Mean Weight (g)    SD
+ctrl     10   5.03              0.58
+trt1     10   4.81              0.40
+trt2     10   5.53              0.29</code></pre>
+<p><strong>ANOVA calculation (abbreviated):</strong></p>
+<p>Grand mean: <span class="math inline">\(\bar{Y}_{\cdot\cdot} = 5.12\)</span> g</p>
+<p><span class="math inline">\(SS_{\text{Between}} = 10(5.03 - 5.12)^2 + 10(4.81 - 5.12)^2 + 10(5.53 - 5.12)^2 = 3.77\)</span></p>
+<p><span class="math inline">\(df_B = 3 - 1 = 2\)</span>, so <span class="math inline">\(MS_B = 3.77 / 2 = 1.89\)</span></p>
+<p><span class="math inline">\(SS_{\text{Within}} = 9(0.58)^2 + 9(0.40)^2 + 9(0.29)^2 = 4.36\)</span></p>
+<p><span class="math inline">\(df_W = 30 - 3 = 27\)</span>, so <span class="math inline">\(MS_W = 4.36 / 27 = 0.162\)</span></p>
+<p><span class="math display">\[F = \frac{1.89}{0.162} = 11.7\]</span></p>
+<p>With <span class="math inline">\(F(2, 27) = 11.7\)</span>, the p-value <span class="math inline">\(\approx 0.0003\)</span>. We reject <span class="math inline">\(H_0\)</span>; at least one group mean differs significantly.</p>
+</section>
+</section>
+<section id="part-ii-post-hoc-tests" class="level2" data-number="21.3">
+<h2 data-number="21.3" class="anchored" data-anchor-id="part-ii-post-hoc-tests"><span class="header-section-number">21.3</span> Part II: Post-Hoc Tests</h2>
+<p>When the overall ANOVA is significant, we perform <strong>post-hoc tests</strong> to identify which specific pairs of groups differ. Multiple t-tests would inflate Type I error; post-hoc tests control this.</p>
+<section id="tukeys-honest-significant-difference-hsd" class="level3" data-number="21.3.1">
+<h3 data-number="21.3.1" class="anchored" data-anchor-id="tukeys-honest-significant-difference-hsd"><span class="header-section-number">21.3.1</span> Tukey’s Honest Significant Difference (HSD)</h3>
+<p>Tukey HSD is widely used, controlling family-wise error rate at <span class="math inline">\(\alpha\)</span> for all pairwise comparisons.</p>
+<p><strong>Test Procedure:</strong></p>
+<p>For each pairwise comparison, compute:</p>
+<p><span class="math display">\[q = \frac{|\bar{Y}_{i\cdot} - \bar{Y}_{j\cdot}|}{\sqrt{MS_{\text{Within}} (1/n_i + 1/n_j)/2}}\]</span></p>
+<p>Compare <span class="math inline">\(q\)</span> to the critical value from the studentized range distribution with parameters <span class="math inline">\(k\)</span> (number of groups) and <span class="math inline">\(df_W = N - k\)</span>. If <span class="math inline">\(q &gt; q_{\text{crit}}\)</span>, the difference is significant at level <span class="math inline">\(\alpha\)</span>.</p>
+<p>Alternatively, compute confidence intervals for all pairwise differences; if an interval excludes zero, the comparison is significant.</p>
+<p><strong>Clinical Advantage:</strong> Accounts for multiple comparisons while maintaining adequate power.</p>
+</section>
+<section id="bonferroni-correction" class="level3" data-number="21.3.2">
+<h3 data-number="21.3.2" class="anchored" data-anchor-id="bonferroni-correction"><span class="header-section-number">21.3.2</span> Bonferroni Correction</h3>
+<p>Divide <span class="math inline">\(\alpha\)</span> by the number of pairwise comparisons: <span class="math inline">\(\alpha_{\text{adj}} = \alpha / \binom{k}{2}\)</span>. More conservative than Tukey.</p>
+</section>
+<section id="least-significant-difference-lsd" class="level3" data-number="21.3.3">
+<h3 data-number="21.3.3" class="anchored" data-anchor-id="least-significant-difference-lsd"><span class="header-section-number">21.3.3</span> Least Significant Difference (LSD)</h3>
+<p>Uses the critical value from the t-distribution (not the studentized range). Controls <span class="math inline">\(\alpha\)</span> only for pairwise comparisons (not family-wise error rate). Less conservative than Tukey but less protective against Type I error.</p>
+</section>
+<section id="clinical-recommendation" class="level3" data-number="21.3.4">
+<h3 data-number="21.3.4" class="anchored" data-anchor-id="clinical-recommendation"><span class="header-section-number">21.3.4</span> Clinical Recommendation</h3>
+<p>Use Tukey HSD by default. It balances power and Type I error control for pairwise comparisons in balanced designs.</p>
+</section>
+</section>
+<section id="part-iii-two-way-anova" class="level2" data-number="21.4">
+<h2 data-number="21.4" class="anchored" data-anchor-id="part-iii-two-way-anova"><span class="header-section-number">21.4</span> Part III: Two-Way ANOVA</h2>
+<p>When observations are classified by <strong>two categorical factors</strong>, two-way ANOVA tests main effects and interactions.</p>
+<p><strong>Example:</strong> A clinical trial of three antihypertensive drugs (Drug A, Drug B, Drug C) across two age groups (Young, Old). We measure mean blood pressure reduction.</p>
+<p><strong>Model:</strong> <span class="math display">\[Y_{ijk} = \mu + \alpha_i + \beta_j + (\alpha\beta)_{ij} + \epsilon_{ijk}\]</span></p>
+<p>where: - <span class="math inline">\(\alpha_i\)</span> is the main effect of drug <span class="math inline">\(i\)</span> - <span class="math inline">\(\beta_j\)</span> is the main effect of age group <span class="math inline">\(j\)</span> - <span class="math inline">\((\alpha\beta)_{ij}\)</span> is the <strong>interaction</strong> (does drug effect differ by age?) - <span class="math inline">\(\epsilon_{ijk}\)</span> is random error</p>
+<p><strong>Interpretation:</strong></p>
+<ul>
+<li><strong>Main Effect of Drug:</strong> Average drug effect across age groups</li>
+<li><strong>Main Effect of Age:</strong> Average age effect across drugs</li>
+<li><strong>Interaction:</strong> Does the drug effect depend on age? (e.g., Drug A works better in young patients, Drug B in older patients)</li>
+</ul>
+<p>The ANOVA table includes rows for each main effect, the interaction, and residual error. An interaction is significant if the p-value for the interaction term is small (typically <span class="math inline">\(p &lt; 0.05\)</span>).</p>
+<p><strong>Clinical Example:</strong> Suppose Drug A reduces BP by 10 mmHg in young and 5 mmHg in old; Drug B reduces BP by 5 mmHg in young and 12 mmHg in old. This indicates a significant drug-by-age interaction: the “best” drug depends on age.</p>
+</section>
+<section id="part-iv-analysis-of-covariance-ancova" class="level2" data-number="21.5">
+<h2 data-number="21.5" class="anchored" data-anchor-id="part-iv-analysis-of-covariance-ancova"><span class="header-section-number">21.5</span> Part IV: Analysis of Covariance (ANCOVA)</h2>
+<section id="motivation" class="level3" data-number="21.5.1">
+<h3 data-number="21.5.1" class="anchored" data-anchor-id="motivation"><span class="header-section-number">21.5.1</span> Motivation</h3>
+<p>In clinical trials, patients often begin with different baseline characteristics despite randomization (due to random imbalance in finite samples). ANCOVA adjusts treatment effect estimates for these <strong>baseline covariates</strong>, reducing residual variability and increasing power.</p>
+<p><strong>ICH E9 Guidance:</strong> ANCOVA is recommended in clinical trials for adjustment of baseline imbalances and baseline values of the response variable.</p>
+</section>
+<section id="ancova-model" class="level3" data-number="21.5.2">
+<h3 data-number="21.5.2" class="anchored" data-anchor-id="ancova-model"><span class="header-section-number">21.5.2</span> ANCOVA Model</h3>
+<p>The model includes the grouping factor (treatment) and continuous covariates:</p>
+<p><span class="math display">\[Y_{ij} = \mu + \tau_i + \beta(X_{ij} - \bar{X}_{\cdot\cdot}) + \epsilon_{ij}\]</span></p>
+<p>where: - <span class="math inline">\(Y_{ij}\)</span> is the outcome (e.g., end-of-study blood pressure) - <span class="math inline">\(\tau_i\)</span> is the treatment effect for group <span class="math inline">\(i\)</span> - <span class="math inline">\(X_{ij}\)</span> is the covariate value (e.g., baseline blood pressure) for observation <span class="math inline">\(j\)</span> in group <span class="math inline">\(i\)</span> - <span class="math inline">\(\bar{X}_{\cdot\cdot}\)</span> is the grand mean of the covariate - <span class="math inline">\(\beta\)</span> is the regression coefficient relating the covariate to the outcome - <span class="math inline">\(\epsilon_{ij}\)</span> is random error</p>
+<p><strong>Interpretation of <span class="math inline">\(\tau_i\)</span>:</strong> The treatment effect adjusted for the covariate, holding the covariate at the grand mean.</p>
+</section>
+<section id="key-assumptions-beyond-anova" class="level3" data-number="21.5.3">
+<h3 data-number="21.5.3" class="anchored" data-anchor-id="key-assumptions-beyond-anova"><span class="header-section-number">21.5.3</span> Key Assumptions (Beyond ANOVA)</h3>
+<ol type="1">
+<li><strong>Homogeneity of Regression Slopes:</strong> The relationship between covariate and outcome is the same across groups. Test by checking if the interaction between treatment and covariate is significant (<span class="math inline">\(p &gt; 0.05\)</span>).</li>
+<li><strong>Linearity:</strong> The covariate-outcome relationship is linear.</li>
+<li><strong>Measurement Without Error:</strong> The covariate is measured reliably.</li>
+</ol>
+</section>
+<section id="clinical-example-1" class="level3" data-number="21.5.4">
+<h3 data-number="21.5.4" class="anchored" data-anchor-id="clinical-example-1"><span class="header-section-number">21.5.4</span> Clinical Example</h3>
+<p>A hypertension trial compares SBP reduction between Drug A and placebo over 12 weeks. Baseline SBP differs slightly between groups due to random chance:</p>
+<ul>
+<li>Drug A: Mean baseline SBP = 158 mmHg</li>
+<li>Placebo: Mean baseline SBP = 154 mmHg</li>
+</ul>
+<p><strong>Unadjusted comparison:</strong> Drug A mean reduction = 20 mmHg; Placebo mean reduction = 8 mmHg; difference = 12 mmHg.</p>
+<p><strong>ANCOVA adjustment:</strong> Account for baseline difference. Because Drug A started higher (158 vs.&nbsp;154), we’d expect a larger absolute reduction even if the drug were ineffective. ANCOVA adjusts for this, yielding a more accurate treatment effect estimate. Suppose the adjusted difference is 9 mmHg—the true net benefit of Drug A after accounting for baseline imbalance.</p>
+</section>
+<section id="least-squares-means-estimated-marginal-means" class="level3" data-number="21.5.5">
+<h3 data-number="21.5.5" class="anchored" data-anchor-id="least-squares-means-estimated-marginal-means"><span class="header-section-number">21.5.5</span> Least Squares Means (Estimated Marginal Means)</h3>
+<p>After fitting ANCOVA, we report <strong>least squares means (LSM)</strong> or <strong>estimated marginal means (EMM)</strong>—the predicted mean outcome for each group, evaluated at the average covariate value.</p>
+<p>For example:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Treatment</th>
+<th>LSM</th>
+<th>95% CI</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Drug A</td>
+<td>138.2</td>
+<td>[135.0, 141.4]</td>
+</tr>
+<tr class="even">
+<td>Placebo</td>
+<td>147.1</td>
+<td>[143.9, 150.3]</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interpretation:</strong> After adjusting for baseline SBP, the predicted end-of-study SBP is 138.2 mmHg in the Drug A group and 147.1 mmHg in placebo, corresponding to a 8.9 mmHg adjusted difference.</p>
+</section>
+</section>
+<section id="part-v-practical-implementation-in-r" class="level2" data-number="21.6">
+<h2 data-number="21.6" class="anchored" data-anchor-id="part-v-practical-implementation-in-r"><span class="header-section-number">21.6</span> Part V: Practical Implementation in R</h2>
+<section id="one-way-anova-with-plantgrowth" class="level3" data-number="21.6.1">
+<h3 data-number="21.6.1" class="anchored" data-anchor-id="one-way-anova-with-plantgrowth"><span class="header-section-number">21.6.1</span> One-Way ANOVA with PlantGrowth</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Load data</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(PlantGrowth)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit one-way ANOVA</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>fit_anova <span class="ot">&lt;-</span> <span class="fu">aov</span>(weight <span class="sc">~</span> group, <span class="at">data =</span> PlantGrowth)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_anova)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Output interpretation:</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">#             Df Sum Sq Mean Sq F value Pr(&gt;F)</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co"># group        2   3.77  1.883   11.72  0.0003 ***</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Residuals   27   4.36  0.162</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Check assumptions</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Normality: Q-Q plot</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="fu">qqnorm</span>(<span class="fu">residuals</span>(fit_anova))</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="fu">qqline</span>(<span class="fu">residuals</span>(fit_anova))</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Shapiro-Wilk test</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="fu">shapiro.test</span>(<span class="fu">residuals</span>(fit_anova))</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Homogeneity of variance: Levene's test</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(car)</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="fu">leveneTest</span>(weight <span class="sc">~</span> group, <span class="at">data =</span> PlantGrowth)</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Independence: residual plot</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit_anova<span class="sc">$</span>fitted.values, fit_anova<span class="sc">$</span>residuals)</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">h =</span> <span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="post-hoc-tests-tukey-hsd" class="level3" data-number="21.6.2">
+<h3 data-number="21.6.2" class="anchored" data-anchor-id="post-hoc-tests-tukey-hsd"><span class="header-section-number">21.6.2</span> Post-Hoc Tests: Tukey HSD</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Tukey HSD test</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>tukey_result <span class="ot">&lt;-</span> <span class="fu">TukeyHSD</span>(fit_anova)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(tukey_result)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Output:</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">#   Tukey multiple comparisons of means</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">#     95% family-wise confidence level</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co"># $group</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co">#           diff        lwr       upr     p adj</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="co"># trt1-ctrl -0.22 -0.7607 0.3207 0.6479</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co"># trt2-ctrl  0.50 -0.0407 1.0407 0.0829</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="co"># trt2-trt1  0.72  0.1793 1.2607 0.0086 *</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Visualize</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(tukey_result)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="two-way-anova" class="level3" data-number="21.6.3">
+<h3 data-number="21.6.3" class="anchored" data-anchor-id="two-way-anova"><span class="header-section-number">21.6.3</span> Two-Way ANOVA</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a simulated dataset with two factors</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>drug_data <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">Drug =</span> <span class="fu">c</span>(<span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"C"</span>),</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">AgeGroup =</span> <span class="fu">c</span>(<span class="st">"Young"</span>, <span class="st">"Old"</span>),</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">Rep =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">10</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">BP_Reduction =</span> <span class="fu">case_when</span>(</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>      Drug <span class="sc">==</span> <span class="st">"A"</span> <span class="sc">&amp;</span> AgeGroup <span class="sc">==</span> <span class="st">"Young"</span> <span class="sc">~</span> <span class="fu">rnorm</span>(<span class="fu">n</span>(), <span class="dv">18</span>, <span class="dv">3</span>),</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>      Drug <span class="sc">==</span> <span class="st">"A"</span> <span class="sc">&amp;</span> AgeGroup <span class="sc">==</span> <span class="st">"Old"</span> <span class="sc">~</span> <span class="fu">rnorm</span>(<span class="fu">n</span>(), <span class="dv">8</span>, <span class="dv">3</span>),</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>      Drug <span class="sc">==</span> <span class="st">"B"</span> <span class="sc">&amp;</span> AgeGroup <span class="sc">==</span> <span class="st">"Young"</span> <span class="sc">~</span> <span class="fu">rnorm</span>(<span class="fu">n</span>(), <span class="dv">10</span>, <span class="dv">3</span>),</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>      Drug <span class="sc">==</span> <span class="st">"B"</span> <span class="sc">&amp;</span> AgeGroup <span class="sc">==</span> <span class="st">"Old"</span> <span class="sc">~</span> <span class="fu">rnorm</span>(<span class="fu">n</span>(), <span class="dv">16</span>, <span class="dv">3</span>),</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>      Drug <span class="sc">==</span> <span class="st">"C"</span> <span class="sc">&amp;</span> AgeGroup <span class="sc">==</span> <span class="st">"Young"</span> <span class="sc">~</span> <span class="fu">rnorm</span>(<span class="fu">n</span>(), <span class="dv">12</span>, <span class="dv">3</span>),</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>      Drug <span class="sc">==</span> <span class="st">"C"</span> <span class="sc">&amp;</span> AgeGroup <span class="sc">==</span> <span class="st">"Old"</span> <span class="sc">~</span> <span class="fu">rnorm</span>(<span class="fu">n</span>(), <span class="dv">12</span>, <span class="dv">3</span>)</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit two-way ANOVA with interaction</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>fit_2way <span class="ot">&lt;-</span> <span class="fu">aov</span>(BP_Reduction <span class="sc">~</span> Drug <span class="sc">+</span> AgeGroup <span class="sc">+</span> Drug<span class="sc">:</span>AgeGroup,</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>                <span class="at">data =</span> drug_data)</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_2way)</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Output interpretation:</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a><span class="co">#                  Df Sum Sq Mean Sq F value Pr(&gt;F)</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a><span class="co"># Drug              2  296.5  148.24  17.77 &lt;0.001 ***</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="co"># AgeGroup          1  179.8  179.78  21.58 &lt;0.001 ***</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a><span class="co"># Drug:AgeGroup     2  221.8  110.89  13.30 &lt;0.001 ***</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a><span class="co"># Residuals        54  450.1    8.33</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a><span class="co"># Interpretation: Main effects of Drug and AgeGroup, plus a significant</span></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a><span class="co"># interaction (drug effect depends on age).</span></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a><span class="co"># Visualize interaction</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>drug_data <span class="sc">%&gt;%</span></span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Drug, AgeGroup) <span class="sc">%&gt;%</span></span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">Mean_Reduction =</span> <span class="fu">mean</span>(BP_Reduction), <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> AgeGroup, <span class="at">y =</span> Mean_Reduction, <span class="at">color =</span> Drug, <span class="at">group =</span> Drug)) <span class="sc">+</span></span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"BP Reduction by Drug and Age Group"</span>,</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Mean BP Reduction (mmHg)"</span>) <span class="sc">+</span></span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="ancova-example-adjustment-for-baseline" class="level3" data-number="21.6.4">
+<h3 data-number="21.6.4" class="anchored" data-anchor-id="ancova-example-adjustment-for-baseline"><span class="header-section-number">21.6.4</span> ANCOVA Example: Adjustment for Baseline</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pharmaversesdtm)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(emmeans)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(dm)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(vs)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Prepare data: Week 4 SBP as outcome, baseline SBP as covariate</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>sbp_analysis <span class="ot">&lt;-</span> vs <span class="sc">%&gt;%</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(VSTESTCD <span class="sc">==</span> <span class="st">"SYSBP"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, VISIT, VSSTRESN) <span class="sc">%&gt;%</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">id_cols =</span> USUBJID,</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_from =</span> VISIT,</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_from =</span> VSSTRESN,</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_prefix =</span> <span class="st">"SBP_"</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    dm <span class="sc">%&gt;%</span> <span class="fu">select</span>(USUBJID, ARM),</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">"USUBJID"</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">Baseline =</span> SBP_BASELINE,</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">Week4 =</span> SBP_WEEK4</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">na.omit</span>()</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(sbp_analysis)</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Check homogeneity of regression slopes (interaction test)</span></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>fit_interaction <span class="ot">&lt;-</span> <span class="fu">lm</span>(Week4 <span class="sc">~</span> ARM <span class="sc">+</span> Baseline <span class="sc">+</span> ARM<span class="sc">:</span>Baseline,</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>                      <span class="at">data =</span> sbp_analysis)</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a><span class="fu">anova</span>(fit_interaction)</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a><span class="co"># If interaction p &gt; 0.05, ANCOVA is appropriate</span></span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Fit ANCOVA: adjust Week 4 SBP for baseline and treatment</span></span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>fit_ancova <span class="ot">&lt;-</span> <span class="fu">lm</span>(Week4 <span class="sc">~</span> ARM <span class="sc">+</span> Baseline, <span class="at">data =</span> sbp_analysis)</span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_ancova)</span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Extract least squares means using emmeans</span></span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(emmeans)</span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>lsm <span class="ot">&lt;-</span> <span class="fu">emmeans</span>(fit_ancova, <span class="sc">~</span> ARM)</span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(lsm)</span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a><span class="co"># Pairwise comparisons</span></span>
+<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a><span class="fu">pairs</span>(lsm)</span>
+<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Plot adjusted means</span></span>
+<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a>sbp_analysis <span class="sc">%&gt;%</span></span>
+<span id="cb5-51"><a href="#cb5-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(ARM) <span class="sc">%&gt;%</span></span>
+<span id="cb5-52"><a href="#cb5-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb5-53"><a href="#cb5-53" aria-hidden="true" tabindex="-1"></a>    <span class="at">N =</span> <span class="fu">n</span>(),</span>
+<span id="cb5-54"><a href="#cb5-54" aria-hidden="true" tabindex="-1"></a>    <span class="at">Mean_Baseline =</span> <span class="fu">mean</span>(Baseline),</span>
+<span id="cb5-55"><a href="#cb5-55" aria-hidden="true" tabindex="-1"></a>    <span class="at">Mean_Week4 =</span> <span class="fu">mean</span>(Week4),</span>
+<span id="cb5-56"><a href="#cb5-56" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb5-57"><a href="#cb5-57" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb5-58"><a href="#cb5-58" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> ARM, <span class="at">y =</span> Mean_Week4, <span class="at">fill =</span> ARM)) <span class="sc">+</span></span>
+<span id="cb5-59"><a href="#cb5-59" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">stat =</span> <span class="st">"identity"</span>, <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb5-60"><a href="#cb5-60" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_errorbar</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> Mean_Week4 <span class="sc">-</span> <span class="dv">5</span>, <span class="at">ymax =</span> Mean_Week4 <span class="sc">+</span> <span class="dv">5</span>),</span>
+<span id="cb5-61"><a href="#cb5-61" aria-hidden="true" tabindex="-1"></a>                <span class="at">width =</span> <span class="fl">0.2</span>) <span class="sc">+</span></span>
+<span id="cb5-62"><a href="#cb5-62" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Week 4 SBP by Treatment Arm (Adjusted)"</span>,</span>
+<span id="cb5-63"><a href="#cb5-63" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Mean SBP (mmHg)"</span>) <span class="sc">+</span></span>
+<span id="cb5-64"><a href="#cb5-64" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb5-65"><a href="#cb5-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-66"><a href="#cb5-66" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare unadjusted and adjusted models</span></span>
+<span id="cb5-67"><a href="#cb5-67" aria-hidden="true" tabindex="-1"></a>fit_unadjusted <span class="ot">&lt;-</span> <span class="fu">lm</span>(Week4 <span class="sc">~</span> ARM, <span class="at">data =</span> sbp_analysis)</span>
+<span id="cb5-68"><a href="#cb5-68" aria-hidden="true" tabindex="-1"></a><span class="fu">anova</span>(fit_unadjusted, fit_ancova)</span>
+<span id="cb5-69"><a href="#cb5-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-70"><a href="#cb5-70" aria-hidden="true" tabindex="-1"></a><span class="co"># If p &lt; 0.05, the covariate contributes significantly</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="checking-ancova-assumptions-homogeneity-of-slopes" class="level3" data-number="21.6.5">
+<h3 data-number="21.6.5" class="anchored" data-anchor-id="checking-ancova-assumptions-homogeneity-of-slopes"><span class="header-section-number">21.6.5</span> Checking ANCOVA Assumptions: Homogeneity of Slopes</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Test interaction between treatment and covariate</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>fit_int <span class="ot">&lt;-</span> <span class="fu">lm</span>(Week4 <span class="sc">~</span> ARM <span class="sc">*</span> Baseline, <span class="at">data =</span> sbp_analysis)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_int)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Look at the p-value for ARM:Baseline interaction</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co"># p &gt; 0.05 suggests equal slopes (homogeneous regression assumption met)</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Visualize slopes by group</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(sbp_analysis, <span class="fu">aes</span>(<span class="at">x =</span> Baseline, <span class="at">y =</span> Week4, <span class="at">color =</span> ARM)) <span class="sc">+</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Homogeneity of Regression Slopes"</span>,</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>       <span class="at">x =</span> <span class="st">"Baseline SBP (mmHg)"</span>,</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Week 4 SBP (mmHg)"</span>) <span class="sc">+</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Parallel lines indicate homogeneity; diverging lines suggest violation</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="summary-when-to-use-each-method" class="level2" data-number="21.7">
+<h2 data-number="21.7" class="anchored" data-anchor-id="summary-when-to-use-each-method"><span class="header-section-number">21.7</span> Summary: When to Use Each Method</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Scenario</th>
+<th>Method</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Compare 3+ groups, no baseline covariate</td>
+<td><strong>One-way ANOVA</strong></td>
+</tr>
+<tr class="even">
+<td>ANOVA significant, identify differing pairs</td>
+<td><strong>Tukey HSD post-hoc</strong></td>
+</tr>
+<tr class="odd">
+<td>Two grouping factors</td>
+<td><strong>Two-way ANOVA</strong></td>
+</tr>
+<tr class="even">
+<td>Compare groups, adjust for baseline or covariate</td>
+<td><strong>ANCOVA</strong></td>
+</tr>
+<tr class="odd">
+<td>Non-normal data, 3+ groups</td>
+<td><strong>Kruskal-Wallis</strong></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="exercises" class="level2" data-number="21.8">
+<h2 data-number="21.8" class="anchored" data-anchor-id="exercises"><span class="header-section-number">21.8</span> Exercises</h2>
+<section id="beginner-exercises" class="level3" data-number="21.8.1">
+<h3 data-number="21.8.1" class="anchored" data-anchor-id="beginner-exercises"><span class="header-section-number">21.8.1</span> Beginner Exercises</h3>
+<p><strong>Exercise 10.1: Interpret ANOVA Output</strong></p>
+<p>A study compares systolic blood pressure across four treatment arms (n=25 per arm). The ANOVA table is:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Source</th>
+<th>SS</th>
+<th>df</th>
+<th>MS</th>
+<th>F</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Treatment</td>
+<td>1200</td>
+<td>3</td>
+<td>400</td>
+<td>8.0</td>
+</tr>
+<tr class="even">
+<td>Residual</td>
+<td>4800</td>
+<td>96</td>
+<td>50</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<ol type="a">
+<li>What are the critical steps to interpret this ANOVA?</li>
+<li>At <span class="math inline">\(\alpha = 0.05\)</span>, is the treatment effect significant?</li>
+<li>What assumption violations would concern you?</li>
+</ol>
+<p><strong>Exercise 10.2: One-Way ANOVA with PlantGrowth</strong></p>
+<p>Using the <code>PlantGrowth</code> dataset:</p>
+<ol type="a">
+<li>Perform a one-way ANOVA comparing plant weight across groups.</li>
+<li>Check normality and homogeneity of variance.</li>
+<li>Perform Tukey HSD post-hoc tests.</li>
+<li>Report which groups differ significantly.</li>
+</ol>
+<p><strong>Exercise 10.3: Visualize Main Effects and Interaction</strong></p>
+<p>Create a simulated two-factor dataset (two treatments × two time points) and visualize both additive (no interaction) and interactive scenarios. Explain the difference clinically.</p>
+</section>
+<section id="advanced-exercises" class="level3" data-number="21.8.2">
+<h3 data-number="21.8.2" class="anchored" data-anchor-id="advanced-exercises"><span class="header-section-number">21.8.2</span> Advanced Exercises</h3>
+<p><strong>Exercise 10.4: ANCOVA Interpretation</strong></p>
+<p>A trial compares depression severity (PHQ-9 score) between three psychotherapy modalities at Week 12, adjusting for baseline PHQ-9.</p>
+<ol type="a">
+<li>Why is baseline adjustment important in clinical trials?</li>
+<li>Explain how ANCOVA adjusts for baseline imbalances.</li>
+<li>How would you test the homogeneity of regression slopes assumption?</li>
+<li>Report least squares means and their 95% CIs.</li>
+</ol>
+<p><strong>Exercise 10.5: Complex ANCOVA</strong></p>
+<p>Using pharmaversesdtm data:</p>
+<ol type="a">
+<li>Fit an ANCOVA model for Week 4 diastolic blood pressure (outcome), with treatment as the factor and baseline DBP as the covariate.</li>
+<li>Test homogeneity of slopes.</li>
+<li>Extract and plot least squares means.</li>
+<li>Compare adjusted vs.&nbsp;unadjusted treatment effects.</li>
+<li>Interpret your findings in clinical terms.</li>
+</ol>
+
+
+<!-- -->
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/r4clinical\.github\.io");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+            // default icon
+            link.classList.add("external");
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../chapters/09-hypothesis-testing.html" class="pagination-link" aria-label="Chapter 9: Hypothesis Testing">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">20</span>&nbsp; <span class="chapter-title">Chapter 9: Hypothesis Testing</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../chapters/11-regression-models.html" class="pagination-link" aria-label="Chapter 11: Regression Models">
+        <span class="nav-page-text"><span class="chapter-number">22</span>&nbsp; <span class="chapter-title">Chapter 11: Regression Models</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Chapter 10: ANOVA and ANCOVA</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">## Introduction</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>When clinical trials or observational studies compare more than two groups, the two-sample t-test becomes inadequate. **Analysis of Variance (ANOVA)** extends hypothesis testing to multiple groups, partitioning total variability into components attributable to treatment effects versus random error. ANOVA is followed by **post-hoc tests** to identify which specific groups differ.</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>**Analysis of Covariance (ANCOVA)** augments ANOVA by adjusting for baseline covariates—a key requirement in clinical trials where patients begin with different baseline characteristics. This chapter develops both methods, with emphasis on proper assumption checking and clinical interpretation.</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="fu">## Part I: One-Way ANOVA</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="fu">### Motivation and Setup</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>Consider a clinical trial comparing three chemotherapy regimens (Standard, Novel-A, Novel-B) in terms of mean survival time (months). We recruit 60 patients: 20 per arm.</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>**Research Question:** Do the three regimens differ in mean survival?</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>**Hypotheses:**</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>$$H_0: \mu_1 = \mu_2 = \mu_3$$</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>$$H_1: \text{At least one } \mu_i \text{ differs}$$</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>The t-test cannot address this directly (multiple pairwise comparisons inflate Type I error). ANOVA solves this by testing all groups simultaneously.</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a><span class="fu">### Partitioning Variability</span></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>ANOVA decomposes total variability into two sources:</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>$$SS_{\text{Total}} = SS_{\text{Between}} + SS_{\text{Within}}$$</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>where:</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**$SS_{\text{Total}}$**: Total sum of squared deviations from the grand mean</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>$$SS_{\text{Total}} = \sum_{i=1}^{k} \sum_{j=1}^{n_i} (Y_{ij} - \bar{Y}_{\cdot\cdot})^2$$</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**$SS_{\text{Between}}$**: Variability due to differences in group means</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>$$SS_{\text{Between}} = \sum_{i=1}^{k} n_i (\bar{Y}_{i\cdot} - \bar{Y}_{\cdot\cdot})^2$$</span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**$SS_{\text{Within}}$**: Variability within groups (residual error)</span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>$$SS_{\text{Within}} = \sum_{i=1}^{k} \sum_{j=1}^{n_i} (Y_{ij} - \bar{Y}_{i\cdot})^2$$</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>Here, $k$ is the number of groups, $n_i$ is the sample size in group $i$, $\bar{Y}_{i\cdot}$ is the mean of group $i$, and $\bar{Y}_{\cdot\cdot}$ is the grand mean.</span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a><span class="fu">### The F-Statistic</span></span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>Sums of squares are converted to **mean squares** by dividing by degrees of freedom:</span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>$$MS_{\text{Between}} = \frac{SS_{\text{Between}}}{k - 1}$$</span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>$$MS_{\text{Within}} = \frac{SS_{\text{Within}}}{N - k}$$</span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>where $N = \sum_{i=1}^{k} n_i$ is the total sample size.</span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>The **F-statistic** is:</span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a>$$F = \frac{MS_{\text{Between}}}{MS_{\text{Within}}}$$</span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>Under $H_0$ (all group means equal), $F$ follows an F-distribution with $k-1$ and $N-k$ degrees of freedom.</span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>**Intuition:** If groups differ substantially (large $MS_{\text{Between}}$) relative to within-group variability (small $MS_{\text{Within}}$), then $F$ is large, and we reject $H_0$.</span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a><span class="fu">### ANOVA Table</span></span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a>Results are typically summarized in an ANOVA table:</span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Source <span class="pp">|</span> Sum of Squares <span class="pp">|</span> df <span class="pp">|</span> Mean Square <span class="pp">|</span> F <span class="pp">|</span> p-value <span class="pp">|</span></span>
+<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a><span class="pp">|--------|----------------|-----|-------------|--------|---------|</span></span>
+<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Between <span class="pp">|</span> $SS_{\text{Between}}$ <span class="pp">|</span> $k-1$ <span class="pp">|</span> $MS_B$ <span class="pp">|</span> $F$ <span class="pp">|</span> p <span class="pp">|</span></span>
+<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Within (Residual) <span class="pp">|</span> $SS_{\text{Within}}$ <span class="pp">|</span> $N-k$ <span class="pp">|</span> $MS_W$ <span class="pp">|</span> <span class="pp">|</span> <span class="pp">|</span></span>
+<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Total** <span class="pp">|</span> $SS_{\text{Total}}$ <span class="pp">|</span> $N-1$ <span class="pp">|</span> <span class="pp">|</span> <span class="pp">|</span> <span class="pp">|</span></span>
+<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a><span class="fu">### Assumptions</span></span>
+<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Independence:** Observations are independent within and between groups.</span>
+<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Normality:** Response variable is normally distributed within each group.</span>
+<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Homogeneity of Variance:** Variances are equal across groups, $\sigma_1^2 = \sigma_2^2 = \cdots = \sigma_k^2$.</span>
+<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a>**Checking Assumptions:**</span>
+<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Normality:** Q-Q plots or Shapiro-Wilk test within each group</span>
+<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Homogeneity of Variance:** Levene's test: $H_0: \sigma_1^2 = \sigma_2^2 = \cdots = \sigma_k^2$</span>
+<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Independence:** Study design ensures this; plot residuals vs. order</span>
+<span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a>ANOVA is relatively robust to modest departures from normality if sample sizes are large and balanced. The Kruskal-Wallis test (Chapter 9 extension) is a non-parametric alternative for severely non-normal data.</span>
+<span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a><span class="fu">### Clinical Example</span></span>
+<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a>Suppose we analyze plant growth (proxy for patient response) across three treatment groups in <span class="in">`PlantGrowth`</span>:</span>
+<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a><span class="in">Group    N    Mean Weight (g)    SD</span></span>
+<span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a><span class="in">ctrl     10   5.03              0.58</span></span>
+<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a><span class="in">trt1     10   4.81              0.40</span></span>
+<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a><span class="in">trt2     10   5.53              0.29</span></span>
+<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a>**ANOVA calculation (abbreviated):**</span>
+<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a>Grand mean: $\bar{Y}_{\cdot\cdot} = 5.12$ g</span>
+<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a>$SS_{\text{Between}} = 10(5.03 - 5.12)^2 + 10(4.81 - 5.12)^2 + 10(5.53 - 5.12)^2 = 3.77$</span>
+<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a>$df_B = 3 - 1 = 2$, so $MS_B = 3.77 / 2 = 1.89$</span>
+<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a>$SS_{\text{Within}} = 9(0.58)^2 + 9(0.40)^2 + 9(0.29)^2 = 4.36$</span>
+<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a>$df_W = 30 - 3 = 27$, so $MS_W = 4.36 / 27 = 0.162$</span>
+<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a>$$F = \frac{1.89}{0.162} = 11.7$$</span>
+<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a>With $F(2, 27) = 11.7$, the p-value $\approx 0.0003$. We reject $H_0$; at least one group mean differs significantly.</span>
+<span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a><span class="fu">## Part II: Post-Hoc Tests</span></span>
+<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a>When the overall ANOVA is significant, we perform **post-hoc tests** to identify which specific pairs of groups differ. Multiple t-tests would inflate Type I error; post-hoc tests control this.</span>
+<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a><span class="fu">### Tukey's Honest Significant Difference (HSD)</span></span>
+<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a>Tukey HSD is widely used, controlling family-wise error rate at $\alpha$ for all pairwise comparisons.</span>
+<span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a>**Test Procedure:**</span>
+<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a>For each pairwise comparison, compute:</span>
+<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a>$$q = \frac{|\bar{Y}_{i\cdot} - \bar{Y}_{j\cdot}|}{\sqrt{MS_{\text{Within}} (1/n_i + 1/n_j)/2}}$$</span>
+<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-125"><a href="#cb7-125" aria-hidden="true" tabindex="-1"></a>Compare $q$ to the critical value from the studentized range distribution with parameters $k$ (number of groups) and $df_W = N - k$. If $q &gt; q_{\text{crit}}$, the difference is significant at level $\alpha$.</span>
+<span id="cb7-126"><a href="#cb7-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a>Alternatively, compute confidence intervals for all pairwise differences; if an interval excludes zero, the comparison is significant.</span>
+<span id="cb7-128"><a href="#cb7-128" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-129"><a href="#cb7-129" aria-hidden="true" tabindex="-1"></a>**Clinical Advantage:** Accounts for multiple comparisons while maintaining adequate power.</span>
+<span id="cb7-130"><a href="#cb7-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-131"><a href="#cb7-131" aria-hidden="true" tabindex="-1"></a><span class="fu">### Bonferroni Correction</span></span>
+<span id="cb7-132"><a href="#cb7-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-133"><a href="#cb7-133" aria-hidden="true" tabindex="-1"></a>Divide $\alpha$ by the number of pairwise comparisons: $\alpha_{\text{adj}} = \alpha / \binom{k}{2}$. More conservative than Tukey.</span>
+<span id="cb7-134"><a href="#cb7-134" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-135"><a href="#cb7-135" aria-hidden="true" tabindex="-1"></a><span class="fu">### Least Significant Difference (LSD)</span></span>
+<span id="cb7-136"><a href="#cb7-136" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-137"><a href="#cb7-137" aria-hidden="true" tabindex="-1"></a>Uses the critical value from the t-distribution (not the studentized range). Controls $\alpha$ only for pairwise comparisons (not family-wise error rate). Less conservative than Tukey but less protective against Type I error.</span>
+<span id="cb7-138"><a href="#cb7-138" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-139"><a href="#cb7-139" aria-hidden="true" tabindex="-1"></a><span class="fu">### Clinical Recommendation</span></span>
+<span id="cb7-140"><a href="#cb7-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-141"><a href="#cb7-141" aria-hidden="true" tabindex="-1"></a>Use Tukey HSD by default. It balances power and Type I error control for pairwise comparisons in balanced designs.</span>
+<span id="cb7-142"><a href="#cb7-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-143"><a href="#cb7-143" aria-hidden="true" tabindex="-1"></a><span class="fu">## Part III: Two-Way ANOVA</span></span>
+<span id="cb7-144"><a href="#cb7-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-145"><a href="#cb7-145" aria-hidden="true" tabindex="-1"></a>When observations are classified by **two categorical factors**, two-way ANOVA tests main effects and interactions.</span>
+<span id="cb7-146"><a href="#cb7-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-147"><a href="#cb7-147" aria-hidden="true" tabindex="-1"></a>**Example:** A clinical trial of three antihypertensive drugs (Drug A, Drug B, Drug C) across two age groups (Young, Old). We measure mean blood pressure reduction.</span>
+<span id="cb7-148"><a href="#cb7-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-149"><a href="#cb7-149" aria-hidden="true" tabindex="-1"></a>**Model:**</span>
+<span id="cb7-150"><a href="#cb7-150" aria-hidden="true" tabindex="-1"></a>$$Y_{ijk} = \mu + \alpha_i + \beta_j + (\alpha\beta)_{ij} + \epsilon_{ijk}$$</span>
+<span id="cb7-151"><a href="#cb7-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-152"><a href="#cb7-152" aria-hidden="true" tabindex="-1"></a>where:</span>
+<span id="cb7-153"><a href="#cb7-153" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$\alpha_i$ is the main effect of drug $i$</span>
+<span id="cb7-154"><a href="#cb7-154" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$\beta_j$ is the main effect of age group $j$</span>
+<span id="cb7-155"><a href="#cb7-155" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$(\alpha\beta)_{ij}$ is the **interaction** (does drug effect differ by age?)</span>
+<span id="cb7-156"><a href="#cb7-156" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$\epsilon_{ijk}$ is random error</span>
+<span id="cb7-157"><a href="#cb7-157" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-158"><a href="#cb7-158" aria-hidden="true" tabindex="-1"></a>**Interpretation:**</span>
+<span id="cb7-159"><a href="#cb7-159" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-160"><a href="#cb7-160" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Main Effect of Drug:** Average drug effect across age groups</span>
+<span id="cb7-161"><a href="#cb7-161" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Main Effect of Age:** Average age effect across drugs</span>
+<span id="cb7-162"><a href="#cb7-162" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Interaction:** Does the drug effect depend on age? (e.g., Drug A works better in young patients, Drug B in older patients)</span>
+<span id="cb7-163"><a href="#cb7-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-164"><a href="#cb7-164" aria-hidden="true" tabindex="-1"></a>The ANOVA table includes rows for each main effect, the interaction, and residual error. An interaction is significant if the p-value for the interaction term is small (typically $p &lt; 0.05$).</span>
+<span id="cb7-165"><a href="#cb7-165" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-166"><a href="#cb7-166" aria-hidden="true" tabindex="-1"></a>**Clinical Example:** Suppose Drug A reduces BP by 10 mmHg in young and 5 mmHg in old; Drug B reduces BP by 5 mmHg in young and 12 mmHg in old. This indicates a significant drug-by-age interaction: the "best" drug depends on age.</span>
+<span id="cb7-167"><a href="#cb7-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-168"><a href="#cb7-168" aria-hidden="true" tabindex="-1"></a><span class="fu">## Part IV: Analysis of Covariance (ANCOVA)</span></span>
+<span id="cb7-169"><a href="#cb7-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-170"><a href="#cb7-170" aria-hidden="true" tabindex="-1"></a><span class="fu">### Motivation</span></span>
+<span id="cb7-171"><a href="#cb7-171" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-172"><a href="#cb7-172" aria-hidden="true" tabindex="-1"></a>In clinical trials, patients often begin with different baseline characteristics despite randomization (due to random imbalance in finite samples). ANCOVA adjusts treatment effect estimates for these **baseline covariates**, reducing residual variability and increasing power.</span>
+<span id="cb7-173"><a href="#cb7-173" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-174"><a href="#cb7-174" aria-hidden="true" tabindex="-1"></a>**ICH E9 Guidance:** ANCOVA is recommended in clinical trials for adjustment of baseline imbalances and baseline values of the response variable.</span>
+<span id="cb7-175"><a href="#cb7-175" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-176"><a href="#cb7-176" aria-hidden="true" tabindex="-1"></a><span class="fu">### ANCOVA Model</span></span>
+<span id="cb7-177"><a href="#cb7-177" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-178"><a href="#cb7-178" aria-hidden="true" tabindex="-1"></a>The model includes the grouping factor (treatment) and continuous covariates:</span>
+<span id="cb7-179"><a href="#cb7-179" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-180"><a href="#cb7-180" aria-hidden="true" tabindex="-1"></a>$$Y_{ij} = \mu + \tau_i + \beta(X_{ij} - \bar{X}_{\cdot\cdot}) + \epsilon_{ij}$$</span>
+<span id="cb7-181"><a href="#cb7-181" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-182"><a href="#cb7-182" aria-hidden="true" tabindex="-1"></a>where:</span>
+<span id="cb7-183"><a href="#cb7-183" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$Y_{ij}$ is the outcome (e.g., end-of-study blood pressure)</span>
+<span id="cb7-184"><a href="#cb7-184" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$\tau_i$ is the treatment effect for group $i$</span>
+<span id="cb7-185"><a href="#cb7-185" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$X_{ij}$ is the covariate value (e.g., baseline blood pressure) for observation $j$ in group $i$</span>
+<span id="cb7-186"><a href="#cb7-186" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$\bar{X}_{\cdot\cdot}$ is the grand mean of the covariate</span>
+<span id="cb7-187"><a href="#cb7-187" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$\beta$ is the regression coefficient relating the covariate to the outcome</span>
+<span id="cb7-188"><a href="#cb7-188" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$\epsilon_{ij}$ is random error</span>
+<span id="cb7-189"><a href="#cb7-189" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-190"><a href="#cb7-190" aria-hidden="true" tabindex="-1"></a>**Interpretation of $\tau_i$:** The treatment effect adjusted for the covariate, holding the covariate at the grand mean.</span>
+<span id="cb7-191"><a href="#cb7-191" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-192"><a href="#cb7-192" aria-hidden="true" tabindex="-1"></a><span class="fu">### Key Assumptions (Beyond ANOVA)</span></span>
+<span id="cb7-193"><a href="#cb7-193" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-194"><a href="#cb7-194" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Homogeneity of Regression Slopes:** The relationship between covariate and outcome is the same across groups. Test by checking if the interaction between treatment and covariate is significant ($p &gt; 0.05$).</span>
+<span id="cb7-195"><a href="#cb7-195" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Linearity:** The covariate-outcome relationship is linear.</span>
+<span id="cb7-196"><a href="#cb7-196" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Measurement Without Error:** The covariate is measured reliably.</span>
+<span id="cb7-197"><a href="#cb7-197" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-198"><a href="#cb7-198" aria-hidden="true" tabindex="-1"></a><span class="fu">### Clinical Example</span></span>
+<span id="cb7-199"><a href="#cb7-199" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-200"><a href="#cb7-200" aria-hidden="true" tabindex="-1"></a>A hypertension trial compares SBP reduction between Drug A and placebo over 12 weeks. Baseline SBP differs slightly between groups due to random chance:</span>
+<span id="cb7-201"><a href="#cb7-201" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-202"><a href="#cb7-202" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Drug A: Mean baseline SBP = 158 mmHg</span>
+<span id="cb7-203"><a href="#cb7-203" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Placebo: Mean baseline SBP = 154 mmHg</span>
+<span id="cb7-204"><a href="#cb7-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-205"><a href="#cb7-205" aria-hidden="true" tabindex="-1"></a>**Unadjusted comparison:** Drug A mean reduction = 20 mmHg; Placebo mean reduction = 8 mmHg; difference = 12 mmHg.</span>
+<span id="cb7-206"><a href="#cb7-206" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-207"><a href="#cb7-207" aria-hidden="true" tabindex="-1"></a>**ANCOVA adjustment:** Account for baseline difference. Because Drug A started higher (158 vs. 154), we'd expect a larger absolute reduction even if the drug were ineffective. ANCOVA adjusts for this, yielding a more accurate treatment effect estimate. Suppose the adjusted difference is 9 mmHg—the true net benefit of Drug A after accounting for baseline imbalance.</span>
+<span id="cb7-208"><a href="#cb7-208" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-209"><a href="#cb7-209" aria-hidden="true" tabindex="-1"></a><span class="fu">### Least Squares Means (Estimated Marginal Means)</span></span>
+<span id="cb7-210"><a href="#cb7-210" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-211"><a href="#cb7-211" aria-hidden="true" tabindex="-1"></a>After fitting ANCOVA, we report **least squares means (LSM)** or **estimated marginal means (EMM)**—the predicted mean outcome for each group, evaluated at the average covariate value.</span>
+<span id="cb7-212"><a href="#cb7-212" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-213"><a href="#cb7-213" aria-hidden="true" tabindex="-1"></a>For example:</span>
+<span id="cb7-214"><a href="#cb7-214" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-215"><a href="#cb7-215" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Treatment <span class="pp">|</span> LSM <span class="pp">|</span> 95% CI <span class="pp">|</span></span>
+<span id="cb7-216"><a href="#cb7-216" aria-hidden="true" tabindex="-1"></a><span class="pp">|-----------|-----|--------|</span></span>
+<span id="cb7-217"><a href="#cb7-217" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Drug A <span class="pp">|</span> 138.2 <span class="pp">|</span> <span class="co">[</span><span class="ot">135.0, 141.4</span><span class="co">]</span> <span class="pp">|</span></span>
+<span id="cb7-218"><a href="#cb7-218" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Placebo <span class="pp">|</span> 147.1 <span class="pp">|</span> <span class="co">[</span><span class="ot">143.9, 150.3</span><span class="co">]</span> <span class="pp">|</span></span>
+<span id="cb7-219"><a href="#cb7-219" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-220"><a href="#cb7-220" aria-hidden="true" tabindex="-1"></a>**Interpretation:** After adjusting for baseline SBP, the predicted end-of-study SBP is 138.2 mmHg in the Drug A group and 147.1 mmHg in placebo, corresponding to a 8.9 mmHg adjusted difference.</span>
+<span id="cb7-221"><a href="#cb7-221" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-222"><a href="#cb7-222" aria-hidden="true" tabindex="-1"></a><span class="fu">## Part V: Practical Implementation in R</span></span>
+<span id="cb7-223"><a href="#cb7-223" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-224"><a href="#cb7-224" aria-hidden="true" tabindex="-1"></a><span class="fu">### One-Way ANOVA with PlantGrowth</span></span>
+<span id="cb7-225"><a href="#cb7-225" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-226"><a href="#cb7-226" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
+<span id="cb7-227"><a href="#cb7-227" aria-hidden="true" tabindex="-1"></a><span class="co"># Load data</span></span>
+<span id="cb7-228"><a href="#cb7-228" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(PlantGrowth)</span>
+<span id="cb7-229"><a href="#cb7-229" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-230"><a href="#cb7-230" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit one-way ANOVA</span></span>
+<span id="cb7-231"><a href="#cb7-231" aria-hidden="true" tabindex="-1"></a>fit_anova <span class="ot">&lt;-</span> <span class="fu">aov</span>(weight <span class="sc">~</span> group, <span class="at">data =</span> PlantGrowth)</span>
+<span id="cb7-232"><a href="#cb7-232" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_anova)</span>
+<span id="cb7-233"><a href="#cb7-233" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-234"><a href="#cb7-234" aria-hidden="true" tabindex="-1"></a><span class="co"># Output interpretation:</span></span>
+<span id="cb7-235"><a href="#cb7-235" aria-hidden="true" tabindex="-1"></a><span class="co">#             Df Sum Sq Mean Sq F value Pr(&gt;F)</span></span>
+<span id="cb7-236"><a href="#cb7-236" aria-hidden="true" tabindex="-1"></a><span class="co"># group        2   3.77  1.883   11.72  0.0003 ***</span></span>
+<span id="cb7-237"><a href="#cb7-237" aria-hidden="true" tabindex="-1"></a><span class="co"># Residuals   27   4.36  0.162</span></span>
+<span id="cb7-238"><a href="#cb7-238" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-239"><a href="#cb7-239" aria-hidden="true" tabindex="-1"></a><span class="co"># Check assumptions</span></span>
+<span id="cb7-240"><a href="#cb7-240" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Normality: Q-Q plot</span></span>
+<span id="cb7-241"><a href="#cb7-241" aria-hidden="true" tabindex="-1"></a><span class="fu">qqnorm</span>(<span class="fu">residuals</span>(fit_anova))</span>
+<span id="cb7-242"><a href="#cb7-242" aria-hidden="true" tabindex="-1"></a><span class="fu">qqline</span>(<span class="fu">residuals</span>(fit_anova))</span>
+<span id="cb7-243"><a href="#cb7-243" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-244"><a href="#cb7-244" aria-hidden="true" tabindex="-1"></a><span class="co"># Shapiro-Wilk test</span></span>
+<span id="cb7-245"><a href="#cb7-245" aria-hidden="true" tabindex="-1"></a><span class="fu">shapiro.test</span>(<span class="fu">residuals</span>(fit_anova))</span>
+<span id="cb7-246"><a href="#cb7-246" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-247"><a href="#cb7-247" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Homogeneity of variance: Levene's test</span></span>
+<span id="cb7-248"><a href="#cb7-248" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(car)</span>
+<span id="cb7-249"><a href="#cb7-249" aria-hidden="true" tabindex="-1"></a><span class="fu">leveneTest</span>(weight <span class="sc">~</span> group, <span class="at">data =</span> PlantGrowth)</span>
+<span id="cb7-250"><a href="#cb7-250" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-251"><a href="#cb7-251" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Independence: residual plot</span></span>
+<span id="cb7-252"><a href="#cb7-252" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit_anova<span class="sc">$</span>fitted.values, fit_anova<span class="sc">$</span>residuals)</span>
+<span id="cb7-253"><a href="#cb7-253" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">h =</span> <span class="dv">0</span>)</span>
+<span id="cb7-254"><a href="#cb7-254" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-255"><a href="#cb7-255" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-256"><a href="#cb7-256" aria-hidden="true" tabindex="-1"></a><span class="fu">### Post-Hoc Tests: Tukey HSD</span></span>
+<span id="cb7-257"><a href="#cb7-257" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-258"><a href="#cb7-258" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
+<span id="cb7-259"><a href="#cb7-259" aria-hidden="true" tabindex="-1"></a><span class="co"># Tukey HSD test</span></span>
+<span id="cb7-260"><a href="#cb7-260" aria-hidden="true" tabindex="-1"></a>tukey_result <span class="ot">&lt;-</span> <span class="fu">TukeyHSD</span>(fit_anova)</span>
+<span id="cb7-261"><a href="#cb7-261" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(tukey_result)</span>
+<span id="cb7-262"><a href="#cb7-262" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-263"><a href="#cb7-263" aria-hidden="true" tabindex="-1"></a><span class="co"># Output:</span></span>
+<span id="cb7-264"><a href="#cb7-264" aria-hidden="true" tabindex="-1"></a><span class="co">#   Tukey multiple comparisons of means</span></span>
+<span id="cb7-265"><a href="#cb7-265" aria-hidden="true" tabindex="-1"></a><span class="co">#     95% family-wise confidence level</span></span>
+<span id="cb7-266"><a href="#cb7-266" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb7-267"><a href="#cb7-267" aria-hidden="true" tabindex="-1"></a><span class="co"># $group</span></span>
+<span id="cb7-268"><a href="#cb7-268" aria-hidden="true" tabindex="-1"></a><span class="co">#           diff        lwr       upr     p adj</span></span>
+<span id="cb7-269"><a href="#cb7-269" aria-hidden="true" tabindex="-1"></a><span class="co"># trt1-ctrl -0.22 -0.7607 0.3207 0.6479</span></span>
+<span id="cb7-270"><a href="#cb7-270" aria-hidden="true" tabindex="-1"></a><span class="co"># trt2-ctrl  0.50 -0.0407 1.0407 0.0829</span></span>
+<span id="cb7-271"><a href="#cb7-271" aria-hidden="true" tabindex="-1"></a><span class="co"># trt2-trt1  0.72  0.1793 1.2607 0.0086 *</span></span>
+<span id="cb7-272"><a href="#cb7-272" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-273"><a href="#cb7-273" aria-hidden="true" tabindex="-1"></a><span class="co"># Visualize</span></span>
+<span id="cb7-274"><a href="#cb7-274" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(tukey_result)</span>
+<span id="cb7-275"><a href="#cb7-275" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-276"><a href="#cb7-276" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-277"><a href="#cb7-277" aria-hidden="true" tabindex="-1"></a><span class="fu">### Two-Way ANOVA</span></span>
+<span id="cb7-278"><a href="#cb7-278" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-279"><a href="#cb7-279" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
+<span id="cb7-280"><a href="#cb7-280" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb7-281"><a href="#cb7-281" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-282"><a href="#cb7-282" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a simulated dataset with two factors</span></span>
+<span id="cb7-283"><a href="#cb7-283" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb7-284"><a href="#cb7-284" aria-hidden="true" tabindex="-1"></a>drug_data <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(</span>
+<span id="cb7-285"><a href="#cb7-285" aria-hidden="true" tabindex="-1"></a>  <span class="at">Drug =</span> <span class="fu">c</span>(<span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"C"</span>),</span>
+<span id="cb7-286"><a href="#cb7-286" aria-hidden="true" tabindex="-1"></a>  <span class="at">AgeGroup =</span> <span class="fu">c</span>(<span class="st">"Young"</span>, <span class="st">"Old"</span>),</span>
+<span id="cb7-287"><a href="#cb7-287" aria-hidden="true" tabindex="-1"></a>  <span class="at">Rep =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">10</span></span>
+<span id="cb7-288"><a href="#cb7-288" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb7-289"><a href="#cb7-289" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb7-290"><a href="#cb7-290" aria-hidden="true" tabindex="-1"></a>    <span class="at">BP_Reduction =</span> <span class="fu">case_when</span>(</span>
+<span id="cb7-291"><a href="#cb7-291" aria-hidden="true" tabindex="-1"></a>      Drug <span class="sc">==</span> <span class="st">"A"</span> <span class="sc">&amp;</span> AgeGroup <span class="sc">==</span> <span class="st">"Young"</span> <span class="sc">~</span> <span class="fu">rnorm</span>(<span class="fu">n</span>(), <span class="dv">18</span>, <span class="dv">3</span>),</span>
+<span id="cb7-292"><a href="#cb7-292" aria-hidden="true" tabindex="-1"></a>      Drug <span class="sc">==</span> <span class="st">"A"</span> <span class="sc">&amp;</span> AgeGroup <span class="sc">==</span> <span class="st">"Old"</span> <span class="sc">~</span> <span class="fu">rnorm</span>(<span class="fu">n</span>(), <span class="dv">8</span>, <span class="dv">3</span>),</span>
+<span id="cb7-293"><a href="#cb7-293" aria-hidden="true" tabindex="-1"></a>      Drug <span class="sc">==</span> <span class="st">"B"</span> <span class="sc">&amp;</span> AgeGroup <span class="sc">==</span> <span class="st">"Young"</span> <span class="sc">~</span> <span class="fu">rnorm</span>(<span class="fu">n</span>(), <span class="dv">10</span>, <span class="dv">3</span>),</span>
+<span id="cb7-294"><a href="#cb7-294" aria-hidden="true" tabindex="-1"></a>      Drug <span class="sc">==</span> <span class="st">"B"</span> <span class="sc">&amp;</span> AgeGroup <span class="sc">==</span> <span class="st">"Old"</span> <span class="sc">~</span> <span class="fu">rnorm</span>(<span class="fu">n</span>(), <span class="dv">16</span>, <span class="dv">3</span>),</span>
+<span id="cb7-295"><a href="#cb7-295" aria-hidden="true" tabindex="-1"></a>      Drug <span class="sc">==</span> <span class="st">"C"</span> <span class="sc">&amp;</span> AgeGroup <span class="sc">==</span> <span class="st">"Young"</span> <span class="sc">~</span> <span class="fu">rnorm</span>(<span class="fu">n</span>(), <span class="dv">12</span>, <span class="dv">3</span>),</span>
+<span id="cb7-296"><a href="#cb7-296" aria-hidden="true" tabindex="-1"></a>      Drug <span class="sc">==</span> <span class="st">"C"</span> <span class="sc">&amp;</span> AgeGroup <span class="sc">==</span> <span class="st">"Old"</span> <span class="sc">~</span> <span class="fu">rnorm</span>(<span class="fu">n</span>(), <span class="dv">12</span>, <span class="dv">3</span>)</span>
+<span id="cb7-297"><a href="#cb7-297" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb7-298"><a href="#cb7-298" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb7-299"><a href="#cb7-299" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-300"><a href="#cb7-300" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit two-way ANOVA with interaction</span></span>
+<span id="cb7-301"><a href="#cb7-301" aria-hidden="true" tabindex="-1"></a>fit_2way <span class="ot">&lt;-</span> <span class="fu">aov</span>(BP_Reduction <span class="sc">~</span> Drug <span class="sc">+</span> AgeGroup <span class="sc">+</span> Drug<span class="sc">:</span>AgeGroup,</span>
+<span id="cb7-302"><a href="#cb7-302" aria-hidden="true" tabindex="-1"></a>                <span class="at">data =</span> drug_data)</span>
+<span id="cb7-303"><a href="#cb7-303" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_2way)</span>
+<span id="cb7-304"><a href="#cb7-304" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-305"><a href="#cb7-305" aria-hidden="true" tabindex="-1"></a><span class="co"># Output interpretation:</span></span>
+<span id="cb7-306"><a href="#cb7-306" aria-hidden="true" tabindex="-1"></a><span class="co">#                  Df Sum Sq Mean Sq F value Pr(&gt;F)</span></span>
+<span id="cb7-307"><a href="#cb7-307" aria-hidden="true" tabindex="-1"></a><span class="co"># Drug              2  296.5  148.24  17.77 &lt;0.001 ***</span></span>
+<span id="cb7-308"><a href="#cb7-308" aria-hidden="true" tabindex="-1"></a><span class="co"># AgeGroup          1  179.8  179.78  21.58 &lt;0.001 ***</span></span>
+<span id="cb7-309"><a href="#cb7-309" aria-hidden="true" tabindex="-1"></a><span class="co"># Drug:AgeGroup     2  221.8  110.89  13.30 &lt;0.001 ***</span></span>
+<span id="cb7-310"><a href="#cb7-310" aria-hidden="true" tabindex="-1"></a><span class="co"># Residuals        54  450.1    8.33</span></span>
+<span id="cb7-311"><a href="#cb7-311" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-312"><a href="#cb7-312" aria-hidden="true" tabindex="-1"></a><span class="co"># Interpretation: Main effects of Drug and AgeGroup, plus a significant</span></span>
+<span id="cb7-313"><a href="#cb7-313" aria-hidden="true" tabindex="-1"></a><span class="co"># interaction (drug effect depends on age).</span></span>
+<span id="cb7-314"><a href="#cb7-314" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-315"><a href="#cb7-315" aria-hidden="true" tabindex="-1"></a><span class="co"># Visualize interaction</span></span>
+<span id="cb7-316"><a href="#cb7-316" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb7-317"><a href="#cb7-317" aria-hidden="true" tabindex="-1"></a>drug_data <span class="sc">%&gt;%</span></span>
+<span id="cb7-318"><a href="#cb7-318" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Drug, AgeGroup) <span class="sc">%&gt;%</span></span>
+<span id="cb7-319"><a href="#cb7-319" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">Mean_Reduction =</span> <span class="fu">mean</span>(BP_Reduction), <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb7-320"><a href="#cb7-320" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> AgeGroup, <span class="at">y =</span> Mean_Reduction, <span class="at">color =</span> Drug, <span class="at">group =</span> Drug)) <span class="sc">+</span></span>
+<span id="cb7-321"><a href="#cb7-321" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb7-322"><a href="#cb7-322" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
+<span id="cb7-323"><a href="#cb7-323" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"BP Reduction by Drug and Age Group"</span>,</span>
+<span id="cb7-324"><a href="#cb7-324" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Mean BP Reduction (mmHg)"</span>) <span class="sc">+</span></span>
+<span id="cb7-325"><a href="#cb7-325" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb7-326"><a href="#cb7-326" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-327"><a href="#cb7-327" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-328"><a href="#cb7-328" aria-hidden="true" tabindex="-1"></a><span class="fu">### ANCOVA Example: Adjustment for Baseline</span></span>
+<span id="cb7-329"><a href="#cb7-329" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-330"><a href="#cb7-330" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
+<span id="cb7-331"><a href="#cb7-331" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pharmaversesdtm)</span>
+<span id="cb7-332"><a href="#cb7-332" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb7-333"><a href="#cb7-333" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(emmeans)</span>
+<span id="cb7-334"><a href="#cb7-334" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-335"><a href="#cb7-335" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(dm)</span>
+<span id="cb7-336"><a href="#cb7-336" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(vs)</span>
+<span id="cb7-337"><a href="#cb7-337" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-338"><a href="#cb7-338" aria-hidden="true" tabindex="-1"></a><span class="co"># Prepare data: Week 4 SBP as outcome, baseline SBP as covariate</span></span>
+<span id="cb7-339"><a href="#cb7-339" aria-hidden="true" tabindex="-1"></a>sbp_analysis <span class="ot">&lt;-</span> vs <span class="sc">%&gt;%</span></span>
+<span id="cb7-340"><a href="#cb7-340" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(VSTESTCD <span class="sc">==</span> <span class="st">"SYSBP"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb7-341"><a href="#cb7-341" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, VISIT, VSSTRESN) <span class="sc">%&gt;%</span></span>
+<span id="cb7-342"><a href="#cb7-342" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(</span>
+<span id="cb7-343"><a href="#cb7-343" aria-hidden="true" tabindex="-1"></a>    <span class="at">id_cols =</span> USUBJID,</span>
+<span id="cb7-344"><a href="#cb7-344" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_from =</span> VISIT,</span>
+<span id="cb7-345"><a href="#cb7-345" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_from =</span> VSSTRESN,</span>
+<span id="cb7-346"><a href="#cb7-346" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_prefix =</span> <span class="st">"SBP_"</span></span>
+<span id="cb7-347"><a href="#cb7-347" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb7-348"><a href="#cb7-348" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(</span>
+<span id="cb7-349"><a href="#cb7-349" aria-hidden="true" tabindex="-1"></a>    dm <span class="sc">%&gt;%</span> <span class="fu">select</span>(USUBJID, ARM),</span>
+<span id="cb7-350"><a href="#cb7-350" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">"USUBJID"</span></span>
+<span id="cb7-351"><a href="#cb7-351" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb7-352"><a href="#cb7-352" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(</span>
+<span id="cb7-353"><a href="#cb7-353" aria-hidden="true" tabindex="-1"></a>    <span class="at">Baseline =</span> SBP_BASELINE,</span>
+<span id="cb7-354"><a href="#cb7-354" aria-hidden="true" tabindex="-1"></a>    <span class="at">Week4 =</span> SBP_WEEK4</span>
+<span id="cb7-355"><a href="#cb7-355" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb7-356"><a href="#cb7-356" aria-hidden="true" tabindex="-1"></a>  <span class="fu">na.omit</span>()</span>
+<span id="cb7-357"><a href="#cb7-357" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-358"><a href="#cb7-358" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(sbp_analysis)</span>
+<span id="cb7-359"><a href="#cb7-359" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-360"><a href="#cb7-360" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Check homogeneity of regression slopes (interaction test)</span></span>
+<span id="cb7-361"><a href="#cb7-361" aria-hidden="true" tabindex="-1"></a>fit_interaction <span class="ot">&lt;-</span> <span class="fu">lm</span>(Week4 <span class="sc">~</span> ARM <span class="sc">+</span> Baseline <span class="sc">+</span> ARM<span class="sc">:</span>Baseline,</span>
+<span id="cb7-362"><a href="#cb7-362" aria-hidden="true" tabindex="-1"></a>                      <span class="at">data =</span> sbp_analysis)</span>
+<span id="cb7-363"><a href="#cb7-363" aria-hidden="true" tabindex="-1"></a><span class="fu">anova</span>(fit_interaction)</span>
+<span id="cb7-364"><a href="#cb7-364" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-365"><a href="#cb7-365" aria-hidden="true" tabindex="-1"></a><span class="co"># If interaction p &gt; 0.05, ANCOVA is appropriate</span></span>
+<span id="cb7-366"><a href="#cb7-366" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-367"><a href="#cb7-367" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Fit ANCOVA: adjust Week 4 SBP for baseline and treatment</span></span>
+<span id="cb7-368"><a href="#cb7-368" aria-hidden="true" tabindex="-1"></a>fit_ancova <span class="ot">&lt;-</span> <span class="fu">lm</span>(Week4 <span class="sc">~</span> ARM <span class="sc">+</span> Baseline, <span class="at">data =</span> sbp_analysis)</span>
+<span id="cb7-369"><a href="#cb7-369" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_ancova)</span>
+<span id="cb7-370"><a href="#cb7-370" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-371"><a href="#cb7-371" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Extract least squares means using emmeans</span></span>
+<span id="cb7-372"><a href="#cb7-372" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(emmeans)</span>
+<span id="cb7-373"><a href="#cb7-373" aria-hidden="true" tabindex="-1"></a>lsm <span class="ot">&lt;-</span> <span class="fu">emmeans</span>(fit_ancova, <span class="sc">~</span> ARM)</span>
+<span id="cb7-374"><a href="#cb7-374" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(lsm)</span>
+<span id="cb7-375"><a href="#cb7-375" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-376"><a href="#cb7-376" aria-hidden="true" tabindex="-1"></a><span class="co"># Pairwise comparisons</span></span>
+<span id="cb7-377"><a href="#cb7-377" aria-hidden="true" tabindex="-1"></a><span class="fu">pairs</span>(lsm)</span>
+<span id="cb7-378"><a href="#cb7-378" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-379"><a href="#cb7-379" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Plot adjusted means</span></span>
+<span id="cb7-380"><a href="#cb7-380" aria-hidden="true" tabindex="-1"></a>sbp_analysis <span class="sc">%&gt;%</span></span>
+<span id="cb7-381"><a href="#cb7-381" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(ARM) <span class="sc">%&gt;%</span></span>
+<span id="cb7-382"><a href="#cb7-382" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb7-383"><a href="#cb7-383" aria-hidden="true" tabindex="-1"></a>    <span class="at">N =</span> <span class="fu">n</span>(),</span>
+<span id="cb7-384"><a href="#cb7-384" aria-hidden="true" tabindex="-1"></a>    <span class="at">Mean_Baseline =</span> <span class="fu">mean</span>(Baseline),</span>
+<span id="cb7-385"><a href="#cb7-385" aria-hidden="true" tabindex="-1"></a>    <span class="at">Mean_Week4 =</span> <span class="fu">mean</span>(Week4),</span>
+<span id="cb7-386"><a href="#cb7-386" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb7-387"><a href="#cb7-387" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb7-388"><a href="#cb7-388" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> ARM, <span class="at">y =</span> Mean_Week4, <span class="at">fill =</span> ARM)) <span class="sc">+</span></span>
+<span id="cb7-389"><a href="#cb7-389" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">stat =</span> <span class="st">"identity"</span>, <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb7-390"><a href="#cb7-390" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_errorbar</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> Mean_Week4 <span class="sc">-</span> <span class="dv">5</span>, <span class="at">ymax =</span> Mean_Week4 <span class="sc">+</span> <span class="dv">5</span>),</span>
+<span id="cb7-391"><a href="#cb7-391" aria-hidden="true" tabindex="-1"></a>                <span class="at">width =</span> <span class="fl">0.2</span>) <span class="sc">+</span></span>
+<span id="cb7-392"><a href="#cb7-392" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Week 4 SBP by Treatment Arm (Adjusted)"</span>,</span>
+<span id="cb7-393"><a href="#cb7-393" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Mean SBP (mmHg)"</span>) <span class="sc">+</span></span>
+<span id="cb7-394"><a href="#cb7-394" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb7-395"><a href="#cb7-395" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-396"><a href="#cb7-396" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare unadjusted and adjusted models</span></span>
+<span id="cb7-397"><a href="#cb7-397" aria-hidden="true" tabindex="-1"></a>fit_unadjusted <span class="ot">&lt;-</span> <span class="fu">lm</span>(Week4 <span class="sc">~</span> ARM, <span class="at">data =</span> sbp_analysis)</span>
+<span id="cb7-398"><a href="#cb7-398" aria-hidden="true" tabindex="-1"></a><span class="fu">anova</span>(fit_unadjusted, fit_ancova)</span>
+<span id="cb7-399"><a href="#cb7-399" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-400"><a href="#cb7-400" aria-hidden="true" tabindex="-1"></a><span class="co"># If p &lt; 0.05, the covariate contributes significantly</span></span>
+<span id="cb7-401"><a href="#cb7-401" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-402"><a href="#cb7-402" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-403"><a href="#cb7-403" aria-hidden="true" tabindex="-1"></a><span class="fu">### Checking ANCOVA Assumptions: Homogeneity of Slopes</span></span>
+<span id="cb7-404"><a href="#cb7-404" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-405"><a href="#cb7-405" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
+<span id="cb7-406"><a href="#cb7-406" aria-hidden="true" tabindex="-1"></a><span class="co"># Test interaction between treatment and covariate</span></span>
+<span id="cb7-407"><a href="#cb7-407" aria-hidden="true" tabindex="-1"></a>fit_int <span class="ot">&lt;-</span> <span class="fu">lm</span>(Week4 <span class="sc">~</span> ARM <span class="sc">*</span> Baseline, <span class="at">data =</span> sbp_analysis)</span>
+<span id="cb7-408"><a href="#cb7-408" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_int)</span>
+<span id="cb7-409"><a href="#cb7-409" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-410"><a href="#cb7-410" aria-hidden="true" tabindex="-1"></a><span class="co"># Look at the p-value for ARM:Baseline interaction</span></span>
+<span id="cb7-411"><a href="#cb7-411" aria-hidden="true" tabindex="-1"></a><span class="co"># p &gt; 0.05 suggests equal slopes (homogeneous regression assumption met)</span></span>
+<span id="cb7-412"><a href="#cb7-412" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-413"><a href="#cb7-413" aria-hidden="true" tabindex="-1"></a><span class="co"># Visualize slopes by group</span></span>
+<span id="cb7-414"><a href="#cb7-414" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(sbp_analysis, <span class="fu">aes</span>(<span class="at">x =</span> Baseline, <span class="at">y =</span> Week4, <span class="at">color =</span> ARM)) <span class="sc">+</span></span>
+<span id="cb7-415"><a href="#cb7-415" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb7-416"><a href="#cb7-416" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb7-417"><a href="#cb7-417" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Homogeneity of Regression Slopes"</span>,</span>
+<span id="cb7-418"><a href="#cb7-418" aria-hidden="true" tabindex="-1"></a>       <span class="at">x =</span> <span class="st">"Baseline SBP (mmHg)"</span>,</span>
+<span id="cb7-419"><a href="#cb7-419" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Week 4 SBP (mmHg)"</span>) <span class="sc">+</span></span>
+<span id="cb7-420"><a href="#cb7-420" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb7-421"><a href="#cb7-421" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-422"><a href="#cb7-422" aria-hidden="true" tabindex="-1"></a><span class="co"># Parallel lines indicate homogeneity; diverging lines suggest violation</span></span>
+<span id="cb7-423"><a href="#cb7-423" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-424"><a href="#cb7-424" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-425"><a href="#cb7-425" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary: When to Use Each Method</span></span>
+<span id="cb7-426"><a href="#cb7-426" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-427"><a href="#cb7-427" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Scenario <span class="pp">|</span> Method <span class="pp">|</span></span>
+<span id="cb7-428"><a href="#cb7-428" aria-hidden="true" tabindex="-1"></a><span class="pp">|----------|--------|</span></span>
+<span id="cb7-429"><a href="#cb7-429" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Compare 3+ groups, no baseline covariate <span class="pp">|</span> **One-way ANOVA** <span class="pp">|</span></span>
+<span id="cb7-430"><a href="#cb7-430" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> ANOVA significant, identify differing pairs <span class="pp">|</span> **Tukey HSD post-hoc** <span class="pp">|</span></span>
+<span id="cb7-431"><a href="#cb7-431" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Two grouping factors <span class="pp">|</span> **Two-way ANOVA** <span class="pp">|</span></span>
+<span id="cb7-432"><a href="#cb7-432" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Compare groups, adjust for baseline or covariate <span class="pp">|</span> **ANCOVA** <span class="pp">|</span></span>
+<span id="cb7-433"><a href="#cb7-433" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Non-normal data, 3+ groups <span class="pp">|</span> **Kruskal-Wallis** <span class="pp">|</span></span>
+<span id="cb7-434"><a href="#cb7-434" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-435"><a href="#cb7-435" aria-hidden="true" tabindex="-1"></a><span class="fu">## Exercises</span></span>
+<span id="cb7-436"><a href="#cb7-436" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-437"><a href="#cb7-437" aria-hidden="true" tabindex="-1"></a><span class="fu">### Beginner Exercises</span></span>
+<span id="cb7-438"><a href="#cb7-438" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-439"><a href="#cb7-439" aria-hidden="true" tabindex="-1"></a>**Exercise 10.1: Interpret ANOVA Output**</span>
+<span id="cb7-440"><a href="#cb7-440" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-441"><a href="#cb7-441" aria-hidden="true" tabindex="-1"></a>A study compares systolic blood pressure across four treatment arms (n=25 per arm). The ANOVA table is:</span>
+<span id="cb7-442"><a href="#cb7-442" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-443"><a href="#cb7-443" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Source <span class="pp">|</span> SS <span class="pp">|</span> df <span class="pp">|</span> MS <span class="pp">|</span> F <span class="pp">|</span></span>
+<span id="cb7-444"><a href="#cb7-444" aria-hidden="true" tabindex="-1"></a><span class="pp">|--------|-------|-----|--------|--------|</span></span>
+<span id="cb7-445"><a href="#cb7-445" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Treatment <span class="pp">|</span> 1200 <span class="pp">|</span> 3 <span class="pp">|</span> 400 <span class="pp">|</span> 8.0 <span class="pp">|</span></span>
+<span id="cb7-446"><a href="#cb7-446" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Residual <span class="pp">|</span> 4800 <span class="pp">|</span> 96 <span class="pp">|</span> 50 <span class="pp">|</span> <span class="pp">|</span></span>
+<span id="cb7-447"><a href="#cb7-447" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-448"><a href="#cb7-448" aria-hidden="true" tabindex="-1"></a>(a) What are the critical steps to interpret this ANOVA?</span>
+<span id="cb7-449"><a href="#cb7-449" aria-hidden="true" tabindex="-1"></a>(b) At $\alpha = 0.05$, is the treatment effect significant?</span>
+<span id="cb7-450"><a href="#cb7-450" aria-hidden="true" tabindex="-1"></a>(c) What assumption violations would concern you?</span>
+<span id="cb7-451"><a href="#cb7-451" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-452"><a href="#cb7-452" aria-hidden="true" tabindex="-1"></a>**Exercise 10.2: One-Way ANOVA with PlantGrowth**</span>
+<span id="cb7-453"><a href="#cb7-453" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-454"><a href="#cb7-454" aria-hidden="true" tabindex="-1"></a>Using the <span class="in">`PlantGrowth`</span> dataset:</span>
+<span id="cb7-455"><a href="#cb7-455" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-456"><a href="#cb7-456" aria-hidden="true" tabindex="-1"></a>(a) Perform a one-way ANOVA comparing plant weight across groups.</span>
+<span id="cb7-457"><a href="#cb7-457" aria-hidden="true" tabindex="-1"></a>(b) Check normality and homogeneity of variance.</span>
+<span id="cb7-458"><a href="#cb7-458" aria-hidden="true" tabindex="-1"></a>(c) Perform Tukey HSD post-hoc tests.</span>
+<span id="cb7-459"><a href="#cb7-459" aria-hidden="true" tabindex="-1"></a>(d) Report which groups differ significantly.</span>
+<span id="cb7-460"><a href="#cb7-460" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-461"><a href="#cb7-461" aria-hidden="true" tabindex="-1"></a>**Exercise 10.3: Visualize Main Effects and Interaction**</span>
+<span id="cb7-462"><a href="#cb7-462" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-463"><a href="#cb7-463" aria-hidden="true" tabindex="-1"></a>Create a simulated two-factor dataset (two treatments × two time points) and visualize both additive (no interaction) and interactive scenarios. Explain the difference clinically.</span>
+<span id="cb7-464"><a href="#cb7-464" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-465"><a href="#cb7-465" aria-hidden="true" tabindex="-1"></a><span class="fu">### Advanced Exercises</span></span>
+<span id="cb7-466"><a href="#cb7-466" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-467"><a href="#cb7-467" aria-hidden="true" tabindex="-1"></a>**Exercise 10.4: ANCOVA Interpretation**</span>
+<span id="cb7-468"><a href="#cb7-468" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-469"><a href="#cb7-469" aria-hidden="true" tabindex="-1"></a>A trial compares depression severity (PHQ-9 score) between three psychotherapy modalities at Week 12, adjusting for baseline PHQ-9.</span>
+<span id="cb7-470"><a href="#cb7-470" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-471"><a href="#cb7-471" aria-hidden="true" tabindex="-1"></a>(a) Why is baseline adjustment important in clinical trials?</span>
+<span id="cb7-472"><a href="#cb7-472" aria-hidden="true" tabindex="-1"></a>(b) Explain how ANCOVA adjusts for baseline imbalances.</span>
+<span id="cb7-473"><a href="#cb7-473" aria-hidden="true" tabindex="-1"></a>(c) How would you test the homogeneity of regression slopes assumption?</span>
+<span id="cb7-474"><a href="#cb7-474" aria-hidden="true" tabindex="-1"></a>(d) Report least squares means and their 95% CIs.</span>
+<span id="cb7-475"><a href="#cb7-475" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-476"><a href="#cb7-476" aria-hidden="true" tabindex="-1"></a>**Exercise 10.5: Complex ANCOVA**</span>
+<span id="cb7-477"><a href="#cb7-477" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-478"><a href="#cb7-478" aria-hidden="true" tabindex="-1"></a>Using pharmaversesdtm data:</span>
+<span id="cb7-479"><a href="#cb7-479" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-480"><a href="#cb7-480" aria-hidden="true" tabindex="-1"></a>(a) Fit an ANCOVA model for Week 4 diastolic blood pressure (outcome), with treatment as the factor and baseline DBP as the covariate.</span>
+<span id="cb7-481"><a href="#cb7-481" aria-hidden="true" tabindex="-1"></a>(b) Test homogeneity of slopes.</span>
+<span id="cb7-482"><a href="#cb7-482" aria-hidden="true" tabindex="-1"></a>(c) Extract and plot least squares means.</span>
+<span id="cb7-483"><a href="#cb7-483" aria-hidden="true" tabindex="-1"></a>(d) Compare adjusted vs. unadjusted treatment effects.</span>
+<span id="cb7-484"><a href="#cb7-484" aria-hidden="true" tabindex="-1"></a>(e) Interpret your findings in clinical terms.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p><em>R for Clinical Data Analysis</em> by Divakaran, Sreedharan &amp; Singh</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/r4clinical/book/edit/main/chapters/10-anova-ancova.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/r4clinical/book/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+<p>Built with <a href="https://quarto.org/">Quarto</a>.</p>
+</div>
+  </div>
+</footer>
+
+
+
+
+</body></html>
